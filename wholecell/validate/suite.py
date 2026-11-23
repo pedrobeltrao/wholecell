@@ -371,7 +371,10 @@ def c3(ctx):
         d = T["df"] if sp == "all" else T["df"][T["df"].split == sp]
         r = image_nc_metrics(d.measured_log2.values, d.model_log2.values)
         lg = (T.get("legacy") or {}).get(sp, {})
-        main = sp == T["test"]
+        # a table whose model images come from another build (config image_nc.model_of_build) is reported, never scored
+        # as this build's value (review B17: the Jurkat rows were the v7 pack's)
+        other = T.get("of_build")
+        main = sp == T["test"] and not other
         for m, ref in (("spearman", T.get("ref_spearman")), ("auroc_nuclear", T.get("ref_auroc"))):
             nm = f"image_nc.{sp}.{m}"
             if r[m] is None:
@@ -384,7 +387,8 @@ def c3(ctx):
                             source=SRC_SUITE_COMMON + " + " + T["source"], file=T["file"], legacy=lg.get(m),
                             legacy_source=T.get("legacy_source", "") if lg.get(m) is not None else "",
                             legacy_note=T.get("legacy_note", {}).get(m, ""),
-                            note=f"n {r['n']} genes ({sp}); model-nuclear {r['model_nuclear']}, model-cytosolic {r['model_cytosolic']}; "
+                            note=(f"model images of build {other}, not of this build; " if other else "")
+                                 + f"n {r['n']} genes ({sp}); model-nuclear {r['model_nuclear']}, model-cytosolic {r['model_cytosolic']}; "
                                  f"{T.get('note', '')}"))
     return rows
 
@@ -408,7 +412,8 @@ def _image_nc_from_config(ctx):
     return dict(df=df, splits=c.get("splits", ["all"]), test=c.get("test", "all"), source=SRC_JURKAT_LEGACY + f" ({os.path.basename(p)})",
                 file=p, legacy=leg, legacy_source=c.get("legacy_json", ""),
                 legacy_note={"spearman": c.get("legacy_note", "")}, note=c.get("note", ""), why_auroc=c.get("why_auroc", ""),
-                ref_spearman=c.get("ref_spearman"), ref_source=c.get("ref_source", ""))
+                ref_spearman=c.get("ref_spearman"), ref_source=c.get("ref_source", ""),
+                of_build=c.get("model_of_build"))
 
 
 # ------------------------------------------------------------------ C6 copy numbers vs an independent dataset

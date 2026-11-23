@@ -968,6 +968,10 @@ validate:
       legacy_keys: {all: sets/all/expected/nc/spearman}
       legacy_note: "tier2_v7.json rounds to 3 decimals"
       note: "model: rendered model images (Tier-2 'expected' mode) of the v7 pack; image: HPA JURKAT ICC"
+      # v9 (review B17): the model images in this table are the v7 pack's (rendering needs the HPA images, which the
+      # pipeline does not hold), so the rows are reported, not scored as this build's (per-build values: the Tier-2
+      # script of the wholecell-paper repository on the build)
+      model_of_build: "v7 pack (2026-11-11)"
     copies_reference_na: >-
       no second Jurkat absolute proteome on disk: the inventory uses Geiger 2012 (PaxDb Jurkat sets derive from it);
       Rieckmann 2017 (primary immune cells) and Kim 2014 (adult CD4/CD8 T cells) are other cell types (not wired)
