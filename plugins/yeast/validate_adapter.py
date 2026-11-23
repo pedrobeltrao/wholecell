@@ -311,14 +311,18 @@ class YeastX5SuiteAdapter:
         p = os.path.join(self.W, rel)
         if not os.path.exists(p):
             return None
-        d = pd.read_csv(p, sep="\t", index_col=0)
         J = self.j("validation/image_nc.json") or {}
+        if str(J.get("status", "ok")).startswith("not_run"):      # port P7: absence of the raw archive is reported
+            return dict(missing=f"WARNING: {J.get('warning', J['status'])} (status {J['status']}, engine/work/validation/image_nc.json)")
+        d = pd.read_csv(p, sep="\t", index_col=0)
         leg = {sp: {"spearman": J[sp]["spearman"], "auroc_nuclear": J[sp]["auroc_nuclear_vs_cytosolic"]} for sp in ("dev", "test") if sp in J}
         return dict(df=d.reset_index().rename(columns={"orf": "gene"}), splits=["test", "dev"], test="test",
                     source="adapter (yeast image table: YeastRGB C-SWAT, image_nc.py)", file=f"engine/work/{rel}", legacy=leg,
                     legacy_source="engine/work/validation/image_nc.json", ref_spearman=0.81, ref_auroc=0.98,
                     ref_source="plan s4 (X5)", note="model: placed copies (nucleoplasm + nucleolus vs cytosol concentration); "
-                    "image: YeastRGB C-SWAT mNeonGreen, Nup49-mCherry nuclear mask")
+                    "image: YeastRGB C-SWAT mNeonGreen, Nup49-mCherry nuclear mask"
+                    + (f"; status {J['status']} (raw archive absent: measured ratios from the work-seed cache)"
+                       if J.get("status", "ok") != "ok" else ""))
 
     # --- C6 reference copy numbers (Das 2026 independent; Ho 2018 not independent), from the C1 input dump
     def copies_reference(self):

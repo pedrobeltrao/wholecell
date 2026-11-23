@@ -152,16 +152,30 @@ def main():
     from sklearn.metrics import roc_auc_score
     from splits import protein_split
     cache = f"{WORK}/validation/image_nc_raw.tsv"
+    # wholecell port P7: the raw archive is an optional download; its absence is reported (status in image_nc.json and
+    # a WARNING line), never skipped silently. With the per-ORF cache of the work seed the test runs without it.
+    zip_ok = os.path.exists(ZIP)
     if os.path.exists(cache):
         m = pd.read_csv(cache, sep="\t", index_col=0)
-    else:
+        status = "ok" if zip_ok else "ok_from_cache_raw_archive_absent"
+    elif zip_ok:
         m = measure_all(); m.to_csv(cache, sep="\t")
+        status = "ok"
+    else:
+        res = dict(status="not_run_raw_archive_absent", raw_archive=ZIP, cache=cache,
+                   warning="image N/C test NOT RUN: neither the raw YeastRGB archive nor the per-ORF cache exists "
+                           "(optional download, see docs/REBUILD.md)")
+        print("WARNING: " + res["warning"], file=sys.stderr, flush=True)
+        json.dump(res, open(f"{WORK}/validation/image_nc.json", "w"), indent=1)
+        return res
+    if status != "ok":
+        print(f"WARNING: image N/C raw archive absent ({ZIP}); measured ratios from the cache {cache}", file=sys.stderr, flush=True)
     meas, info = ratios(m)
     mod = model_ratio()
     orfs = meas.index.intersection(mod.index)
     d = pd.DataFrame(dict(measured_log2=meas[orfs], model_log2=mod[orfs]))
     d["split"] = [protein_split(o) for o in d.index]
-    res = dict(info, compared=int(len(d)), clip_log2=CLIP)
+    res = dict(info, compared=int(len(d)), clip_log2=CLIP, status=status, raw_archive_present=bool(zip_ok))   # P7
     for sp in ("dev", "test"):
         x = d[d.split == sp]
         nucl, cyto = x.model_log2 > 1, x.model_log2 < -1

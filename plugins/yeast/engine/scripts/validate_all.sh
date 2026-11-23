@@ -42,7 +42,7 @@ $PY mrna_localization.py > /dev/null
 $PY trna_nucleolus.py | grep -E 'within_overlap'
 $PY dnase_test.py 2>/dev/null | grep -E 'core_over_linker|protected'
 $PY silent_chromatin_test.py > /dev/null 2>&1
-[ -f ../pipeline/data/validation/microscopy/yeastrgb_dubreuil2019/raw/RAW-C_SWAT_GFP-ORF.zip ] && $PY image_nc.py 2>/dev/null | grep -E '"spearman"|auroc'
+$PY image_nc.py 2>&1 | grep -E '"spearman"|auroc|"status"|WARNING' || echo "WARNING: image_nc failed"   # wholecell port P7: runs without the raw archive (cache), reports its absence
 $PY er_ribosome_density.py | grep -E '"per_um2"'
 $PY literature_checks.py
 $PY copy_numbers.py > /dev/null
