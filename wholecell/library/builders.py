@@ -324,3 +324,126 @@ def build_pdb_rna(lib, ing_id, pdb, pdb_dir, per=15):
     st = gemmi.read_structure(assembly_path(pdb_dir, pdb)); st.remove_ligands_and_waters()
     xyz, knd, _ = beads_from_structure(st); xyz = xyz - xyz.mean(0)
     return save(lib, ing_id, xyz, knd, per=per)
+
+
+# ------------------------------------------------------------------ fallback structures (library step `fallback`)
+# Species without any model from the steps before (no AlphaFold DB entry: selenoproteins, proteins longer than the AFDB
+# limit, recent UniProt entries) get one by a declared rule instead of being dropped. Two tiers, both reproducible
+# offline: (1) the best-covered chain of an experimental structure of the same protein in the RCSB cache (SIFTS),
+# (2) a coarse placeholder sized from the sequence length, with the UniProt TRANSMEM segments as ideal helices
+# across the membrane. Every fallback entry carries `src` = "fallback:..." and `fallback` = its tier.
+RES_VOL_NM3 = 1.21 * 0.110       # nm3 per residue: 1.21 nm3/kDa (protein volume of adaptive_trees) x 110 Da per residue
+HELIX_RISE_NM = 0.15             # alpha helix: rise per residue
+HELIX_RADIUS_NM = 0.23           # CA radius of an alpha helix
+HELIX_TURN_DEG = 100.0           # rotation per residue
+HELIX_SPACING_NM = 1.0           # axis distance of packed TM helices
+SOLUBLE_Z_NM = 2.3               # soluble parts start outside |z| >= 2.3 nm (the slab of reorient_tm)
+
+
+def _ball(m, centre, seed):
+    """m points uniform in a ball of the protein volume of m residues (deterministic: Generator(seed))"""
+    rng = np.random.default_rng(seed)
+    R = (3.0 * m * RES_VOL_NM3 / (4.0 * np.pi)) ** (1.0 / 3.0)
+    out = np.zeros((0, 3))
+    while len(out) < m:
+        p = rng.uniform(-1.0, 1.0, size=(2 * m + 8, 3))
+        out = np.concatenate([out, p[(p ** 2).sum(1) <= 1.0]])
+    return out[:m] * R + np.asarray(centre, float), R
+
+
+def _hex_positions(k):
+    """k helix axis positions (x, y) on a hexagonal lattice, filled shell by shell around the origin, centred"""
+    pts = [(0.0, 0.0)]
+    ring = 1
+    while len(pts) < k:
+        for side in range(6):
+            a0, a1 = np.deg2rad(60 * side), np.deg2rad(60 * (side + 1))
+            p0 = ring * np.array([np.cos(a0), np.sin(a0)]); p1 = ring * np.array([np.cos(a1), np.sin(a1)])
+            for j in range(ring):
+                pts.append(tuple(p0 + (p1 - p0) * j / ring))
+        ring += 1
+    P = np.array(pts[:k]) * HELIX_SPACING_NM
+    return P - P.mean(0)
+
+
+def placeholder_beads(n_res, tm_ranges=None, topo=None):
+    """coarse placeholder of an n_res-residue protein (one bead per residue, nm): soluble = a ball of the protein volume;
+    with TRANSMEM segments = ideal helices across the slab (axes on a hexagonal lattice, 1 nm apart, midplane z = 0) and
+    the soluble stretches as balls outside |z| >= 2.3 nm on their side, cytoplasmic side +z (library convention). The
+    side of the first stretch comes from the UniProt TOPO_DOM annotation (N side: cytoplasm, matrix, nucleoplasm; P side:
+    lumen, extracellular, ...); without one the N-terminus is taken as cytoplasmic. Returns (beads, membrane flag)."""
+    n_res = int(n_res)
+    tms = sorted((int(a), int(b)) for a, b, _ in (tm_ranges or []) if 1 <= int(a) <= int(b) <= n_res)
+    if not tms:
+        xyz, _ = _ball(n_res, (0.0, 0.0, 0.0), seed=0)
+        return xyz - xyz.mean(0), False
+    side0 = +1.0                                          # side of residue 1: +z cytoplasmic (N side)
+    for a, b, note in sorted(topo or []):
+        if int(a) < tms[0][0]:
+            if P_SIDE.search(note):
+                side0 = -1.0
+            elif N_SIDE.search(note):
+                side0 = +1.0
+            break
+    axes = _hex_positions(len(tms))
+    xyz = np.zeros((n_res, 3))
+    side = side0
+    # stretches: [1, tm1), tm1, (tm1, tm2), tm2, ..., (tmk, n]
+    pos = 1
+    for k, (a, b) in enumerate(tms):
+        if a > pos:                                       # soluble stretch before this helix, on the current side
+            m = a - pos
+            c = (axes[k][0], axes[k][1], 0.0)
+            ball, R = _ball(m, (0.0, 0.0, 0.0), seed=k + 1)
+            xyz[pos - 1:a - 1] = ball + np.array([c[0], c[1], side * (SOLUBLE_Z_NM + R)])
+        L = b - a + 1
+        j = np.arange(L)
+        z = side * (HELIX_RISE_NM * ((L - 1) / 2.0 - j))  # from the current side to the other
+        ang = np.deg2rad(HELIX_TURN_DEG) * j
+        xyz[a - 1:b, 0] = axes[k][0] + HELIX_RADIUS_NM * np.cos(ang)
+        xyz[a - 1:b, 1] = axes[k][1] + HELIX_RADIUS_NM * np.sin(ang)
+        xyz[a - 1:b, 2] = z
+        side = -side
+        pos = b + 1
+    if pos <= n_res:                                      # C-terminal stretch
+        m = n_res - pos + 1
+        ball, R = _ball(m, (0.0, 0.0, 0.0), seed=len(tms) + 1)
+        xyz[pos - 1:] = ball + np.array([axes[-1][0], axes[-1][1], side * (SOLUBLE_Z_NM + R)])
+    xyz[:, :2] -= xyz[:, :2].mean(0)
+    return xyz, True
+
+
+def build_placeholder(lib, ing_id, n_res, tm_ranges=None, topo=None, per=30):
+    xyz, memb = placeholder_beads(n_res, tm_ranges, topo)
+    extra = {"src": "fallback:placeholder", "fallback": "placeholder_seq_length", "n_res": np.int32(n_res)}
+    if memb:
+        extra["membrane"] = "TM"
+    return save(lib, ing_id, xyz, np.zeros(len(xyz), np.int8), extra, per=per)
+
+
+def pdb_chain_candidates(sifts, acc, have_pdb, length, min_cov):
+    """[(pdb, chain, residues mapped)] of the cached entries whose chain maps >= min_cov x length UniProt residues of
+    acc (SIFTS ranges), best first (ties: PDB id, chain)"""
+    s = sifts[sifts.SP_PRIMARY == acc]
+    if not len(s):
+        return []
+    n = (s.SP_END.astype(int) - s.SP_BEG.astype(int) + 1).groupby([s.PDB, s.CHAIN]).sum()
+    out = [(p, c, int(k)) for (p, c), k in n.items() if p in have_pdb and k >= min_cov * length]
+    return sorted(out, key=lambda x: (-x[2], x[0], x[1]))
+
+
+def build_pdb_chain(lib, ing_id, pdb, chain, pdb_dir, min_beads, max_beads, per=30):
+    """CA beads of one chain of assembly 1 (an experimental structure of a protein without an AlphaFold model), centred;
+    None if fewer than min_beads residues are observed, or more than max_beads (the chain is mostly another protein,
+    e.g. a rearranged TCR chain that contains a J segment)"""
+    import gemmi
+    st = gemmi.read_structure(assembly_path(pdb_dir, pdb)); st.remove_hydrogens()
+    names = [ch.name for ch in st[0] if ch.name.split("-")[0] == chain]
+    if not names:
+        return None
+    xyz, kind, _ = beads_from_structure(st, chains=names[:1])
+    xyz = xyz[kind == 0]
+    if len(xyz) < min_beads or len(xyz) > max_beads:
+        return None
+    extra = {"src": f"fallback:pdb_chain:{pdb}:{chain}", "fallback": "pdb_chain", "pdb": pdb}
+    return save(lib, ing_id, xyz - xyz.mean(0), np.zeros(len(xyz), np.int8), extra, per=per)

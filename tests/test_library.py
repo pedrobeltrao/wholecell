@@ -15,6 +15,10 @@
   test_jurkat_config              jurkat.yaml: mode build, steps known, start files in the v7 manifest with its md5,
                                   species table rows; jurkat_v7_port.yaml keeps the frozen v7 library
   test_testcell_frozen_unchanged  the testcell frozen import gives the committed manifest's md5s
+  test_placeholder_geometry       fallback placeholder: TM helices across the slab, soluble parts outside, sides from the
+                                  topology; soluble ball of the protein volume; deterministic
+  test_fallback_and_ledger        step fallback (placeholders, an assembly split into subunits) and the species ledger;
+                                  a species without a structure above library.ledger.max_missing_mass_frac fails the stage
 """
 import gzip
 import hashlib
@@ -89,7 +93,7 @@ def _setup(tmp):
     cfg = {"_site": {"repo": REPO},
            "frozen_inputs": {"start_x": {"path": start, "manifest": man}},
            "library": {"mode": "build", "start": "start_x", "species": sp, "afdb_tar": tar, "pdb_dir": tmp,
-                       "topology": {"path": topo}, "nproc": 1,
+                       "topology": {"path": topo}, "nproc": 1, "ledger": {"max_missing_mass_frac": 0.5},
                        "steps": [{"step": "af_models", "plddt_min": 50, "per": 30}], "pack_shapes": {"per": 15}}}
     return cfg
 
@@ -110,6 +114,8 @@ def test_build_mode_synthetic():
         rows = [ln.rstrip("\n").split("\t") for ln in open(os.path.join(bdir, "library", "library_manifest.tsv"))]
         assert rows[0] == ["species", "path", "md5", "origin"]
         assert {r[0]: r[3] for r in rows[1:]} == {"PROT1": "af_models", "TEMPLATE": "start"}
+        led = {r[0]: r[4:6] for r in (ln.rstrip("\n").split("\t") for ln in open(os.path.join(bdir, "library", "species_ledger.tsv")))}
+        assert led["PROT1"] == ["built", "afdb_monomer"] and led["PROT2"] == ["missing", ""]
         pt = np.load(os.path.join(bdir, "library", "pack_shapes", "pack_trees_15.npz"))
         assert list(pt["ids"]) == ["PROT1", "TEMPLATE"] and pt["off"][-1] == len(pt["R"]) and pt["off"][1] == 4
         pm = np.load(os.path.join(bdir, "library", "pack_shapes", "pack_meta.npz"))
@@ -190,8 +196,11 @@ def test_jurkat_config():
     st = pd.read_csv(os.path.join(REPO, lc["start"]["files"]), sep="\t")
     man = dict(LB.read_any_manifest(cfg["frozen_inputs"]["lib_structures_v7"]["manifest"]))
     assert len(st) == 4 and all(man[f] == m for f, m in zip(st.file, st.md5))
-    sp = pd.read_csv(os.path.join(REPO, lc["species"]), sep="\t", keep_default_na=False)
-    assert len(sp) == 16279 and sp.ing_id.is_unique and not set(st.file.str[:-4]) & set(sp.ing_id)
+    assert lc["species"]["from"] == "pack_table"                  # rebuild v9: species = this build's pack table
+    sp = pd.read_csv(os.path.join(REPO, "plugins/jurkat/data/library/species_v7.tsv.gz"), sep="\t", keep_default_na=False)
+    assert len(sp) == 16279 and sp.ing_id.is_unique and not set(st.file.str[:-4]) & set(sp.ing_id)   # v7 table (history)
+    steps = [s["step"] for s in lc["steps"]]
+    assert steps.index("fallback") < steps.index("adaptive_trees")
     assert load("jurkat_v7_port")["library"]["mode"] == "frozen"
 
 
@@ -205,6 +214,68 @@ def test_testcell_frozen_unchanged():
         ref = LS.read_manifest(os.path.join(REPO, "tests", "data", "testcell", "library_manifest.tsv.gz"))
         assert [(g[0] + ".npz", g[2]) for g in got] == [(r["file"], r["md5"]) for r in ref]
 
+
+
+def test_placeholder_geometry():
+    """placeholder of a 2-pass TM protein: helices across the slab, soluble stretches outside |z| >= 2.3 nm, N-terminus on
+    the cytoplasmic side (+z) by the topology, ball of the protein volume for a soluble protein"""
+    tm = [(41, 61, "Helical"), (81, 101, "Helical")]
+    topo = [(1, 40, "Cytoplasmic"), (62, 80, "Extracellular"), (102, 150, "Cytoplasmic")]
+    xyz, memb = BL.placeholder_beads(150, tm, topo)
+    assert memb and xyz.shape == (150, 3)
+    seg = np.zeros(150, bool); seg[40:61] = seg[80:101] = True
+    assert np.abs(xyz[seg, 2]).max() < 1.6 and np.abs(xyz[~seg, 2]).min() >= 2.3 - 1e-9
+    assert xyz[:40, 2].min() > 0 and xyz[61:80, 2].max() < 0 and xyz[101:, 2].min() > 0
+    xyz2, _ = BL.placeholder_beads(150, tm, [(1, 40, "Lumenal"), (62, 80, "Cytoplasmic"), (102, 150, "Lumenal")])
+    assert xyz2[:40, 2].max() < 0                                   # N-terminus lumenal -> -z
+    b, memb = BL.placeholder_beads(200)
+    R = (3 * 200 * BL.RES_VOL_NM3 / (4 * np.pi)) ** (1 / 3)
+    assert not memb and np.linalg.norm(b, axis=1).max() <= 2 * R and np.allclose(b.mean(0), 0, atol=1e-9)
+    assert np.allclose(b, BL.placeholder_beads(200)[0])            # deterministic
+
+
+def test_fallback_and_ledger():
+    """step fallback: proteins without a model get a placeholder (TM one oriented, membrane flag), an assembly without a
+    structure is split into its subunits (decomposed.tsv), the species ledger records every status; a missing species
+    above library.ledger.max_missing_mass_frac fails the stage"""
+    import pandas as pd
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = _setup(tmp)
+        sp = os.path.join(tmp, "species_j.tsv")
+        open(sp, "w").write("ing_id\tkind\tgenes\taccs\tstoich\tstruct_src\tpdb\tuniprot\ttransmembrane\tsignal_frac\tmass_da\tcopies\n"
+                            "PROT1\tprotein\tPROT1\tP00001\t1\tafdb_monomer:P00001\t\tP00001\tFalse\t0\t6600\t1000\n"
+                            "SOL\tprotein\tSOL\tP00002\t1\tafdb_monomer:P00002\t\tP00002\tFalse\t0\t13200\t500\n"
+                            "TMP\tprotein\tTMP\tP00003\t1\tafdb_monomer:P00003\t\tP00003\tTrue\t0\t16500\t200\n"
+                            "CPX\tcomplex\tPROT1;NEW\tP00001;P00004\t2;1\tpdb:none\tnone\t\tFalse\t0\t30000\t100\n")
+        topo = os.path.join(tmp, "topo_j.tsv")
+        open(topo, "w").write("Entry\tTopological domain\tTransmembrane\tIntramembrane\n"
+                              'P00003\tTOPO_DOM 1..60; /note="Cytoplasmic"; TOPO_DOM 82..150; /note="Lumenal"\t'
+                              'TRANSMEM 61..81; /note="Helical"\t\n')
+        lens = os.path.join(tmp, "lens.tsv")
+        open(lens, "w").write("Entry\tLength\tMass\nP00002\t120\t13200\nP00003\t150\t16500\nP00004\t90\t9900\n")
+        cfg["library"].update(species=sp, ledger={"max_missing_mass_frac": 1e-4}, steps=[
+            {"step": "af_models", "plddt_min": 50, "per": 30},
+            {"step": "fallback", "topology": {"path": topo, "columns": ["acc", "topo", "tm", "intramem"]},
+             "lengths": {"path": lens, "columns": {"acc": "Entry", "length": "Length", "mass": "Mass"}}, "decompose": True}])
+        bdir = os.path.join(tmp, "build")
+        LS.run(cfg, bdir, step="import")
+        lib = os.path.join(bdir, "library", "lib")
+        assert sorted(os.listdir(lib)) == ["NEW.npz", "PROT1.npz", "SOL.npz", "TEMPLATE.npz", "TMP.npz"]
+        s = np.load(os.path.join(lib, "SOL.npz")); t = np.load(os.path.join(lib, "TMP.npz"))
+        assert len(s["beads"]) == 120 and "membrane" not in s.files and str(s["src"]) == "fallback:placeholder"
+        assert len(t["beads"]) == 150 and str(t["membrane"]) == "TM" and t["beads"][:60, 2].min() > 0
+        L = pd.read_csv(os.path.join(bdir, "library", "species_ledger.tsv"), sep="\t", keep_default_na=False).set_index("ing_id")
+        assert L.status.to_dict() == {"PROT1": "built", "SOL": "fallback", "TMP": "fallback", "CPX": "decomposed"}
+        assert L.source.to_dict() == {"PROT1": "afdb_monomer", "SOL": "placeholder", "TMP": "placeholder", "CPX": ""}
+        D = pd.read_csv(os.path.join(bdir, "library", "decomposed.tsv"), sep="\t")
+        assert list(zip(D.subunit, D.n)) == [("PROT1", 2), ("NEW", 1)] and D.mass_da.tolist() == [6600.0, 9900.0]
+        # without the fallback step: 3 of 4 species (by mass) have no structure -> the stage fails before sealing
+        cfg["library"]["steps"] = [{"step": "af_models", "plddt_min": 50, "per": 30}]
+        try:
+            LS.run(cfg, os.path.join(tmp, "build2"), step="import")
+            raise AssertionError("species without a structure above the ledger limit must fail the library stage")
+        except RuntimeError as e:
+            assert "max_missing_mass_frac" in str(e)
 
 if __name__ == "__main__":
     for name, fn in list(globals().items()):

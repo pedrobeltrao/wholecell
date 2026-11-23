@@ -254,6 +254,135 @@ def _area_factors(p, g, carea):
     return fac
 
 
+# ------------------------------------------------------------------ copy ledger (no silent losses)
+# Every copy of the pack table that is not requested from the packer is a row of pack/copy_ledger.tsv (counts step)
+# or pack/index_drops.tsv (index step) with a reason. Rows marked unexplained (species without a structure, unless a
+# reference preset declares pack.ledger.explain_no_structure) fail the counts step above
+# pack.ledger.max_unexplained_mass_frac of the pack-table mass. Copies moved, not lost (an assembly without a structure
+# split into its subunits, index-dropped pre-pass instances returned to the pool) are recorded as well.
+LEDGER_COLS = ("event", "ing_id", "copies", "mass_pg", "explained", "reason")
+AVOGADRO = 6.022e23
+
+
+class CopyLedger:
+    def __init__(self, p):
+        self.p, self.rows = p, []
+        self.cfg = p.pc.get("ledger") or {}
+
+    def add(self, event, ing_id, copies, mass_da, explained, reason):
+        self.rows.append((event, str(ing_id), float(copies), float(copies) * float(mass_da) / AVOGADRO * 1e12,
+                          bool(explained), reason))
+
+    def write(self, total_mass_pg, log=print):
+        """pack/copy_ledger.tsv + the check; returns the summary dict (libs.json key `ledger`)"""
+        import pandas as pd
+        L = pd.DataFrame(self.rows, columns=list(LEDGER_COLS)).astype({"copies": float, "mass_pg": float, "explained": bool})
+        _atomic(self.p.path("copy_ledger.tsv"), lambda tmp: L.to_csv(tmp, sep="\t", index=False))
+        lost = L[L.event.isin(LOSS_EVENTS)]
+        un = lost[~lost.explained]
+        lim = float(self.cfg.get("max_unexplained_mass_frac", 1e-4))
+        frac = float(un.mass_pg.sum() / max(total_mass_pg, 1e-30))
+        out = dict(rows=len(L), by_event={k: dict(rows=int(len(g)), copies=round(float(g.copies.sum()), 1),
+                                                   mass_pg=round(float(g.mass_pg.sum()), 6)) for k, g in L.groupby("event")},
+                   lost_explained_pg=round(float(lost[lost.explained].mass_pg.sum()), 6),
+                   lost_unexplained_pg=round(float(un.mass_pg.sum()), 6), pack_table_pg=round(total_mass_pg, 4),
+                   unexplained_mass_frac=frac, max_unexplained_mass_frac=lim)
+        log(f"copy ledger: {out['by_event']}; unexplained {frac:.2e} of the pack-table mass (limit {lim:g})")
+        if frac > lim:
+            raise RuntimeError(f"pack counts: unexplained copy losses {frac:.2e} of the pack-table mass > pack.ledger."
+                               f"max_unexplained_mass_frac {lim:g}: {un.sort_values('mass_pg').ing_id.tolist()[-20:]} "
+                               f"(see {self.p.path('copy_ledger.tsv')})")
+        return out
+
+
+LOSS_EVENTS = ("no_structure", "not_requested")
+
+
+def _decompose(p, I, LIB, led, log=print):
+    """assemblies without a structure -> their subunit monomers (library/decomposed.tsv, library step `fallback` with
+    decompose): copies x stoichiometry added to the monomer rows (comp_weights mixed copy-weighted; a monomer that is not
+    a pack-table species gets a row with the assembly's compartments)"""
+    import pandas as pd
+    f = os.path.join(p.bdir, "library", "decomposed.tsv")
+    if not os.path.exists(f):
+        return I
+    D = pd.read_csv(f, sep="\t", keep_default_na=False)
+    if not len(D):
+        return I
+    I = I.copy()
+    for parent, grp in D.groupby("parent", sort=False):
+        ii = I.index[I.ing_id == parent]
+        if not len(ii) or int(I.at[ii[0], "copies"]) <= 0 or parent in LIB:
+            continue
+        i = ii[0]; C = int(I.at[i, "copies"]); w = json.loads(I.at[i, "comp_weights"])
+        for r in grp.itertuples():
+            add = C * int(r.n)
+            jj = I.index[I.ing_id == r.subunit]
+            if len(jj):
+                j = jj[0]; c0 = int(I.at[j, "copies"]); w0 = json.loads(I.at[j, "comp_weights"])
+                keys = list(dict.fromkeys(list(w0) + list(w)))
+                I.at[j, "comp_weights"] = json.dumps({k: (c0 * w0.get(k, 0.0) + add * w.get(k, 0.0)) / (c0 + add) for k in keys})
+                I.at[j, "copies"] = c0 + add
+            else:
+                tm = str(r.transmembrane) in ("True", "true", "1")
+                row = I.loc[i].to_dict()
+                row.update(ing_id=r.subunit, kind="protein", genes=r.gene, stoich="1", copies=add, mass_da=float(r.mass_da),
+                           transmembrane=tm, n_tm=int(tm), struct_src=f"decomposed:{parent}", uniprot=r.uniprot)
+                if "mass_pg" in row:
+                    row["mass_pg"] = add * float(r.mass_da) / AVOGADRO * 1e12
+                I = pd.concat([I, pd.DataFrame([row])], ignore_index=True)
+            led.add("decomposed_in", r.subunit, add, r.mass_da, True, f"subunit of {parent} (no structure of the assembly)")
+        led.add("decomposed_out", parent, C, I.at[i, "mass_da"], True, "assembly without a structure: copies moved to its subunits")
+        I.at[i, "copies"] = 0
+        log(f"  {parent}: {C:,} copies without a structure returned to {len(grp)} subunit monomers", flush=True)
+    return I
+
+
+def _index_returns(p, I, led, log=print):
+    """pre-pass instances dropped at indexing that pack.index_drops sends back to the pool (return_to_pool: {library id:
+    pack-table species}): their copies are added again (pack/index_drops.tsv of the index step)"""
+    import pandas as pd
+    ret = {d["name"]: d["return_to_pool"] for d in p.pc.get("index_drops") or [] if d.get("return_to_pool")}
+    if not ret:
+        return I
+    f = p.path("index_drops.tsv")
+    if not os.path.exists(f):
+        raise FileNotFoundError(f"pack.index_drops {sorted(ret)} return copies to the pool: run `pack --step index` before counts ({f})")
+    D = pd.read_csv(f, sep="\t")
+    I = I.copy()
+    for r in D[D.name.isin(ret)].itertuples():
+        tgt = ret[r.name].get(r.lib)
+        if tgt is None:
+            continue
+        ii = I.index[I.ing_id == tgt]
+        if not len(ii):
+            raise ValueError(f"pack.index_drops {r.name}: return_to_pool target {tgt} is not a pack-table species")
+        I.at[ii[0], "copies"] = int(I.at[ii[0], "copies"]) + int(r.n)
+        led.add("index_drop_returned", tgt, r.n, I.at[ii[0], "mass_da"], True, f"{r.name}: {r.reason} (returned to the pool)")
+        log(f"  {tgt}: {int(r.n):,} copies of index drop '{r.name}' ({r.lib}) returned to the pool", flush=True)
+    return I
+
+
+def _ledger_x5(cfg, bdir, p, reg):
+    """copy ledger of pack.requests method legacy_x5: per-type totals whose region is not a pack region are not requested
+    (the yeast engine labels them, e.g. no_structure, dropped_TM_in_soluble_compartment); recorded with that label as
+    the reason (explained: a stated engine rule), except no_structure (unexplained unless pack.ledger.explain_no_structure)"""
+    import pandas as pd
+    from .requests import _path
+    rq = p.pc["requests"]
+    exp = pd.read_parquet(_path(bdir, rq["totals"]))
+    pt = pd.read_csv(p.pack_table(), sep="\t", usecols=["ing_id", "copies", "mass_da"])
+    mass = dict(zip(pt.ing_id.astype(str), pt.mass_da.astype(float)))
+    led = CopyLedger(p)
+    why = (p.pc.get("ledger") or {}).get("explain_no_structure")
+    off = exp[~exp.region.isin(reg.RNAMES)].groupby(["region", "ing_id"], as_index=False).expected.sum()
+    for r in off.itertuples():
+        unexpl = r.region == "no_structure" and not why
+        led.add("not_requested", r.ing_id, r.expected, mass.get(str(r.ing_id), 0.0), not unexpl,
+                (why if r.region == "no_structure" and why else f"engine region label '{r.region}'"))
+    return led.write(float((pt.copies * pt.mass_da).sum() / AVOGADRO * 1e12))
+
+
 def step_counts(cfg, bdir, kw):
     import pandas as pd
     from wholecell import seeds
@@ -266,6 +395,7 @@ def step_counts(cfg, bdir, kw):
         d, info = requests.legacy_x5(cfg, bdir, p, reg, pd.read_parquet(p.path("tiles.parquet")),
                                      json.load(open(p.path("tiles_meta.json")))["lo0"], sw=switches.load(p.pc, reg.RNAMES),
                                      log=lambda *a: print(*a, flush=True))
+        info["ledger"] = _ledger_x5(cfg, bdir, p, reg)
         _atomic(p.path("counts.npz"), lambda tmp: np.savez_compressed(tmp, **{k: d[k].values for k in ("tile", "lib", "region", "n")}))
         _json_save(p.path("libs.json"), info)
         print(f"counts (legacy_x5): {len(d):,} (tile, lib, region) entries, {int(d.n.sum()):,} instances", flush=True)
@@ -295,13 +425,21 @@ def step_counts(cfg, bdir, kw):
         nw = {kk: C_ * vv / left for kk, vv in w.items() if kk != key}; nw[key] = max(C_ * w[key] - c_, 0.0) / left
         I.at[i, "comp_weights"] = json.dumps(nw)
         print(f"  {k}: {c_:,} pre-pass copies taken from key '{key}' ({C_ * w[key] - c_:,.0f} left there)", flush=True)
+    total_pg = float((I.copies * I.mass_da).sum() / AVOGADRO * 1e12)
     I["copies"] = (I.copies - I.ing_id.map(consumed).fillna(0)).clip(lower=0).round().astype(np.int64)
     LIB = p.library()
+    led = CopyLedger(p)
+    I = _index_returns(p, I, led)
+    I = _decompose(p, I, LIB, led)
     if p.pc.get("libs_from"):                              # keep an earlier library order (tiles store indices into libs.json)
         order = json.load(open(p.pc["libs_from"]))["libs"]
         I = I.set_index("ing_id").loc[order].reset_index()
     else:
+        why = (p.pc.get("ledger") or {}).get("explain_no_structure")
+        for r in I[~I.ing_id.isin(set(LIB)) & (I.copies > 0)].itertuples():   # no library entry: not packed, recorded
+            led.add("no_structure", r.ing_id, r.copies, r.mass_da, bool(why), why or "no library entry (see library/species_ledger.tsv)")
         I = I[I.ing_id.isin(set(LIB)) & (I.copies > 0)].reset_index(drop=True)
+    ledger = led.write(total_pg)
     memb = np.array([("membrane" in np.load(LIB[i]).files) for i in I.ing_id])
     cvol = {r: float(M[r].sum()) for r, _ in VOL_REG}
     carea = {m: float(M["mem_" + m].sum()) for m, _ in MEM_REG}
@@ -364,7 +502,7 @@ def step_counts(cfg, bdir, kw):
                                                                    region=C[:, 2].astype(np.int16), n=C[:, 3].astype(np.int32)))
     _json_save(p.path("libs.json"), dict(libs=list(I.ing_id), mass_da=I.mass_da.tolist(), consumed=consumed, f_vol=f_vol, f_pm=f_pm,
                                          area_factors=fac, rnames=list(RNAMES), ingredients=ING, geometry=g.source,
-                                         prepass=[m["npz"] for m in pre], counts_seed=seed,   # output key kept at A0c
+                                         prepass=[m["npz"] for m in pre], counts_seed=seed, ledger=ledger,   # output key kept at A0c
                                          **({"shell_cap": shell_cap_rep} if shell_cap_rep is not None else {}),
                                          **({"organisation": dict(network=p.path("organisation", "network.npz"),
                                                                   field_seed=seeds.seed_int(cfg, "pack.organisation.field"),
@@ -477,6 +615,47 @@ def _index_drop(d, libs, T_, P_, g):
     return drop
 
 
+INDEX_DROP_KEYS = ("name", "libs", "lib_prefixes", "when_flag", "mode", "z_above_face_nm", "membrane", "min_sdf_nm",
+                   "section_slot", "labels", "reason", "return_to_pool")
+
+
+def _index_drops(p, libs, T_, P_, Q_, g):
+    """apply pack.index_drops in order; every entry states its `reason` (and optionally return_to_pool {library id:
+    pack-table species}, read by the counts step); pack/index_drops.tsv lists the dropped instances per (drop, library)"""
+    import pandas as pd
+    rows = []
+    for d in p.pc.get("index_drops") or []:
+        bad = [k for k in d if k not in INDEX_DROP_KEYS]
+        if bad:
+            raise ValueError(f"config pack.index_drops {d.get('name')}: unknown key(s) {bad} (known: {', '.join(INDEX_DROP_KEYS)})")
+        if not d.get("reason"):
+            raise ValueError(f"config pack.index_drops {d.get('name')}: `reason` missing (every dropped copy is recorded with a reason)")
+        drop = _index_drop(d, libs, T_, P_, g)
+        print(f"index drop '{d['name']}': {int(drop.sum()):,} pre-pass instances dropped", flush=True)
+        if drop.any():
+            ids, n = np.unique(T_[drop], return_counts=True)
+            ret = d.get("return_to_pool") or {}
+            for t, k in zip(ids, n):
+                rows.append((d["name"], libs[int(t)], int(k), ret.get(libs[int(t)], ""), d["reason"]))
+            T_, P_, Q_ = T_[~drop], P_[~drop], Q_[~drop]
+    D = pd.DataFrame(rows, columns=["name", "lib", "n", "returned_to", "reason"])
+    D = D.groupby(["name", "lib", "returned_to", "reason"], as_index=False, sort=False).n.sum()[["name", "lib", "n", "returned_to", "reason"]]
+    _atomic(p.path("index_drops.tsv"), lambda tmp: D.to_csv(tmp, sep="\t", index=False))
+    return T_, P_, Q_
+
+
+def _index_outside(p, libs, T_, keep):
+    """pre-pass instances whose centre lies in no tile (outside the packed volume): appended to pack/index_drops.tsv"""
+    import pandas as pd
+    if keep.all():
+        return
+    ids, n = np.unique(T_[~keep], return_counts=True)
+    D = pd.read_csv(p.path("index_drops.tsv"), sep="\t", keep_default_na=False)
+    D = pd.concat([D, pd.DataFrame([("outside_tiles", libs[int(t)], int(k), "", "centre outside every tile (outside the packed volume)")
+                                    for t, k in zip(ids, n)], columns=D.columns)], ignore_index=True)
+    _atomic(p.path("index_drops.tsv"), lambda tmp: D.to_csv(tmp, sep="\t", index=False))
+
+
 def _tile_ids(tij, M):
     dims = M[["ti", "tj", "tk"]].values.max(0) + 2
     lut = -np.ones(dims, np.int64); lut[M.ti, M.tj, M.tk] = np.arange(len(M))
@@ -525,7 +704,8 @@ def _index_grouped(p, cfg, bdir, M, lo0):
 def step_index(cfg, bdir, kw):
     import pandas as pd
     p, g, reg = _setup(cfg, bdir, kw)
-    outs = [p.path(f"preplaced_{n}.npy") for n in ("types", "pos", "quat", "off")] + [p.path("preplaced_libs.json")]
+    outs = [p.path(f"preplaced_{n}.npy") for n in ("types", "pos", "quat", "off")] + [p.path("preplaced_libs.json"),
+                                                                                       p.path("index_drops.tsv")]
     if p.pc.get("preplaced_index"):                       # grouped npz source (yeast prepass.npz)
         outs += [p.path("preplaced_groups.json")] + ([p.path("mrna_pts.npy"), p.path("mrna_off.npy"), p.path("mrna_meta.json")]
                                                     if p.pc["preplaced_index"].get("beads") else [])
@@ -534,13 +714,10 @@ def step_index(cfg, bdir, kw):
         meta = json.load(open(p.path("tiles_meta.json"))); lo0 = np.array(meta["lo0"]); TILE = p.TILE
         M = pd.read_parquet(p.path("tiles.parquet"))
         libs, groups, T_, P_, Q_, pts, brad = _index_grouped(p, cfg, bdir, M, lo0)
-        for d in p.pc.get("index_drops") or []:
-            drop = _index_drop(d, libs, T_, P_, g)
-            print(f"index drop '{d['name']}': {int(drop.sum()):,} pre-pass instances dropped", flush=True)
-            if drop.any():
-                T_, P_, Q_ = T_[~drop], P_[~drop], Q_[~drop]
+        T_, P_, Q_ = _index_drops(p, libs, T_, P_, Q_, g)
         tid = _tile_ids(np.floor((P_ - lo0) / TILE).astype(np.int64), M)
         keep = tid >= 0
+        _index_outside(p, libs, T_, keep)
         o = np.argsort(tid[keep], kind="stable")
         for name, arr in (("types", T_[keep][o]), ("pos", P_[keep][o]), ("quat", Q_[keep][o])):
             _npy_save(p.path(f"preplaced_{name}.npy"), arr)
@@ -586,14 +763,11 @@ def step_index(cfg, bdir, kw):
         T_ = np.concatenate(T_); P_ = np.concatenate(P_); Q_ = np.concatenate(Q_)
     else:                                                 # no pre-pass modules
         T_ = np.zeros(0, np.int32); P_ = np.zeros((0, 3), np.float32); Q_ = np.zeros((0, 4), np.float32)
-    for d in p.pc.get("index_drops") or []:
-        drop = _index_drop(d, libs, T_, P_, g)
-        print(f"index drop '{d['name']}': {int(drop.sum()):,} pre-pass instances dropped", flush=True)
-        if drop.any():
-            T_, P_, Q_ = T_[~drop], P_[~drop], Q_[~drop]
+    T_, P_, Q_ = _index_drops(p, libs, T_, P_, Q_, g)
     tij = np.floor((P_ - lo0) / TILE).astype(np.int64)
     tid = np.array([key.get(tuple(t), -1) for t in tij]) if len(tij) < 5_000_000 else _tile_ids(tij, M)
     keep = tid >= 0
+    _index_outside(p, libs, T_, keep)
     o = np.argsort(tid[keep], kind="stable")
     for name, arr in (("types", T_[keep][o]), ("pos", P_[keep][o]), ("quat", Q_[keep][o])):
         _npy_save(p.path(f"preplaced_{name}.npy"), arr)
@@ -1195,6 +1369,13 @@ def step_summary(cfg, bdir, kw):
                  mass_frac=round(tot_p / max(tot_e, 1), 3), regions=out)
     if att is not None:
         S["organisation"] = dict(copies_with_partner_proposals=int(att[0]), placed_next_to_partner=int(att[1]))
+    if L.get("ledger"):                                  # copies not requested (pack/copy_ledger.tsv, counts step)
+        S["copy_ledger"] = L["ledger"]
+    if os.path.exists(p.path("index_drops.tsv")):        # pre-pass instances dropped at indexing (pack/index_drops.tsv)
+        D = pd.read_csv(p.path("index_drops.tsv"), sep="\t", keep_default_na=False)
+        S["index_drops"] = {k: dict(instances=int(g.n.sum()), returned_to_pool=int(g.n[g.returned_to != ""].sum()),
+                                    by_lib={str(a): int(b) for a, b in zip(g.lib, g.n)}, reason=str(g.reason.iloc[0]))
+                            for k, g in D.groupby("name", sort=False)}
     if os.path.exists(p.path("thinning.json")):          # pack.thinning: the request above is the thinned one
         cz = np.load(p.path("counts.npz")); e0 = float((cz["n"] * mass[cz["lib"]]).sum())
         S["thinning"] = json.load(open(p.path("thinning.json")))["factors"]

@@ -72,7 +72,13 @@ def context(cfg, bdir, nproc=None):
     X = Ctx(cfg=cfg, lc=lc, bdir=bdir, out=out, lib=os.path.join(out, "lib"), partial=os.path.join(out, "lib.partial"),
             nproc=int(nproc or lc.get("nproc", 8)), origin={}, results={})
     X["pdb_dir"] = _path(cfg, bdir, lc.get("pdb_dir"))
-    X["species_path"] = _path(cfg, bdir, lc.get("species"))
+    sp = lc.get("species")
+    if isinstance(sp, dict):                             # written by this stage from the build's inventory (species_from_pack_table)
+        X["species_spec"] = sp
+        X["species_path"] = os.path.join(out, "species.tsv")
+    else:
+        X["species_path"] = _path(cfg, bdir, sp)
+    X["source"] = {}                                     # id -> structure source class set by a step (ledger)
     return X
 
 
@@ -83,6 +89,49 @@ def species(X):
                                     f"written by the assembly stage, for yeast by plugins/yeast/library_species.py)")
         X["species"] = _tsv(X.species_path)
     return X["species"]
+
+
+SPECIES_FROM_KEYS = ("from", "pack_table", "accs")
+
+
+def species_from_pack_table(X):
+    """library.species: {from: pack_table, pack_table: <build-relative TSV, default inventory/pack_table.tsv>,
+    accs: {table: <build-relative TSV>, gene: <column>, acc: <column>}} -> <library>/species.tsv: one row per pack-table
+    species in pack-table order (ing_id, kind, genes, accs, stoich, struct_src, pdb, uniprot, transmembrane, signal_frac,
+    mass_da, copies), structure source = the inventory's struct_src. Every species the pack will request is in the
+    table, so a species can only miss a structure through a recorded ledger status (library/species_ledger.tsv)."""
+    import pandas as pd
+    sp = X.species_spec
+    bad = [k for k in sp if k not in SPECIES_FROM_KEYS]
+    if bad or sp.get("from") != "pack_table":
+        raise ValueError(f"library.species: {{from: pack_table, ...}} expected (keys {SPECIES_FROM_KEYS}), got {sp}")
+    pt = os.path.join(X.bdir, sp.get("pack_table", "inventory/pack_table.tsv"))
+    P = pd.read_csv(pt, sep="\t", keep_default_na=False)
+    acc = {}
+    if sp.get("accs"):
+        a = sp["accs"]
+        A = pd.read_csv(os.path.join(X.bdir, a["table"]), sep="\t", usecols=[a["gene"], a["acc"]], keep_default_na=False)
+        acc = dict(zip(A[a["gene"]].astype(str), A[a["acc"]].astype(str)))
+    rows = []
+    for r in P.itertuples():
+        genes = str(r.genes)
+        if r.kind == "protein" and r.uniprot:
+            accs = r.uniprot
+        else:
+            accs = ";".join(acc.get(g, "") for g in genes.split(";")) if genes else ""
+        s = str(r.struct_src)
+        rows.append(dict(ing_id=r.ing_id, kind=r.kind, genes=genes, accs=accs, stoich=str(r.stoich), struct_src=s,
+                         pdb=s.split(":", 1)[1] if s.startswith("pdb:") else "", uniprot=str(r.uniprot),
+                         transmembrane=str(r.transmembrane) in ("True", "true", "1"), signal_frac=r.signal_frac,
+                         mass_da=r.mass_da, copies=r.copies))
+    S = pd.DataFrame(rows)
+    tmp = X.species_path + f".tmp{os.getpid()}"
+    S.to_csv(tmp, sep="\t", index=False)
+    os.replace(tmp, X.species_path)
+    X.pop("species", None)
+    X.results["species"] = dict(source=pt, source_md5=_md5(pt), rows=len(S), kinds=S.kind.value_counts().to_dict(),
+                                struct_src=S.struct_src.str.split(":").str[0].value_counts().to_dict())
+    log(f"species: {len(S)} rows from {pt} ({X.results['species']['kinds']})")
 
 
 def topology(X):
@@ -226,6 +275,203 @@ def step_pm_topology_fix(X, p):
     return topology.step_pm_topology_fix(X, p)
 
 
+# ------------------------------------------------------------------ fallback structures and the species ledger
+FALLBACK_KEYS = ("step", "topology", "lengths", "pdb_chain", "decompose", "afdb_tar", "afdb_tar_index", "min_res", "per")
+
+
+def _fb_topology(X, p):
+    """UniProt TRANSMEM / TOPO_DOM per accession: params.topology {path, columns: [acc, topo, tm, ...]}, else
+    library.topology; None if neither is declared"""
+    import pandas as pd
+    t = p.get("topology") or X.lc.get("topology")
+    if not t:
+        return None
+    T = pd.read_csv(_path(X.cfg, X.bdir, t["path"]), sep="\t", keep_default_na=False)
+    T.columns = list(t.get("columns", ["acc", "topo", "tm", "intramem"]))[:len(T.columns)]
+    return T.drop_duplicates("acc").set_index("acc")
+
+
+def _fb_lengths(X, p):
+    """{accession: (sequence length, mass Da)} from params.lengths {path, columns: {acc, length, mass}}"""
+    import pandas as pd
+    t = p.get("lengths")
+    if not t:
+        return {}
+    c = t["columns"]
+    T = pd.read_csv(_path(X.cfg, X.bdir, t["path"]), sep="\t", usecols=[c["acc"], c["length"], c["mass"]])
+    return {a: (int(n), float(m)) for a, n, m in zip(T[c["acc"]], T[c["length"]], T[c["mass"]]) if n == n}
+
+
+def _afdb_f1(X, p, acc):
+    """AlphaFold DB F1 model text of one accession by random access (params afdb_tar + afdb_tar_index: acc -> (offset,
+    size) of the gzipped member), or None"""
+    import gzip
+    if not (p.get("afdb_tar") and p.get("afdb_tar_index")):
+        return None
+    if "_afidx" not in X:
+        X["_afidx"] = json.load(open(_path(X.cfg, X.bdir, p["afdb_tar_index"])))
+    if acc not in X["_afidx"]:
+        return None
+    off, size = X["_afidx"][acc]
+    with open(_path(X.cfg, X.bdir, p["afdb_tar"]), "rb") as fh:
+        fh.seek(off)
+        return gzip.decompress(fh.read(size)).decode()
+
+
+def step_fallback(X, p):
+    """a structure for every species still without one after the builder steps, by declared tiers (the species ledger
+    records which): protein species -> (1) pdb_chain: the best-covered chain of a cached RCSB assembly of the same
+    protein (SIFTS; observed residues >= min_cov and <= max_len_ratio x the sequence length; soluble proteins only),
+    (2) placeholder: a coarse model sized from the sequence length (UniProt length, else mass / 110 Da) with the UniProt
+    TRANSMEM segments as helices across the membrane (builders.placeholder_beads). Other species (option decompose): split into their subunit monomers
+    (AlphaFold F1 model by random access when afdb_tar / afdb_tar_index are given, else the tiers above); the pack
+    returns their copies to those monomers (library/decomposed.tsv). A species no rule covers stays `missing`.
+      {step: fallback, topology: {path, columns}, lengths: {path, columns: {acc, length, mass}},
+       pdb_chain: {sifts: <SIFTS pdb_chain_uniprot>, min_cov: 0.5, max_len_ratio: 1.2, max_tries: 5}, decompose: true,
+       afdb_tar: <tar>, afdb_tar_index: <json>, min_res: 1, per: 30}"""
+    import math
+    import numpy as np
+    import pandas as pd
+    from .builders import (build_af, build_pdb_chain, build_placeholder, parse_ranges, pdb_chain_candidates)
+    bad = [k for k in p if k not in FALLBACK_KEYS]
+    if bad:
+        raise ValueError(f"library step fallback: unknown key(s) {bad} (known: {', '.join(FALLBACK_KEYS)})")
+    sp = species(X)
+    have = lambda i: os.path.exists(os.path.join(X.partial, f"{i}.npz"))   # noqa: E731
+    todo = sp[~sp.ing_id.map(have)]
+    topo = _fb_topology(X, p)
+    lens = _fb_lengths(X, p)
+    per, min_res = int(p.get("per", 30)), int(p.get("min_res", 1))
+    pc = p.get("pdb_chain") or {}
+    sifts = cached = None
+    if pc and len(todo):
+        sifts = pd.read_csv(_path(X.cfg, X.bdir, pc["sifts"]), sep="\t", comment="#",
+                            usecols=["PDB", "CHAIN", "SP_PRIMARY", "SP_BEG", "SP_END"], dtype=str)
+        sifts = sifts[sifts.SP_BEG.str.isdigit() & sifts.SP_END.str.isdigit()]
+        cached = {f.split("-assembly1")[0] for f in os.listdir(X.pdb_dir) if f.endswith("-assembly1.cif.gz")}
+    tm_of = lambda a: parse_ranges(topo.loc[a, "tm"], "TRANSMEM") if topo is not None and a in topo.index else []   # noqa: E731
+    tp_of = lambda a: parse_ranges(topo.loc[a, "topo"], "TOPO_DOM") if topo is not None and a in topo.index else []  # noqa: E731
+    rec = X.setdefault("fallback", {})
+
+    def monomer(ing, acc, mass_da):
+        n = lens[acc][0] if acc in lens else (int(round(float(mass_da) / 110.0)) if mass_da not in ("", None) and
+                                               float(mass_da) > 0 else 0)
+        if n < min_res:
+            return None, f"no sequence length >= {min_res} (length {n})"
+        tm = tm_of(acc)
+        if pc and not tm and acc:
+            mc = float(pc.get("min_cov", 0.5))
+            for pdb, ch, k in pdb_chain_candidates(sifts, acc, cached, n, mc)[:int(pc.get("max_tries", 5))]:
+                r = build_pdb_chain(X.partial, ing, pdb, ch, X.pdb_dir, min_beads=math.ceil(mc * n),
+                                    max_beads=int(float(pc.get("max_len_ratio", 1.2)) * n), per=per)
+                if r is not None:
+                    return "pdb_chain", f"{pdb} chain {ch}: {r[0]} of {n} residues observed"
+        build_placeholder(X.partial, ing, n, tm, tp_of(acc), per=per)
+        return "placeholder", f"{n} residues" + (f", {len(tm)} TM helices" if tm else "")
+
+    dec = []
+    by_acc = {r.uniprot: r.ing_id for r in sp[(sp.kind == "protein") & (sp.uniprot != "")].itertuples()}
+    mass_of = dict(zip(sp.ing_id, sp.mass_da)) if "mass_da" in sp.columns else {}
+    for r in todo.itertuples():
+        if r.kind == "protein":
+            src, note = monomer(r.ing_id, r.uniprot, mass_of.get(r.ing_id, ""))
+            rec[r.ing_id] = ("fallback" if src else "missing", src or "", note)
+            continue
+        if not p.get("decompose"):
+            rec[r.ing_id] = ("missing", "", "no structure (decompose off)")
+            continue
+        genes = str(getattr(r, "genes", "") or getattr(r, "gene", "")).split(";")
+        accs = str(getattr(r, "accs", "")).split(";") if getattr(r, "accs", "") else [""] * len(genes)
+        st = [int(float(x)) if x not in ("", "nan") else 1 for x in str(getattr(r, "stoich", "")).split(";")]
+        if len(st) != len(genes):
+            st = [1] * len(genes)
+        rows, fail = [], []
+        for g, a, n in zip(genes, accs, st):
+            sid = by_acc.get(a, g)
+            how = "species"
+            if not have(sid):
+                txt = _afdb_f1(X, p, a) if a else None
+                if txt is not None:
+                    import gemmi
+                    stc = gemmi.make_structure_from_block(gemmi.cif.read_string(txt)[0])
+                    build_af(X.partial, sid, stc, tm_of(a), tp_of(a), per=per)
+                    how = "afdb_monomer"
+                    X.source[sid] = "afdb_monomer"
+                else:
+                    how, note = monomer(sid, a, lens.get(a, (0, 0.0))[1] if a in lens else "")
+                    if how is None:
+                        fail.append(f"{g}: {note}")
+                        continue
+                    X.source[sid] = how
+            m = mass_of.get(sid) or (lens[a][1] if a in lens else 110.0 * len(np.load(os.path.join(X.partial, f"{sid}.npz"))["beads"]))
+            tm = "membrane" in np.load(os.path.join(X.partial, f"{sid}.npz")).files
+            rows.append(dict(parent=r.ing_id, subunit=sid, gene=g, uniprot=a, n=n, mass_da=float(m), transmembrane=tm, built=how))
+        if fail:
+            rec[r.ing_id] = ("missing", "", "subunits without a structure: " + "; ".join(fail))
+        else:
+            dec += rows
+            rec[r.ing_id] = ("decomposed", "", ";".join(f"{d['subunit']}x{d['n']}" for d in rows))
+    for i, (stt, src, note) in rec.items():
+        if src:
+            X.source[i] = src
+    D = pd.DataFrame(dec, columns=["parent", "subunit", "gene", "uniprot", "n", "mass_da", "transmembrane", "built"])
+    D.to_csv(os.path.join(X.out, "decomposed.tsv"), sep="\t", index=False)
+    import collections
+    X.results["fallback"] = dict(species=len(todo), status=dict(collections.Counter(v[0] for v in rec.values())),
+                                 source=dict(collections.Counter(v[1] for v in rec.values() if v[1])),
+                                 decomposed_subunits=len(D))
+    log(f"fallback: {X.results['fallback']}")
+    for i, (stt, src, note) in rec.items():
+        log(f"  {i}: {stt} {src} ({note})")
+
+
+LEDGER_COLS = ["ing_id", "kind", "copies", "mass_da", "status", "source", "struct_src", "note"]
+
+
+def species_ledger(X):
+    """library/species_ledger.tsv: every species of the species table with its status (built | fallback | decomposed |
+    missing) and structure source class (pdb | afdb_complex | afdb_monomer | afdb_fragment | pdb_chain | placeholder |
+    start), and the check library.ledger.max_missing_mass_frac (copy-weighted mass of `missing` species; species
+    count when the table has no copies / masses)"""
+    import pandas as pd
+    if not X.species_path or not os.path.exists(X.species_path):
+        return None
+    sp = species(X)
+    rec = X.get("fallback") or {}
+    rows = []
+    for r in sp.to_dict("records"):
+        i = r["ing_id"]
+        s = str(r.get("struct_src", "") or "")
+        if i in rec:
+            stt, src, note = rec[i]
+        elif os.path.exists(os.path.join(X.partial, f"{i}.npz")):
+            stt, note = "built", ""
+            src = X.source.get(i) or (s.split(":")[0] if ":" in s else "") or \
+                ("pdb" if r.get("kind") == "complex" and r.get("pdb") else "afdb_monomer" if r.get("kind") == "protein" else
+                 X.origin.get(f"{i}.npz", "unknown"))
+        else:
+            stt, src, note = "missing", "", "no structure written and no fallback step"
+        rows.append(dict(ing_id=i, kind=r.get("kind", ""), copies=r.get("copies", ""), mass_da=r.get("mass_da", ""),
+                         status=stt, source=src, struct_src=s, note=note))
+    L = pd.DataFrame(rows, columns=LEDGER_COLS)
+    L.to_csv(os.path.join(X.out, "species_ledger.tsv"), sep="\t", index=False)
+    miss = L.status == "missing"
+    if "copies" in sp.columns and "mass_da" in sp.columns:
+        w = pd.to_numeric(L.copies, errors="coerce").fillna(0) * pd.to_numeric(L.mass_da, errors="coerce").fillna(0)
+        frac = float(w[miss].sum() / max(w.sum(), 1.0)); unit = "mass"
+    else:
+        frac = float(miss.mean()) if len(L) else 0.0; unit = "species"
+    lim = float((X.lc.get("ledger") or {}).get("max_missing_mass_frac", 1e-4))
+    summ = dict(status=L.status.value_counts().to_dict(), source=L[L.status != "missing"].source.value_counts().to_dict(),
+                missing=L.ing_id[miss].tolist()[:50], missing_frac=frac, missing_frac_of=unit, max_missing_frac=lim)
+    X.results["ledger"] = summ
+    log(f"species ledger: {summ['status']}; sources {summ['source']}; missing {frac:.2e} of {unit} (limit {lim:g})")
+    if frac > lim:
+        raise RuntimeError(f"library: species without a structure carry {frac:.2e} of the {unit} (> library.ledger."
+                           f"max_missing_mass_frac {lim:g}): {summ['missing'][:20]} (see {X.out}/species_ledger.tsv)")
+    return L
+
+
 def curated_pdb(X):
     """id -> PDB of curated entries (complexes of the species table, reference RNA): structure source 'PDB'"""
     out = {}
@@ -239,7 +485,9 @@ def curated_pdb(X):
 
 
 def step_seal(X, p=None):
-    """lib.partial -> lib (files read-only), library_manifest.tsv (species, path, md5, origin), library_meta.json"""
+    """species ledger (fails above library.ledger.max_missing_mass_frac), lib.partial -> lib (files read-only),
+    library_manifest.tsv (species, path, md5, origin), library_meta.json"""
+    species_ledger(X)
     rows = []
     for f in sorted(os.listdir(X.partial)):
         fp = os.path.join(X.partial, f)
@@ -296,7 +544,7 @@ def step_pack_shapes(X, p=None):
 STEPS = dict(start=step_start, complexes=step_complexes, af_models=step_af_models, pdb_oligomers=step_pdb_oligomers,
              pdb_rna=step_pdb_rna, jurkat_assemblies=step_jurkat_assemblies, jurkat_monomers=step_jurkat_monomers,
              reorient_tm=step_reorient_tm, tm_route=step_tm_route, adaptive_trees=step_adaptive_trees,
-             pm_topology_fix=step_pm_topology_fix,
+             pm_topology_fix=step_pm_topology_fix, fallback=step_fallback,
              seal=step_seal, pack_shapes=step_pack_shapes)
 
 
@@ -317,6 +565,8 @@ def run(cfg, bdir, step=None, nproc=None, **kw):
         raise RuntimeError(f"{X.partial} exists (interrupted run): remove it and rerun")
     os.makedirs(X.partial)
     t0 = time.time()
+    if X.get("species_spec"):
+        species_from_pack_table(X)
     seq = [("start", {})] + [(s["step"], s) for s in X.lc.get("steps", [])]
     for name, p in seq:
         if name not in STEPS:

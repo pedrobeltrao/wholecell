@@ -238,13 +238,21 @@ def step_pm_topology_fix(X, p):
     from .build import _path, _md5, log
     path = _path(X.cfg, X.bdir, p["table"])
     T = read_table(path)
+    if X.get("species_spec"):                           # species from the pack table: listed units that are not species
+        have = T.lib.map(lambda i: os.path.exists(os.path.join(X.partial, i + ".npz")))   # of this build are skipped
+        absent = sorted(T.lib[~have])
+        if absent:
+            log(f"pm_topology_fix: {len(absent)} listed units are not species of this build, skipped: {absent}")
+        T = T[have]
+    else:
+        absent = []
     rec = apply(X.partial, T, log=log)
     for r in rec:
         if r["rotated"]:
             X.origin[r["lib"] + ".npz"] = "pm_topology_fix"
     X.results["pm_topology_fix"] = dict(table=p["table"], table_md5=_md5(path), units=len(rec),
                                         rotated=[r["lib"] for r in rec if r["rotated"]],
-                                        not_rotated=[r["lib"] for r in rec if not r["rotated"]], records=rec)
+                                        not_rotated=[r["lib"] for r in rec if not r["rotated"]], absent=absent, records=rec)
 
 
 # ------------------------------------------------------------------ E7 check

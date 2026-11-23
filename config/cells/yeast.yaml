@@ -377,9 +377,16 @@ library:
     - {step: af_models, plddt_min: 50, min_kept: 10, per: 30}   # residues pLDDT < 50 left out (TM segments kept)
     - {step: pdb_oligomers, table: plugins/yeast/data/library/pdb_oligomers.tsv, per: 30}
     - {step: pdb_rna, entries: [{id: tRNA, pdb: 1EHZ, per: 15}]}   # tRNA-Phe: reference of the tRNA species
+    # rebuild u2 (2026-11-23): proteins without an AlphaFold DB model (10 copies-bearing proteins > 2,700 residues and
+    # PXP3 in u1; the engine left them out as `no_structure`) get a placeholder sized from the UniProt length with the
+    # TRANSMEM segments as helices (no SIFTS table for yeast: no experimental-chain tier); library/species_ledger.tsv
+    - step: fallback
+      lengths: {path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/uniprot_yeast.tsv", columns: {acc: Entry, length: Length, mass: Mass}}
+      decompose: false             # complexes: the engine requests them itself (no structure -> pack/copy_ledger.tsv)
   pack_shapes: {per: 15}             # wc3d.PACK_PER (2026-11-13): 15 residues per sphere for packing (sealed library
                                      # only; the yeast packer reads the engine/lib trees, pack.presets.legacy_x5.shapes)
   options: {tm_graft: false, tm_route: false, adaptive_trees: false}   # Jurkat builders: declared, not run (B3)
+  ledger: {max_missing_mass_frac: 1.0e-4}   # species table without copies: share of species without a structure
 preplaced:                           # pre-placed structures ("prepass" before A0c)
   # Serial pre-placed builders (wholecell/preplaced/serial.py, `preplaced --step serial`; unification A6): the pre-pass of
   # the vendored stage 3 (scripts/s3_pack.py) as registered modules, in its order (the order is part of the result:
@@ -443,6 +450,7 @@ pack:
   # to the port build).
   meas_vox_nm: 4.0            # tiles3d.VOX: voxel size of the region volume measures
   meas_h_nm: 8.0              # tiles3d.MESH_H: marching-cubes lattice of the membrane areas and the tile meshes
+  ledger: {max_unexplained_mass_frac: 1.0e-4}   # pack/copy_ledger.tsv (engine totals outside the pack regions, by reason)
   halo_nm: 36.7               # X5 s3: largest bounding radius of the packed types (NPC excluded) + 1 nm; the yeast packer
                               # derives it from the library, the core packer (preset legacy_x5) reads this value
   tiling:

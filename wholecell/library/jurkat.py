@@ -155,8 +155,7 @@ def table(X):
     """species table (ing_id, kind, genes, accs, stoich, struct_src, pdb, uniprot, transmembrane, signal_frac, mass_da)"""
     if "_jtable" not in X:
         import pandas as pd
-        from .build import _path
-        T = pd.read_csv(_path(X.cfg, X.bdir, X.lc["species"]), sep="\t", keep_default_na=False)
+        T = pd.read_csv(X.species_path, sep="\t", keep_default_na=False)
         T["transmembrane"] = T.transmembrane.astype(str).str.lower().isin(["true", "1"])
         for c in ("signal_frac", "mass_da"):
             T[c] = pd.to_numeric(T[c])
@@ -323,6 +322,10 @@ def step_tm_route(X, p):
     jt = L["jt"]
     S = table(X).set_index("ing_id")
     ids = pd.read_csv(_path(X.cfg, X.bdir, p["ids"]), sep="\t")
+    absent = sorted(set(ids.ing_id) - set(S.index))                    # TM-routed ids that are not species of this build
+    if absent:
+        log(f"tm_route: {len(absent)} listed ids are not species of this build, skipped: {absent}")
+        ids = ids[ids.ing_id.isin(S.index)]
     jobs, allacc = [], set()
     for r in ids.itertuples():
         row = S.loc[r.ing_id].to_dict()
@@ -343,7 +346,11 @@ def step_tm_route(X, p):
     R.to_csv(os.path.join(L["work"], "tm_route_libs.tsv"), sep="\t", index=False)
     new = _written(X, before, "tm_route")
     err = R[R.note.astype(str).str.startswith("ERROR")]
-    X.results["tm_route"] = dict(ids=len(R), method=R.method.value_counts().to_dict(), errors=len(err), written=len(new))
+    for r in R[R.method == "af_fragment"].itertuples():               # AFDB fragment model (> 2,700 residues): ledger source
+        if os.path.exists(f"{X.partial}/{r.ing_id}.npz"):
+            X.source[r.ing_id] = "afdb_fragment"
+    X.results["tm_route"] = dict(ids=len(R), method=R.method.value_counts().to_dict(), errors=len(err), written=len(new),
+                                 absent=absent)
     log(f"tm_route: {X.results['tm_route']}")
     for r in err.itertuples():
         log("  ERROR", r.ing_id, r.note[:200])

@@ -46,8 +46,12 @@ pack:
   preset: legacy_v7                # pinned v7 packer (B1: switches.COMMON_DEFAULTS apply only to cells without a pin)
   organisation: null               # B2 (organisation layer on in jurkat.yaml) off: v7 has no organisation layer
   index_drops:                     # = jurkat.yaml without the B6 drop ne_lumen_b6
-    - {name: open_face_cortical_actin, libs: [F_ACTB], when_flag: G_FACE, mode: face_band, z_above_face_nm: 160.0, membrane: PM, min_sdf_nm: 150.0}
-    - {name: speckle_chromatin, libs: [NUCLEOSOME], lib_prefixes: ["H1-"], when_flag: G_SPECKLE, mode: g_spheres, section_slot: G_SPECKLE}
+    - {name: open_face_cortical_actin, libs: [F_ACTB], when_flag: G_FACE, mode: face_band, z_above_face_nm: 160.0, membrane: PM, min_sdf_nm: 150.0,
+       reason: "outside the imaged cell: frozen cortex along the open (cut) face, > 150 nm from the plasma membrane (v7)"}
+    - {name: speckle_chromatin, libs: [NUCLEOSOME], lib_prefixes: ["H1-"], when_flag: G_SPECKLE, mode: g_spheres, section_slot: G_SPECKLE,
+       reason: "chromatin fibre inside nuclear speckles (chromatin built without speckles; v7)"}
+  ledger:                          # v7 packed only species with a v7 library entry: 37 proteins without an AFDB model
+    explain_no_structure: "v7 reference: no v7 library entry (no AlphaFold DB model), not packed as in v7"
 
 # B4 (2026-11-17): jurkat.yaml builds the pre-placed layers with the common builders on em_cell1_v8p (2,696 pores);
 # the v7 port keeps the frozen v7 layers above, no serial pass, and the v7 NPC count (1,000).

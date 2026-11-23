@@ -450,9 +450,13 @@ inventory:
 library:
   mode: build
   start: {frozen: lib_structures_v7, files: plugins/jurkat/data/library/start_v7.tsv}   # pre-pass templates F_ACTB, MT_TUBA1B-TUBB4B (+ json)
-  # species (one row per ingredient of the legacy table the v7 library was built from, ingredients_v0_pre_v4.tsv;
-  # struct_src = the structure recorded in the v7 npz, which differs from the inventory's for 323 assemblies)
-  species: plugins/jurkat/data/library/species_v7.tsv.gz
+  # species (rebuild v9, 2026-11-23): written by the library stage from THIS build's pack table (one row per species the
+  # pack will request, structure source = the inventory's struct_src, i.e. the current coverage rule) -> library/species.tsv.
+  # Until v8 it was plugins/jurkat/data/library/species_v7.tsv.gz (the legacy table the v7 library was built from, with
+  # the v7 npz source for 321 complexes): 117 pack-table species had no entry and were dropped silently by the pack.
+  species: {from: pack_table, pack_table: inventory/pack_table.tsv,
+            accs: {table: inventory/assembly/inventory_v0_complexed.tsv, gene: gene, acc: uniprot}}
+  ledger: {max_missing_mass_frac: 1.0e-4}   # library/species_ledger.tsv: the build fails above this share of the requested mass
   pdb_dir: lib_pdb_assemblies        # RCSB assembly cache, read in place; offline (a missing entry is an error)
   nproc: 16                          # builder processes (results do not depend on it: one BLAS thread per process)
   jurkat:                            # inputs of the Jurkat steps (frozen-input names)
@@ -470,6 +474,17 @@ library:
     - {step: jurkat_monomers}                        # AFDB v6 F1 per protein (pLDDT < 50 trimmed, TM oriented)
     - {step: reorient_tm}                            # 1-2-pass TM monomers: soluble blocks out of the slab
     - {step: tm_route, ids: plugins/jurkat/data/library/tm_route_ids.tsv}   # 129 TM-routed ingredients (v5 R3)
+    # rebuild v9: every species still without a model (no AFDB entry: selenoproteins, NACA, recent UniProt entries) gets one
+    # by declared tiers, recorded in library/species_ledger.tsv: an experimental chain of the same protein (cached RCSB
+    # assembly, SIFTS, >= 50% of the sequence observed; soluble proteins), else a placeholder sized from the UniProt length
+    # with the TRANSMEM segments as helices across the membrane; assemblies without a structure are split into monomers
+    - step: fallback
+      topology: {path: inv_uniprot_topology, columns: [acc, topo, tm, intramem]}
+      lengths: {path: inv_uniprot_full, columns: {acc: Entry, length: Length, mass: Mass}}
+      pdb_chain: {sifts: inv_sifts, min_cov: 0.5, max_len_ratio: 1.2, max_tries: 5}
+      decompose: true
+      afdb_tar: lib_afdb_human_tar
+      afdb_tar_index: lib_afdb_human_tar_index
     - {step: adaptive_trees, include_membrane: true, max_ratio: 2.5, pers: [15, 8, 5]}   # sphere trees <= 2.5x volume
     - {step: pm_topology_fix, table: plugins/jurkat/data/library/pm_topology_fix.tsv}   # freeze v8 E7: 13 glyco-captured units ectodomain exoplasmic + TRBC1 by TM alternation
   # P8 packing shapes (written for B1; the B3 pack keeps the library's own adaptive trees, pack.shapes source library)
@@ -706,12 +721,36 @@ pack:
     - {membrane: MITO_IM, factor: 3.0, measured: {when_flag: G_CRISTAE, mode: ref_membrane, ref: MITO_OM}}
     - {membrane: GOLGI, factor: 4.5, measured: {when_flag: G_GOLGI_CIS, mode: summary_area_um2, key: [golgi, area_um2]}}
   open_face: {when_flag: G_FACE, summary_key: open_face, membranes: [PM]}   # f_pm for PM + PM shells, f_vol otherwise
-  index_drops:                     # pre-pass instances dropped at indexing (jwc.step_index)
-    - {name: open_face_cortical_actin, libs: [F_ACTB], when_flag: G_FACE, mode: face_band, z_above_face_nm: 160.0, membrane: PM, min_sdf_nm: 150.0}   # FACE_ACTIN
-    - {name: speckle_chromatin, libs: [NUCLEOSOME], lib_prefixes: ["H1-"], when_flag: G_SPECKLE, mode: g_spheres, section_slot: G_SPECKLE}
+  # pre-placed instances dropped at indexing (jwc.step_index). Every entry states its reason; pack/index_drops.tsv lists the
+  # dropped instances per library id and summary.json `index_drops` the totals. return_to_pool {library id: pack-table
+  # species}: the dropped copies go back to that species' pool before the counts (pack/copy_ledger.tsv). Rebuild v9
+  # (2026-11-23): v8 dropped 497,859 F_ACTB (open face), 180,764 NUCLEOSOME / H1 (speckles) and 9,236 F_ACTB (NE lumen)
+  # without a record (review D-pack-5).
+  index_drops:
+    - name: open_face_cortical_actin   # FACE_ACTIN
+      libs: [F_ACTB]
+      when_flag: G_FACE
+      mode: face_band
+      z_above_face_nm: 160.0
+      membrane: PM
+      min_sdf_nm: 150.0
+      reason: "outside the imaged cell: frozen cortex built along the open (cut) face, > 150 nm from the plasma membrane; it stands for the cortex under the plasma membrane outside the imaged volume (as f_pm scales the PM copies), so it is not repacked"
+    - name: speckle_chromatin
+      libs: [NUCLEOSOME]
+      lib_prefixes: ["H1-"]
+      when_flag: G_SPECKLE
+      mode: g_spheres
+      section_slot: G_SPECKLE
+      reason: "chromatin fibre inside nuclear speckles (the chromatin model was built without speckles); fibre-bound nucleosomes and H1 cannot be repacked as free particles, so the genome in the model is short by these nucleosomes"
     # B6 (criteria C3): frozen pre-placed instances whose centre lies in the NE lumen of em_cell1_v8 (cytosolic items
-    # within ~25 nm outside the NE midsurface, where the v7 ne_mid defect put cytosol)
-    - {name: ne_lumen_b6, lib_prefixes: [""], mode: inside_labels, labels: [perinuclear_space]}
+    # within ~25 nm outside the NE midsurface, where the v7 ne_mid defect put cytosol); in v8 all 9,236 were F_ACTB
+    - name: ne_lumen_b6
+      lib_prefixes: [""]
+      mode: inside_labels
+      labels: [perinuclear_space]
+      reason: "frozen cytosolic pre-pass instance with its centre in the perinuclear space of the corrected NE geometry (B6)"
+      return_to_pool: {F_ACTB: ACTB}   # cortical actin subunits -> the ACTB pool (packed as soluble actin)
+  ledger: {max_unexplained_mass_frac: 1.0e-4}   # pack/copy_ledger.tsv: counts fail above this share of the pack-table mass
   # organisation layer (B2; criteria docs/unification_criteria/B2_organisation.md): STRING v12 human, combined score
   # >= 400, AlphaFold 3 pool OFF. OFF since the v9 rebuild (decision 2026-11-23, Pedro): copies are placed uniformly at
   # random within their compartments; the settings below are kept so the layer can be switched on for comparison.

@@ -41,6 +41,9 @@ def plan(cell: str, build_tag: str | None = None) -> dict:
     out["inventory"] = inv.steps(cfg)
     lc = cfg.get("library") or {}
     out["library_nproc"] = int(lc.get("nproc", 8)) if lc.get("mode") == "build" else 1   # build mode: processes of the builders
+    sp = lc.get("species")                              # species table written from this build's inventory: library waits for it
+    out["library_inputs"] = ([sp.get("pack_table", "inventory/pack_table.tsv")] + ([sp["accs"]["table"]] if sp.get("accs") else [])
+                             if lc.get("mode") == "build" and isinstance(sp, dict) else [])
     out["preplaced_modules"] = (cfg.get("preplaced") or {}).get("modules") or []
     ser = (cfg.get("preplaced") or {}).get("serial")
     out["preplaced_serial"] = {"out": ser.get("out", "preplaced/serial")} if ser else None
