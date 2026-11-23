@@ -1,0 +1,6 @@
+{"step": "B6", "date": "2026-11-17",
+ "accepted": [
+  {"check": "C1", "metric": "hpa_jurkat_holdout_half.placed.tophit.unweighted",
+   "decision": "coordinator 2026-11-17 under the main-session guidance 'accept small non-content differences without extra runs' (Pedro informed)",
+   "reason": "one gene of 52: B3GALNT2 (0.0002 pg, a handful of copies) placed agree 0.75025 -> 0.75 at a tie, top hit flips; 0.6154 -> 0.5962 = 1/52; fit half and all-gene intended metrics unchanged"}
+ ]}

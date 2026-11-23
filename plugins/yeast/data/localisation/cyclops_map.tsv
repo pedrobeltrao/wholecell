@@ -1,0 +1,20 @@
+# CYCLoPs (Koh et al. 2015 G3) classes -> yeast keys. 'periphery' is resolved by the combiner (imaging_groups.periphery):
+# plasma membrane for membrane proteins and proteins annotated there, cytosol otherwise (the vacuole presses the
+# cytoplasm against the cortex). origin: yeast pipeline/inventory.py:CYCLOPS_MAP @ e3b7448
+term	compartment	reason
+Cytoplasm	cytosol	cytoplasm
+Nucleus	nucleoplasm	nucleus
+Spindle Pole	nucleoplasm	spindle pole (nuclear side at this resolution)
+Nucleolus	nucleolus	nucleolus
+Nuclear Periphery	nuclear_envelope	nuclear periphery
+ER	ER	ER
+Golgi	golgi_endosome	Golgi (pooled with endosomes)
+Endosome	golgi_endosome	endosome (pooled with Golgi)
+Mitochondria	mitochondrion	mitochondria (sub-compartment from the annotation)
+Peroxisome	peroxisome	peroxisome
+Vacuole/Vacuolar Membrane	vacuole	vacuole
+Cortical Patches	plasma_membrane	actin cortical patches at the PM
+Cell Periphery	periphery	resolved by the combiner
+Bud	periphery	resolved by the combiner
+Budneck	periphery	resolved by the combiner
+Budsite	periphery	resolved by the combiner

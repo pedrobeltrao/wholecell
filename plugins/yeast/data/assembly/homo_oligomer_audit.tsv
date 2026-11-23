@@ -1,0 +1,9 @@
+# origin: yeast pipeline/assemblies.py CURATED_HOMO @ e3b7448 (vendored plugins/yeast/engine); converted 2026-11-17 (unification A4)
+gene	chains	pdb	reason
+CDC48	6	8U9P	PDB audit 2026-11-12: AAA+ hexamer (8U9P, the substrate peptide left out)
+TSA1	10	3SBC	PDB audit 2026-11-12: decameric ring of typical 2-Cys peroxiredoxins (3SBC, C47S; exchanges with dimers)
+GLN1	10	3FKY	PDB audit 2026-11-12: glutamine synthetase decamer (3FKY, first 18 residues missing)
+MMF1	3	3QUW	PDB audit 2026-11-12: YjgF-family trimer
+HMF1	3	1JD1	PDB audit 2026-11-12: YjgF-family trimer
+PST2	4	5MP4	PDB audit 2026-11-12: flavodoxin-like tetramer
+YNK1	6	3B54	PDB audit 2026-11-12: nucleoside-diphosphate kinase hexamer (was an AlphaFold dimer)

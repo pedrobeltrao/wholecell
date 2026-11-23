@@ -1,0 +1,91 @@
+# REFERENCE PRESET: the Jurkat v7 port on the published v7 geometry (package jurkat/em_cell1_v7, B1 exact), i.e.
+# config/cells/jurkat.yaml as it was before B6 (2026-11-17). It reproduces the reference build
+# jurkat/20261115-ec0b403-s20261115-v7repro2 (criteria docs/reference/history/v7_reproduction_criteria.md):
+#   scripts/build_isolated.sh jurkat_v7_port <tag> 24        (cell_id jurkat: builds land under <results_root>/jurkat/)
+# Only the keys that differ from jurkat.yaml are listed (lists are replaced whole by `extends`).
+extends: jurkat.yaml
+
+geometry:
+  package: "{geom_root}/jurkat/em_cell1_v7"
+  manifest_sha256: eb16248b7505f17f135c8c822bcba6e8dc02cff8ad67b7723eeef6e5419762c7
+
+preplaced:
+  serial: null                     # B4 serial pass (common builders) off: the frozen v7 layers below
+  modules:                         # = jurkat.yaml before B4, with depends_on_geometry = the v7 package
+    - {name: chromatin, kind: instances, mode: frozen, npz: pre_chromatin_v8_rep5, json: pre_chromatin_v8_rep5_json, depends_on_geometry: jurkat/em_cell1_v7}
+    - {name: polysomes, kind: instances, mode: frozen, npz: pre_polysomes_v7, json: pre_polysomes_v7_json, depends_on_geometry: jurkat/em_cell1_v7}
+    - {name: cytoskeleton, kind: instances, mode: frozen, npz: pre_cytoskeleton_v7, json: pre_cytoskeleton_v7_json, depends_on_geometry: jurkat/em_cell1_v7}
+    - {name: npc, kind: instances, mode: frozen, npz: pre_npc_v3, json: pre_npc_v3_json, depends_on_geometry: jurkat/em_cell1_v7}
+    - name: lamina
+      depends_on_geometry: jurkat/em_cell1_v7
+      kind: instances
+      mode: frozen
+      rebuild_check: true
+      builder: lamina_lattice
+      seed_stream: prepass.lamina
+      params: {genes: [LMNB1, LMNB2, LMNA], inventory_key: lamina, patch_nm: 500.0, pore_x_nm: 80.0, pore_z_nm: 150.0,
+               lat_f: 1.0, priority: chromatin}
+      inputs: {chromatin: "module:chromatin", table: "build:inventory/rules/jurkat.v6/ingredients.tsv", ne_mesh: "layer:ne_mesh"}
+      frozen: {npz: pre_lamina_v7, json: pre_lamina_v7_json, drop_json: pre_chromatin_drop_lamina_v7}
+      drops_target: chromatin
+    - {name: mrna, kind: beads, mode: frozen, npz: pre_mrna_v1, drop_npy: pre_mrna_drop_v7, depends_on_geometry: jurkat/em_cell1_v7}
+    - {name: mrna_nascent, kind: beads, mode: frozen, npz: pre_mrna_nascent_v8, depends_on_geometry: jurkat/em_cell1_v7}
+
+library:                           # = jurkat.yaml before B3: the frozen v7 library, referenced and md5-verified per file
+  mode: frozen                     # (the build-mode keys inherited from jurkat.yaml are not read in frozen mode)
+  frozen: lib_structures_v7
+  copy: false
+
+pack:
+  preset: legacy_v7                # pinned v7 packer (B1: switches.COMMON_DEFAULTS apply only to cells without a pin)
+  organisation: null               # B2 (organisation layer on in jurkat.yaml) off: v7 has no organisation layer
+  index_drops:                     # = jurkat.yaml without the B6 drop ne_lumen_b6
+    - {name: open_face_cortical_actin, libs: [F_ACTB], when_flag: G_FACE, mode: face_band, z_above_face_nm: 160.0, membrane: PM, min_sdf_nm: 150.0}
+    - {name: speckle_chromatin, libs: [NUCLEOSOME], lib_prefixes: ["H1-"], when_flag: G_SPECKLE, mode: g_spheres, section_slot: G_SPECKLE}
+
+# B4 (2026-11-17): jurkat.yaml builds the pre-placed layers with the common builders on em_cell1_v8p (2,696 pores);
+# the v7 port keeps the frozen v7 layers above, no serial pass, and the v7 NPC count (1,000).
+inventory:
+  copies:
+    adjustments: []                  # v7: no copy fixes (jurkat.yaml: v8.copy_fixes PDGFRB, DECISION 2026-11-19)
+  # B5 (jurkat.yaml: localisation preset common, term_map strings cleaned up): the v7 port keeps the legacy v7
+  # localisation and the v7 table strings (lists are replaced whole)
+  localisation_sources:
+    - {source_id: inv_hpa_subcellular, weight: 0.5, evidence_codes: "HPA reliability Enhanced/Supported/Approved (Uncertain ignored); main 1.0, additional 0.3", term_map: "plugins/jurkat/data/inventory_v0.yaml:hpa_map"}
+    - {source_id: inv_uniprot_full, weight: 0.5, evidence_codes: "UniProt CC text (all statements, equal weight)", term_map: "plugins/jurkat/data/inventory_v0.yaml:uniprot_comp_rules"}
+    - {source_id: inv_itzhak2016, weight: 1.0, evidence_codes: "fractionation N/C class N, C, N/C with >= 3 good profiles; soluble proteins only", term_map: "re-split of nucleus+cytosol+cytoskeleton share"}
+  params:
+    localisation:
+      preset: legacy_v7                 # presets/legacy_v7.yaml (= legacy v0 location exactly)
+      label: jurkat.hpa_uniprot_itzhak_v0
+    assembly_steps:
+      overrides:
+        secms: {source_id: inv_sec_fossati_features}   # Step 3 (jurkat.yaml: combined final SEC-MS): the v7 SEC-MS run
+      data:
+        complex_copy_caps: plugins/jurkat/data/assembly/complex_copy_caps.tsv   # NPC = 1000 (v7)
+        apex_check_exclude: []          # v7: no exclusions (jurkat.yaml: HSPD1 share from Fossati, Step 3 2026-11-19)
+    # Step 3 (2026-11-19; jurkat.yaml: final SEC-MS, preset default, 3 datasets combined): the v7 port keeps the v7 run
+    # (preset legacy_v7 = anchor set v1, no QC gate; Fossati only; no combination). annotation / complexes /
+    # pair_candidates / species are inherited unchanged.
+    secms_toolkit:
+      preset: legacy_v7
+      combine: null
+      datasets:
+        - source_id: inv_sec_fossati_features
+          format: openswath
+          path: inv_sec_fossati_features
+          fraction_map: {path: inv_sec_fossati_fractions, skiprows: 4}
+          n_fractions: 60
+          void_fraction: 8              # PLANNING_NOTES 2026-11-07: void at fractions <~ 8 (clathrin at 5)
+          condition: "Jurkat E6-1 steady state, mild lysis (0.5% NP-40), SEC-SWATH"
+    jurkat.v4:
+      npc_copies: 1000
+
+validate:
+  suite:
+    reference:                       # pinned (2026-11-19): jurkat.yaml now compares with the Step-2 build (freeze_v8.md §7)
+      build: "{results_root}/jurkat/20261115-ec0b403-s20261115-v7repro2"
+      suite: "{results_root}/jurkat/_dev_unify/a8p2/20261115-ec0b403-s20261115-v7repro2/suite.json"
+
+export:
+  tiles: {enabled: false}            # v7 port: no YCT2 tiles (jurkat.yaml: ON for the paper build, DECISION 2026-11-19)

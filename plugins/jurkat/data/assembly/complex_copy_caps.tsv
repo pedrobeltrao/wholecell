@@ -1,0 +1,4 @@
+# Jurkat: per-complex copy caps applied after the copies rule (copies = min(rule, cap)). origin: assembly_v0.yaml npc
+# (legacy complexes_v0.py NPC_COPIES, 2026-11-15); moved to TSV 2026-11-16 (A4).
+complex_id	copies	reason
+CPX-873	1000	NPC count from geometry: nuclear envelope area (~258 um2) x ~4 NPC/um2

@@ -1,0 +1,24 @@
+# origin: yeast_cell_viewer (G. Magnusson), main 34d123f = build W inventory code (commit 8f84387):
+#   pipeline/inventory.py NOT_IN_THIS_CELL; pipeline/ingredients.py NPC_COPIES, NUP_CAPPED, nucleosome histone families.
+# Copied 2026-11-16, READ-ONLY reference, NO LICENCE YET: keep local, do not redistribute. Comments condensed from the
+# source; see there for the full reasoning.
+#
+# Proteins the model cell (BY4741 MATa his3d1 leu2d0 met15d0 ura3d0, haploid, unbudded G1, glucose) does not have.
+# PaxDb's integrated set mixes strains, media and stages; copies set to zero before the proteome is scaled to its mass
+# (external review of 2026-11-12, comments 2 and 3). A condition-matched abundance set would replace the last three lists.
+not_in_this_cell:
+  genotype: [HIS3, LEU2, MET17, URA3]
+  alpha-specific: ["MF(ALPHA)1", "MF(ALPHA)2", STE3, SAG1, MATALPHA1, MATALPHA2, HMLALPHA1, HMLALPHA2]
+  meiosis and sporulation: [SPO11, DMC1, ZIP1, ZIP2, ZIP3, HOP1, HOP2, MND1, RED1, REC8, MEK1, MSH4, MSH5, NDT80, IME1,
+                            IME2, SPO13, SPO16, SPS100, SSP1, SSP2, MPC54, SPO21, SPO74, ADY3, ADY4, MEI4, MEI5, SAE3,
+                            MER1, REC102, REC104, REC114, SPR3, SPR28, DON1, SMK1, SPS1, GIP1, SPS2, SPS22, SPO19, SPR2]
+  glucose-repressed: [GAL1, GAL2, GAL7, GAL10, PCK1, FBP1, MLS1, ICL1, CYC7, ADH2, JEN1]
+  absent in G1: [MCD1, CDC5, SGO1, PDS1, CLB1, CLB2, CLB3, CLB4]
+# copies of each nucleoporin per pore (Kim et al. 2018 Nature 555:475, Suppl. Table 2A "Copies per NPC"; Nup145 = one
+# gene for Nup145N and Nup145C)
+npc_copies: {GLE1: 8, NUP42: 8, NUP116: 16, NUP100: 16, DYN2: 16, NUP82: 16, NUP159: 16, NSP1: 48, NIC96: 32, NUP49: 32,
+             NUP57: 32, NUP84: 16, NUP85: 16, NUP120: 16, NUP133: 16, NUP145: 16, SEH1: 16, SEC13: 16, NUP157: 16,
+             NUP170: 16, NUP188: 16, NUP192: 16, NUP53: 16, ASM4: 16, NDC1: 16, POM34: 16, POM152: 16, NUP1: 8, NUP60: 16,
+             MLP1: 8, MLP2: 8}
+# scaffold and FG nucleoporins (exist almost only in pores); Sec13, Seh1 (also COPII / SEA), Dyn2, Mlp1/2 left out
+nup_capped_regex: "^(NUP\\d+|NSP1|NIC96|NDC1|POM\\d+|ASM4|GLE1)$"

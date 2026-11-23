@@ -1,0 +1,39 @@
+# Final yeast SEC-MS assembly state (2026-11-17, DECISION Pedro): lab 2026 NaCl (primary) and YPD (gap fill + consistency
+# check only; keeps the NaCl calibration) (unpublished lab data; no longer confidential since 2026-11-23: processed tables deposited, raw files to PRIDE)
+# + Pang et al. 2020 MCP (PXD019513, PRIDE CC0): unstressed mid-log BY4741 in YEPD, BioSep-SEC-s4000, 70 fractions, one
+# profile (2 injections pooled), MaxQuant summed intensity per fraction (data/proteomics/pang2020_yeast_SEC_PXD019513/
+# README.md). Preset default = anchor set v2 (v1 minus COF1, HSP82, SSA1, BMH1); Pang calibrated on its own anchors.
+# Combination (weights, roles): final2026_yeast_combine.yaml. Lab entries identical to lab2026_yeast.yaml.
+species: yeast
+preset: default
+annotation: {path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/uniprot_yeast.tsv"}
+complexes: [{format: complex_portal, path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/complexportal_559292.tsv"}]
+datasets:
+  - source_id: lab2026_yeast_NaCl
+    format: protein_matrix
+    path: "{data_root}/data/proteomics/umpublished_datasets/nacl.tsv"
+    id_col: ID
+    value_regex: '^(?P<fraction>\d+)$'
+    id_groups: {strip: '[]', sep: ';', mode: expand}
+    n_fractions: 60
+    void_fraction: null
+    condition: NaCl
+  - source_id: lab2026_yeast_YPD
+    format: protein_matrix
+    path: "{data_root}/data/proteomics/umpublished_datasets/ypd.tsv"
+    id_col: ID
+    value_regex: '^(?P<fraction>\d+)$'
+    id_groups: {strip: '[]', sep: ';', mode: expand}
+    n_fractions: 60
+    void_fraction: null
+    condition: YPD
+    calibration_from: lab2026_yeast_NaCl   # same column assumed; YPD's own fit fails QC (see lab2026_yeast.yaml)
+  - source_id: pang2020_yeast
+    format: protein_matrix
+    path: "{data_root}/data/proteomics/pang2020_yeast_SEC_PXD019513/profiles_log_intensity.tsv"   # linear MaxQuant
+    id_col: ID                       # 'Intensity k' despite the file name; 0 = not detected
+    value_regex: '^(?P<fraction>\d+)$'
+    id_groups: {strip: '', sep: ';', mode: expand}   # 53 ambiguous 'P1;P2' groups -> each member (shape outputs only)
+    n_fractions: 70
+    void_fraction: null              # not published (empirical: ribosomes / CCT apex at fractions 7-10)
+    condition: PangYEPDmidlog

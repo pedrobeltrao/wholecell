@@ -1,0 +1,17 @@
+# environments and build output
+.venv/
+.node/
+web/app/node_modules
+web/app/dist/
+web/app/dist_single/
+web/app/public/
+.chromelibs/
+__pycache__/
+.DS_Store
+# generated data and large inputs (regenerable or public downloads; see README_source.md)
+work/
+intermediates/
+pipeline/lib/
+pipeline/data/
+pipeline/afdb/
+pipeline/afdb_dimers/

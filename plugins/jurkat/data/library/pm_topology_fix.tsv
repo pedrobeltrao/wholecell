@@ -1,0 +1,18 @@
+# freeze v8 criteria §4 E7 / §5d (DECISION 2026-11-19, D7; Pedro: fix written, not waived). Source: data/derived/surface_jurkat_2026/topology_flipped_units.tsv
+# glyco units = flagged by the S0 topology check AND a subunit detected in the Jurkat surface glyco-capture (ectodomain extracellular).
+# The other 29 flagged units have no glyco evidence and are left unchanged (known residuals, listed by the E7 check).
+lib	rule	genes	uniprot	n_PM	evidence
+CPX-1802	glyco_ectodomain_exoplasmic	ITGB1;ITGA4		55700	surface glyco-capture detects a subunit (topology_flipped_units.tsv detected_surface)
+TFRC_afx2	glyco_ectodomain_exoplasmic	TFRC		51925	surface glyco-capture detects a subunit (topology_flipped_units.tsv detected_surface)
+LNPEP_afx2	glyco_ectodomain_exoplasmic	LNPEP		21217	surface glyco-capture detects a subunit (topology_flipped_units.tsv detected_surface)
+CPX-1803	glyco_ectodomain_exoplasmic	ITGB1;ITGA6		13443	surface glyco-capture detects a subunit (topology_flipped_units.tsv detected_surface)
+CD7_x2	glyco_ectodomain_exoplasmic	CD7		10506	surface glyco-capture detects a subunit (topology_flipped_units.tsv detected_surface)
+SLC4A7	glyco_ectodomain_exoplasmic	SLC4A7		7727	surface glyco-capture detects a subunit (topology_flipped_units.tsv detected_surface)
+CPX-1794	glyco_ectodomain_exoplasmic	ITGB1;ITGA5		6494	surface glyco-capture detects a subunit (topology_flipped_units.tsv detected_surface)
+SLC44A1_x2	glyco_ectodomain_exoplasmic	SLC44A1		787	surface glyco-capture detects a subunit (topology_flipped_units.tsv detected_surface)
+CPX-26677	glyco_ectodomain_exoplasmic	IGF1R		168	surface glyco-capture detects a subunit (topology_flipped_units.tsv detected_surface)
+CPX-9541	glyco_ectodomain_exoplasmic	IRAG2;SUN2		167	surface glyco-capture detects a subunit (topology_flipped_units.tsv detected_surface)
+PVR-CD226	glyco_ectodomain_exoplasmic	PVR;CD226		158	surface glyco-capture detects a subunit (topology_flipped_units.tsv detected_surface)
+NECTIN2-NECTIN1	glyco_ectodomain_exoplasmic	NECTIN2;NECTIN1		31	surface glyco-capture detects a subunit (topology_flipped_units.tsv detected_surface)
+CPX-937	glyco_ectodomain_exoplasmic	NOTCH1;RBPJ;MAML1		24	surface glyco-capture detects a subunit (topology_flipped_units.tsv detected_surface)
+TRBC1_x2	tm_alternation	TRBC1	P01850	13875	UniProt TOPO_DOM gap (only 171-176 Cytoplasmic); TM 150-170 -> constant domain 1-149 extracellular by alternation

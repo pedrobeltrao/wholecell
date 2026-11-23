@@ -1,0 +1,14 @@
+# Yeast localisation keys a transmembrane protein can sit in (preset common, combiner step restrict_membrane; B5).
+# The keys of term_rules.tsv / cyclops_map.tsv that are membranes or membrane-bounded organelles; soluble sub-compartments
+# (mito_IMS, mito_matrix), cytosol, nucleoplasm, nucleolus and cell_wall are not.
+compartment	reason
+plasma_membrane	plasma membrane
+ER	ER membrane
+nuclear_envelope	nuclear envelope membranes
+mitochondrion	mitochondrial membranes (generic; sub-compartment from fractionation / GO)
+mito_IM	mitochondrial inner membrane
+mito_OM	mitochondrial outer membrane
+golgi_endosome	Golgi / endosome membranes
+vacuole	vacuolar membrane
+peroxisome	peroxisomal membrane
+lipid_droplet	lipid droplet monolayer (hairpin proteins)

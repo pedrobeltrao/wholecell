@@ -1,0 +1,26 @@
+# origin: jurkat/yc/pipeline/jinventory_v7.py constants (legacy workspace, 2026-11-15)
+cyto_keys: [cytosol, cytoskeleton, peroxisome, lipid_droplet, unassigned, plasma_membrane]
+sp_keys: [er, golgi, endolysosomal, secreted]
+sperm_terms: [Acrosome, Annulus, Calyx, Connecting piece, End piece, Equatorial segment, Flagellar centriole, Mid piece, Perinuclear theca, Principal piece]
+# tcr_complex / tcr_weights (rule R4b) and f1 (CPX-2511) -> plugins/jurkat/data/localisation/overrides_legacy_v7.tsv
+#   (rule_ids v7.R4b, v7.F1; A5 2026-11-16)
+pcm: {share: 0.2, cap_mg_ml: 100.0}
+mt: {plus_share: 0.15, lattice_share: 0.4, cap_mg_ml: 150.0, band_nm: [14.0, 26.0], plus_length_nm: 400.0, plus_min_mt_length_nm: 1000.0}
+vimentin_share: 0.7               # Brown et al. 2001 J Immunol 166:6640
+npc_fg: {receptors_per_pore: 20, n_pores: 1000}   # Kapinos et al. 2017; Lowe et al. 2015 (judgement)
+pcm_terms: [Centrosome, Centriolar satellite, Microtubule organizing center]
+pcm_cc_regex: 'centrosome \[GO:0005813\]|centriole \[GO:0005814\]|pericentriolar material \[GO:0000242\]|centriolar satellite \[GO:0034451\]|gamma-tubulin (ring |small )?complex'
+plus_ipr: {IPR004953: EB1 C-terminal, IPR000938: CAP-Gly, IPR034085: TOG}
+lattice_ipr: {IPR001084: MAP tubulin-binding repeat, IPR008604: MAP7, IPR003533: doublecortin}
+mt_terms: [Microtubules, Microtubule ends, Centrosome, Mitotic spindle, Cytokinetic bridge]
+mt_exclude_regex: '^(TUB[AB]|TBC[A-E]$|DNAAF)'   # tubulin-folding cofactors / dynein assembly factors
+if_ipr: IPR039008
+npc_mf_regex: 'nuclear (import|export) signal receptor activity|nuclear localization sequence binding \[GO:0008139\]'
+check:
+  R4b: "v6 held-out disagreement (HPA-JURKAT CD3E/CD3D ER-dominant vs model PM rim); rule input literature only: CD3E/CD3D JURKAT scores are no longer clean after v7"
+  R6c: "v6 plan R6 (centrosome / PCM / centriolar satellites ~260 genes, no compartment) + HPA JURKAT tubulin asters"
+  R7: "v6 plan R7 (MAPs on traced MTs; stage 3 MT network)"
+  R6d: "v6 plan R6 (vimentin perinuclear cage, no compartment)"
+  L3: "v7 prep: lamina lattice holds 43% of the lamins; DECISION Pedro 2026-11-10 (rest = nucleoplasmic pool)"
+  F1: "v7 test pack: CPX-2511 (SSU processome) placed as an NE TM ingredient, blocked by the lamina"
+  R6e: "v6 pack (sh_NPC 99% on the nuclear face; cytoplasmic annulus blocked by the 7R5K ring)"

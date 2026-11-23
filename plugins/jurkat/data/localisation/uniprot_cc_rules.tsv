@@ -1,0 +1,15 @@
+# origin: plugins/jurkat/data/inventory_v0.yaml uniprot_comp_rules (legacy inventory_v0.py COMP, 2026-11-15; PLANNING_NOTES §4b)
+# [key, regex] searched in the lower-cased UniProt 'Subcellular location [CC]' text; all matching rows kept, in file order.
+compartment	regex	reason
+nucleus	nucle(us|olus|oplasm)|chromosome|nuclear speck|PML body|Cajal	nuclear text (note: the pattern is searched in lower-cased text, so 'PML body' / 'Cajal' never match; kept as in v0)
+nuclear_envelope	nuclear envelope|nuclear membrane|nuclear pore	nuclear envelope / membrane / pore
+mitochondrion	mitochondri	any mitochondrial location
+er	endoplasmic reticulum|microsome	ER or microsome
+golgi	golgi	Golgi
+plasma_membrane	cell membrane|plasma membrane|cell surface|cell projection|cell junction	cell membrane / surface / projection / junction
+endolysosomal	endosome|lysosome|vesicle|vacuole|autophagosome|phagosome	endosome, lysosome, vesicle, vacuole, autophagosome, phagosome
+peroxisome	peroxisom	peroxisome
+lipid_droplet	lipid droplet	lipid droplet
+cytoskeleton	cytoskeleton|centrosome|centriole|microtubule|spindle	cytoskeleton, centrosome, centriole, microtubule, spindle
+secreted	\bsecreted\b|extracellular	secreted / extracellular (dropped when a cellular location also matched)
+cytosol	cytoplasm|cytosol	cytoplasm / cytosol

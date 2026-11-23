@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software or its model data, please cite it as below (paper in preparation)."
+title: "wholecell: a pipeline for whole-cell structural models (Jurkat T cell and budding yeast)"
+version: 0.1.0-staging
+date-released: 2026-11-23
+license: PolyForm-Noncommercial-1.0.0
+repository-code: "https://github.com/TODO/wholecell"
+# other authors TODO
+authors:
+  - family-names: Magnusson
+    given-names: Gudmundur          # TODO confirm spelling (Guðmundur?) and ORCID
+  - family-names: Beltrao
+    given-names: Pedro
+    affiliation: "ETH Zurich"
+    email: pbeltrao@ethz.ch
+keywords:
+  - whole-cell model
+  - structural biology
+  - molecular packing
+  - Jurkat
+  - Saccharomyces cerevisiae

@@ -1,0 +1,32 @@
+# Curated human proteins of well-established native mass (kDa) for the SEC apparent-MW calibration (anchors).
+# origin: jurkat/inventory/sec_assembly.py NATIVE dict (2026-11-08; PLANNING_NOTES "SEC assembly state"), same order.
+# Native mass = oligomeric state x monomer mass from the literature / PDB biological assembly (e.g. GAPDH tetramer,
+# PKM tetramer, CCT/TRiC 16-mer, 20S proteasome for PSMA1/PSMB5, VCP hexamer, FASN dimer, ACLY tetramer).
+# Excluded on purpose (known SEC exceptions): RPL5 (free 5S RNP pool), HNRNPA1 (RNPs), TUBB (polymer/aggregates).
+# Species: human. Role in the toolkit: THE calibration (primary; Complex Portal calibrants are a diagnostic only).
+gene	native_kda	state
+PFN1	15	monomer
+CFL1	18.5	monomer
+PPIA	18	monomer
+SOD1	32	dimer
+PRDX1	44	dimer
+TPI1	53	dimer
+PGK1	45	monomer
+PARK7	40	dimer
+YWHAZ	55	dimer
+ENO1	94	dimer
+GAPDH	144	tetramer
+LDHA	147	tetramer
+PKM	232	tetramer
+ALDOA	157	tetramer
+HSP90AB1	166	dimer
+HSPA8	71	monomer
+EEF2	95	monomer
+NPM1	190	oligomer (value as curated 2026-11-08)
+PSMA1	750	20S proteasome
+PSMB5	750	20S proteasome
+CCT2	960	TRiC 16-mer
+TCP1	960	TRiC 16-mer
+FASN	540	dimer
+ACLY	480	tetramer
+VCP	540	hexamer

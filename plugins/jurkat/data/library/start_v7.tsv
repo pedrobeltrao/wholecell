@@ -1,0 +1,5 @@
+file	md5	reason
+F_ACTB.npz	5a29982a175a78cde44398267f612611	pre-pass template (jcytoskeleton: helix 9GO5 / lattice 8QV3, 5W3F), not built by the library scripts
+F_ACTB_helix.json	1d0605a8a2188c62379a5a8edf19eeb0	pre-pass template (jcytoskeleton: helix 9GO5 / lattice 8QV3, 5W3F), not built by the library scripts
+MT_TUBA1B-TUBB4B.npz	20e60adf7299e5784ac6430fa531bad9	pre-pass template (jcytoskeleton: helix 9GO5 / lattice 8QV3, 5W3F), not built by the library scripts
+MT_TUBA1B-TUBB4B_lattice.json	e9ff6a54045ecb90afbfe6bc48fa4374	pre-pass template (jcytoskeleton: helix 9GO5 / lattice 8QV3, 5W3F), not built by the library scripts

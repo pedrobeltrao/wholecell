@@ -1,0 +1,17 @@
+Environments per step family (exports of the environments that ran the phase-1 builds, 2026-11-15).
+  core-cpu   = vcell          (python 3.12, numpy 2.5.4, numba 0.68.1, pandas 3.1.1, scipy, scikit-image, trimesh, pyarrow):
+               every `python -m wholecell <stage>` step (geometry, inventory, library, preplaced, pack, validate, export).
+               Recreate: conda create -p <path> --file vcell.explicit.txt && <path>/bin/pip install -r vcell.pip.txt
+               (pip list includes the conda-installed packages; pip skips those already present).
+               2026-11-17: + xlrd 2.0.2 (pip, --no-deps, pure Python) so the core env reads the yeast .xls inputs
+               (CYCLoPs, Pol II); decision "one core environment for all cells" (PLANNING_NOTES 2026-11-17).
+               vcell.explicit.txt unchanged (conda packages untouched).
+  orchestration = wholecell_smk (snakemake 8.30; no scientific packages: the Snakefile asks `python -m wholecell.plan`
+               in core-cpu for the DAG). Recreate: conda env create -f wholecell_smk.yaml -p <path>.
+  future (not used in phase 1): md-gpu (OpenMM/CUDA, chromatin polymer), torch (U-Net MT tracing), calvados
+  (CALVADOS/OpenMpipi condensates), hoomd (in-situ condensates), viewer-node (Node 20 + vite viewer build).
+The interpreter paths of this site are in config/site.yaml (python, snakemake).
+  yeast engine (`yeast_x5`, uv venv, CPython 3.11.16; release export 2026-11-23): the vendored yeast scripts that the
+               yeast config runs with their own interpreter (validate_all with GPU sweeps, s5_encode, ...). Package list:
+               yeast_x5.pip.txt (recreate commands in its header). yeast.yaml expects it at
+               {data_root}/conda_envs/yeast_x5/bin/python. Needs an NVIDIA GPU (CUDA 12) for the validate_all step.

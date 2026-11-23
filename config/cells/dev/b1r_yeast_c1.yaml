@@ -1,0 +1,7 @@
+# B1 REDUCED BENCHMARK OVERLAY (docs/unification_criteria/B1_packer_addendum_2026-11-18.md §2); only pack.preset(s) differ
+# from the base config. Built-in presets b1_s*: wholecell/pack/switches.py B1_BENCHMARK (frozen A3 values).
+# C1: v7 single visit (yeast shapes = pack_trees_15 already; = frozen S1), merged after legacy_x5
+extends: ../yeast.yaml
+
+pack:
+  preset: [legacy_x5, b1_s1]

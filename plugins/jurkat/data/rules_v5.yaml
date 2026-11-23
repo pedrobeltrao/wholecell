@@ -1,0 +1,16 @@
+# origin: jurkat/yc/pipeline/jinventory_v5.py constants (legacy workspace, 2026-11-15)
+volumes_um3:                    # cell-1 tile measures of the v4 geometry (PLANNING_NOTES §7f)
+  nucleoplasm: 254.5            # v4 nucleoplasm minus the nucleolus
+  cytosol: 385.5
+  nucleolus: 5.9                # EM nucleolus_seg in cell 1
+nucleolus_cap_mg_ml: 110.0      # v5 test tiles: 168 mg/ml requested jammed at 91 mg/ml placed (rRNA not modelled)
+max_anchor_da: 1.0e+6
+cyto_keys: [cytosol, cytoskeleton, peroxisome, lipid_droplet, unassigned, plasma_membrane]
+act_tub_regex: '^(ACT[BG]\d?|ACTG1|TUB[AB]\w*)$'
+lamina_share: {LMNB1: 1.0, LMNB2: 1.0, LMNA: 0.8, TMPO: 0.5}     # rule L: share of nucleus+NE pool -> lamina
+anchor_membranes: {plasma_membrane: pm, er: er, golgi: golgi, endolysosomal: endo, nuclear_envelope: ne}
+cortex_causes: [a_peripheral_or_lipid_anchored, g_membrane_main_no_anchor_packed_soluble]   # loc_compare R6 classes (v4 pack)
+nucleolar_share: {approved: 0.7, enhanced_only_nucleoli: 0.85}
+nucleolar_other_nuclear_terms: [Nucleoplasm, Nuclear speckles, Nuclear bodies, Nuclear membrane, Kinetochore, Mitotic chromosome]
+nuclear_pool: {max_unit_kda: 60, max_model_nucleus: 0.05, min_model_cytosol: 0.8, max_mass_da: 60000}
+hpa_jurkat_line: JURKAT

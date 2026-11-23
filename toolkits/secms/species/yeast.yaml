@@ -1,0 +1,11 @@
+# SEC-MS toolkit species settings: budding yeast (S. cerevisiae S288C, taxon 559292)
+species: yeast
+taxon: 559292
+complex_portal_taxon: 559292
+anchors: anchors_native_mass_yeast.tsv   # anchor set v1 (kept for compatibility: the set used when a preset names none)
+anchor_sets:                         # calibration anchor-set versions (toolkits/secms/data/); preset key calibration.anchor_set
+  v1: anchors_native_mass_yeast.tsv    # curated 2026-11-16 (26)
+  v2: anchors_native_mass_yeast_v2.tsv # 2026-11-17 (Pedro): v1 minus 4 consistent outliers (COF1, HSP82, SSA1, BMH1)
+  v3: anchors_native_mass_yeast_v3.tsv # 2026-11-19 (Step 3 review): v2 minus PDC1, EFT1 (data/ANCHORS_yeast_v3_2026-11-19.md); preset default
+humap_allowed: false
+annotation_defaults: {id: Entry, mass_da: Mass, gene: "Gene Names (primary)", tm: Transmembrane}   # UniProt TSV export

@@ -1,0 +1,92 @@
+cpx,name,tm,nsub,copies,mass_kda,n_entries,best,cov,res,method,title
+CPX-2854,"Elongation Factor eEF1 complex, variant CAM1",False,3,79026,239,9,1F60,0.61,1.67,X-ray,CRYSTAL STRUCTURE OF THE YEAST ELONGATION FACTOR COMPLEX EEF
+CPX-425,"Elongation Factor eEF1 complex, variant TEF4",False,3,79026,238,8,5O8W,0.61,1.67,X-ray,CRYSTAL STRUCTURE ANALYSIS OF THE YEAST ELONGATION FACTOR CO
+CPX-554,6-phosphofructokinase complex,False,2,12741,850,1,3O8O,1.0,2.9,X-ray,Structure of phosphofructokinase from Saccharomyces cerevisi
+CPX-1103,Ribonucleoside-diphosphate reductase variant ,False,4,35524,283,24,2CVY,0.51,2.4,X-ray,Structures of Yeast Ribonucleotide Reductase I
+CPX-1102,Ribonucleoside-diphosphate reductase variant ,False,3,30327,285,24,2CVY,0.86,2.4,X-ray,Structures of Yeast Ribonucleotide Reductase I
+CPX-1947,Methionyl glutamyl tRNA synthetase complex,False,3,39566,209,6,2HSN,0.61,2.2,X-ray,Structural basis of yeast aminoacyl-tRNA synthetase complex 
+CPX-1743,Ribosome-associated complex,False,2,48913,107,4,7X3K,1.0,6.0,EM,Cryo-EM structure of RAC in the State C2 RNC-RAC complex
+CPX-1831,Eukaryotic translation initiation factor 3 co,False,5,13303,361,22,8CAH,1.0,3.0,EM,Cryo-EM structure of native Otu2-bound ubiquitinated 43S pre
+CPX-3207,Mitochondrial pyruvate dehydrogenase complex,False,5,716,6375,2,1V59,0.1,2.2,X-ray,Crystal structure of yeast lipoamide dehydrogenase complexed
+CPX-430,Eukaryotic translation initiation factor 4F c,False,3,25408,176,12,2VSO,0.86,2.6,X-ray,Crystal Structure of a Translation Initiation Complex
+CPX-1323,CDC48-RAD23-UFD2 complex,False,3,6274,704,40,8UB4,0.78,2.9,EM,"Cdc48-Shp1 unfolding native substrate, consensus structure"
+CPX-431,Eukaryotic translation initiation factor 4F c,False,3,25408,173,11,1FUK,0.26,1.75,X-ray,CRYSTAL STRUCTURE OF THE CARBOXY TERMINAL DOMAIN OF YEAST EI
+CPX-3281,Mitochondrial proton-transporting ATP synthas,True,17,6245,644,40,8F39,0.95,3.5,EM,"Yeast ATP synthase in conformation-2, at pH 6"
+CPX-1652,COPI vesicle coat complex,False,7,7101,565,30,6U3W,0.3,2.394,X-ray,Crystal structure of yeast alpha/epsilon-COP of the COPI ves
+CPX-579,Carbamoyl-phosphate synthase arginine-specifi,False,2,20425,169,0,,0.0,,,
+CPX-8127,CDC48-SHP1 AAA ATPase complex,False,2,5725,599,22,8UB4,1.0,2.9,EM,"Cdc48-Shp1 unfolding native substrate, consensus structure"
+CPX-1268,Glycine decarboxylase multienzyme complex,False,4,12490,232,2,1V59,0.23,2.2,X-ray,Crystal structure of yeast lipoamide dehydrogenase complexed
+CPX-1616,Clathrin complex,False,2,4392,641,6,9S6D,0.88,1.7,X-ray,The role of LLPS in yeast Clathrin-mediated endocytosis and 
+CPX-1738,Phenylalanyl-tRNA synthetase complex,False,2,10533,250,0,,0.0,,,
+CPX-1808,GCN1-GCN20 complex,False,2,6651,382,0,,0.0,,,
+CPX-1306,"Nascent polypeptide-associated complex, EGD1-",False,2,66472,36,0,,0.0,,,
+CPX-435,ERF1-ERF3 translation release factor complex,False,2,18393,126,15,4CRN,1.0,9.1,EM,Cryo-EM of a pretermination complex with eRF1 and eRF3
+CPX-583,Trehalose-6-phosphate synthase/phosphatase co,False,3,8170,282,0,,0.0,,,
+CPX-427,Eukaryotic translation initiation factor 2 co,False,3,18307,124,33,6FYY,1.0,3.02,EM,Structure of a partial yeast 48S preinitiation complex with 
+CPX-582,Trehalose-6-phosphate synthase/phosphatase co,False,3,8170,278,0,,0.0,,,
+CPX-1812,"1,3-beta-D-glucan synthase complex, FKS1-RHO1",True,2,9517,238,18,9PE1,1.0,3.09,EM,"Structure of beta-1,3-glucan synthase in complex with caspof"
+CPX-656,SAGA complex,False,20,1401,1589,40,6T9I,0.67,3.9,EM,cryo-EM structure of transcription coactivator SAGA
+CPX-675,SLIK (SAGA-like) complex,False,19,1394,1523,40,6T9I,0.7,3.9,EM,cryo-EM structure of transcription coactivator SAGA
+CPX-1712,Gin4 serine/threonine kinase complex,False,8,4273,481,12,9GD4,0.43,2.039,X-ray,Crystal structure of septin complex Shs1-Cdc12-Cdc3-Cdc10 fr
+CPX-1470,"Myosin class I complex, MYO5 variant",False,2,13025,153,8,1ZUY,0.89,1.39,X-ray,High-resolution structure of yeast Myo5 SH3 domain
+CPX-1500,"Myosin class I complex, MYO3 variant",False,2,12494,159,9,1RUW,0.9,1.8,X-ray,Crystal structure of the SH3 domain from S. cerevisiae Myo3
+CPX-695,Adenylyl cyclase complex,False,2,6805,285,2,1K4Z,0.2,2.3,X-ray,C-terminal Domain of Cyclase Associated Protein
+CPX-1813,"1,3-beta-D-glucan synthase complex, FKS2-RHO1",True,2,7597,240,7,9LU8,0.9,2.99,EM,"Structure of yeast 1,3-beta-glucan synthase FKS2"
+CPX-1889,"RSC chromatin remodelling complex, variant RS",False,16,1743,1031,30,6V92,0.9,20.0,EM,RSC-NCP
+CPX-1888,"RSC chromatin remodelling complex, variant RS",False,16,1743,1027,31,6V92,1.0,20.0,EM,RSC-NCP
+CPX-3265,Ribosome quality control complex,False,6,1700,1040,35,9OFV,0.96,3.16,EM,Consensus reconstruction of the eukaryotic Ribosome-associat
+CPX-2225,"Myosin class V complex, MYO2 variant",False,3,2951,556,18,1M45,0.77,1.65,X-ray,"CRYSTAL STRUCTURE OF MLC1P BOUND TO IQ2 OF MYO2P, A CLASS V "
+CPX-607,Actin-related protein 2/3 complex,False,7,6972,233,0,,0.0,,,
+CPX-737,Box H/ACA ribonucleoprotein complex,False,4,15869,100,9,9G25,1.0,2.89,EM,snR30 snoRNP - State 1 - Utp23-Krr1-deltaC3
+CPX-1501,"Myosin class V complex, MYO4 variant",False,3,2951,534,14,4LL6,0.63,2.3,X-ray,Structure of Myo4p globular tail domain.
+CPX-1189,RAD26-DEF1 stalled RNAPII response complex,False,2,7385,209,2,8TVY,0.6,3.1,EM,Cryo-EM structure of CPD lesion containing RNA Polymerase II
+CPX-3028,"1,3-beta-D-glucan synthase complex, FKS3-RHO1",True,2,6648,231,3,3A58,0.1,2.6,X-ray,Crystal structure of Sec3p - Rho1p complex from Saccharomyce
+CPX-1293,Mitochondrial 2-oxoglutarate dehydrogenase co,False,4,6480,233,2,1V59,0.23,2.2,X-ray,Crystal structure of yeast lipoamide dehydrogenase complexed
+CPX-558,Mitochondrial isocitrate dehydrogenase comple,False,2,4604,316,3,3BLX,1.0,2.7,X-ray,Yeast Isocitrate Dehydrogenase (Apo Form)
+CPX-426,PAN1 actin cytoskeleton-regulatory complex,False,3,4196,336,7,2V1Q,0.4,1.2,X-ray,Atomic-resolution structure of the yeast Sla1 SH3 domain 3
+CPX-863,INO80 chromatin remodeling complex,False,15,1069,1309,40,9C9Z,0.71,2.55,EM,"S.c INO80 in complex with Xenopus 0/80 nucleosome, INO80 Cor"
+CPX-1602,54S mitochondrial large ribosomal subunit,False,46,1245,1108,8,8UXA,0.91,3.2,EM,Glucose treated mitochondrial ribosome of saccharomyces cere
+CPX-784,"Vacuolar transporter chaperone complex, VTC3 ",True,3,6117,223,11,7YTJ,1.0,3.0,EM,Cryo-EM structure of VTC complex
+CPX-3215,FACT complex,False,2,7421,182,11,7NKY,1.0,3.2,EM,RNA Polymerase II-Spt4/5-nucleosome-FACT structure
+CPX-774,CURI complex variant 1,False,7,3003,444,40,4M5D,0.39,1.97,X-ray,Crystal structure of the Utp22 and Rrp7 complex from Sacchar
+CPX-539,TIM23 mitochondrial inner membrane pre-sequen,True,9,4491,297,10,8E1M,0.3,2.9,EM,Cryo-EM structure of the endogenous core TIM23 complex from 
+CPX-1800,CCR4-NOT mRNA deadenylase complex,False,9,1655,803,11,4B8C,0.48,3.41,X-ray,nuclease module of the yeast Ccr4-Not complex
+CPX-1266,REG1-GLC7 phosphatase complex,False,2,8803,149,2,7QWJ,0.24,1.65,X-ray,Crystal structure of Glc7 phosphatase
+CPX-1642,General transcription factor complex TFIID,False,15,1065,1198,40,6T9K,0.41,3.3,EM,SAGA Core module
+CPX-1861,GET4-GET5 transmembrane domain recognition co,False,5,5775,220,32,5U2U,0.46,2.541,X-ray,Crystal structure of the Hsp104 N-terminal domain from Sacch
+CPX-1304,MYO2-VAC17-VAC8 transport complex,False,3,4320,292,14,1M45,0.62,1.65,X-ray,"CRYSTAL STRUCTURE OF MLC1P BOUND TO IQ2 OF MYO2P, A CLASS V "
+CPX-567,Mitochondrial respiratory chain complex III,True,10,5005,251,24,8YIO,1.0,2.35,EM,Cryo-EM structure of Saccharomyces cerevisiae bc1 complex in
+CPX-775,CURI complex variant 2,False,6,2663,449,40,4M5D,0.39,1.97,X-ray,Crystal structure of the Utp22 and Rrp7 complex from Sacchar
+CPX-1862,PeBoW complex,False,3,5603,213,40,8V87,1.0,2.66,EM,60S ribosome biogenesis intermediate (Dbp10 post-catalytic s
+CPX-1603,37S mitochondrial small ribosomal subunit,False,34,1217,978,14,9HM0,1.0,3.0,EM,Translational activator Aep3 in complex with mRNA and the ye
+CPX-2946,CDC48-NPL4-UFD1 AAA ATPase complex,False,3,1801,658,26,8DAR,1.0,3.0,EM,Saccharomyces cerevisiae Ufd1/Npl4/Cdc48 complex unbound but
+CPX-1068,"Importin complex, KAP60-KAP95",False,2,7614,155,16,5OWU,0.61,2.0,X-ray,Kap95:Nup1 complex
+CPX-1307,"Nascent polypeptide-associated complex, BTT1-",False,2,33217,35,0,,0.0,,,
+CPX-776,CURI complex variant 3,False,6,2663,438,36,4M5D,0.4,1.97,X-ray,Crystal structure of the Utp22 and Rrp7 complex from Sacchar
+CPX-1230,BNI4-GLC7 phosphatase complex,False,2,8296,136,2,7QWJ,0.26,1.65,X-ray,Crystal structure of Glc7 phosphatase
+CPX-3069,CDC48-NPL4-VMS1 AAA ATPase complex,False,3,1600,690,29,8DAR,0.89,3.0,EM,Saccharomyces cerevisiae Ufd1/Npl4/Cdc48 complex unbound but
+CPX-3055,Translocon complex,True,7,4876,223,17,7AFT,1.0,4.4,EM,Cryo-EM structure of the signal sequence-engaged post-transl
+CPX-1316,NRD1 snoRNA termination complex,False,3,2656,407,26,6O3X,0.78,1.994,X-ray,Crystal structure of yeast Nrd1 CID in complex with Sen1 NIM
+CPX-8568,"Vacuolar transporter chaperone complex, VTC2 ",True,3,4791,222,12,7YTJ,0.57,3.0,EM,Cryo-EM structure of VTC complex
+CPX-1850,Anthranilate synthase complex,False,2,9453,110,0,,0.0,,,
+CPX-474,TOM40 mitochondrial outer membrane translocas,True,7,4021,247,14,9J99,0.63,2.94,EM,Substrate-engaged TOM complex from yeast
+CPX-3158,SPOTS complex,True,6,3480,256,10,8C81,0.9,3.3,EM,Cryo-EM structure of the yeast SPT-Orm1-Sac1 complex
+CPX-1698,EMP24 complex,True,4,8170,96,0,,0.0,,,
+CPX-3036,PMT1-PMT2 dolichyl-phosphate-mannose-protein ,True,2,4200,180,4,6P2R,1.0,3.2,EM,Structure of S. cerevisiae protein O-mannosyltransferase Pmt
+CPX-1721,"Mitochondrial respiratory chain complex IV, C",True,11,3075,226,16,9ETZ,1.0,2.4,EM,III2IV respiratory supercomplex from Saccharomyces cerevisia
+CPX-26731,ERG25-ERG26-ERG27 ergosterol biosynthesis com,True,3,5732,115,0,,0.0,,,
+CPX-1722,"Mitochondrial respiratory chain complex IV, C",True,11,2750,226,16,6T0B,1.0,2.8,EM,The III2-IV(5B)2 respiratory supercomplex from S. cerevisiae
+CPX-5465,Vesicular SNARE complex SSO2-SEC9-SNC2,True,3,4662,120,12,3B5N,0.61,1.6,X-ray,Structure of the yeast plasma membrane SNARE complex
+CPX-1639,"Oligosaccharyltransferase complex, OST3 varia",True,8,1955,284,11,8AGE,1.0,2.8,EM,Structure of yeast oligosaccharylransferase complex with acc
+CPX-1638,"Oligosaccharyltransferase complex, OST6 varia",True,8,1955,283,14,7OCI,1.0,3.46,EM,Cryo-EM structure of yeast Ost6p containing oligosaccharyltr
+CPX-1839,"alpha-1,6-mannosyltransferase complex, M-Pol ",True,5,2143,245,1,3ZF8,0.19,1.98,X-ray,Crystal structure of Saccharomyces cerevisiae Mnn9 in comple
+CPX-868,FET3-FTR1 high affinity iron permease complex,True,2,4416,118,1,1ZPU,0.61,2.8,X-ray,"Crystal Structure of Fet3p, a Multicopper Oxidase that Funct"
+CPX-1833,SEC61 protein-conducting channel complex,True,3,7357,71,16,7KAJ,1.0,3.1,EM,"Cryo-EM structure of the Sec complex from S. cerevisiae, wil"
+CPX-473,TOM40 mitochondrial outer membrane translocas,True,5,3016,163,13,9J99,1.0,2.94,EM,Substrate-engaged TOM complex from yeast
+CPX-307,Endoplasmic Reticulum Membrane Complex,True,6,2430,199,5,6WB9,1.0,3.0,EM,Structure of the S. cerevisiae ER membrane complex
+CPX-1834,SSH1 translocon complex,True,3,6673,72,16,2WW9,1.0,8.6,EM,Cryo-EM structure of the active yeast Ssh1 complex bound to 
+CPX-3037,PMT1-PMT3 dolichyl-phosphate-mannose-protein ,True,2,2476,179,3,6P2R,0.52,3.2,EM,Structure of S. cerevisiae protein O-mannosyltransferase Pmt
+CPX-5463,Vesicular SNARE complex SSO1-SEC9-SNC2,True,3,3238,120,11,3B5N,0.89,1.6,X-ray,Structure of the yeast plasma membrane SNARE complex
+CPX-1703,Prohibitin complex,True,2,5689,66,0,,0.0,,,
+CPX-3056,SEC62-SEC63 complex,True,4,2398,153,15,7AFT,1.0,4.4,EM,Cryo-EM structure of the signal sequence-engaged post-transl
+CPX-565,Mitochondrial respiratory chain complex II,True,4,2545,143,8,9QDM,1.0,3.0,EM,CRYO-EM STRUCTURE OF THE YEAST RESPIRATORY COMPLEX II WITH T

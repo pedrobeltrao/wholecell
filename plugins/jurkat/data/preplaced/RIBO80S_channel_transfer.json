@@ -1,0 +1,55 @@
+{
+ "method": "rRNA phosphate superposition yeast 4V88 -> human 6QZP (sequence-aligned identical nucleotides, trimmed Kabsch), then 6QZP -> library frame; yeast channel (7ZW0) and disome (6I7O) carried over",
+ "chains": [
+  {
+   "yeast": "A1",
+   "human": "L5",
+   "n_y": 3149,
+   "n_h": 3749,
+   "pairs": 2490
+  },
+  {
+   "yeast": "A2",
+   "human": "S2",
+   "n_y": 1781,
+   "n_h": 1726,
+   "pairs": 1406
+  },
+  {
+   "yeast": "A4",
+   "human": "L8",
+   "n_y": 158,
+   "n_h": 155,
+   "pairs": 115
+  },
+  {
+   "yeast": "A3",
+   "human": "L7",
+   "n_y": 121,
+   "n_h": 119,
+   "pairs": 78
+  }
+ ],
+ "rrna_pairs": 4089,
+ "kept_fraction": 0.75,
+ "median_dev_nm": 0.167,
+ "lib_frame_max_dev_nm": 0.0,
+ "channel_points": 29,
+ "channel_min_dist_to_beads_nm": {
+  "yeast_median": 0.687,
+  "human_median": 0.549,
+  "human_min": 0.133
+ },
+ "disome": {
+  "push_yeast_nm": 4.75,
+  "push_human_nm": 4.75,
+  "centre_distance_nm": 27.01,
+  "trailing_entry_to_leading_exit_nm": 8.24
+ },
+ "inputs": {
+  "yeast_lib": "<results_root>/yeast/_dev_unify/amphiphysin_fix/engine/lib",
+  "yeast_pdb": "<results_root>/yeast/_dev_unify/amphiphysin_fix/engine/pdb",
+  "human_npz": "<data_root>/jurkat/yc/pipeline/lib/RIBO80S.npz",
+  "human_cif": "<data_root>/data/structures/pdb/assemblies/6qzp-assembly1.cif.gz"
+ }
+}

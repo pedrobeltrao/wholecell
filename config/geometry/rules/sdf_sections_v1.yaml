@@ -1,0 +1,47 @@
+# Geometry rule table for cellgeom_v1 packages of layout sdf_sections_v1 (manifest engine.name): Jurkat em_cell1_v7,
+# testcell analytic_v1. Evaluated by engine cellgeom_eval_v1 (wholecell/geometry/engines/cellgeom_eval_v1.py), compiled
+# by wholecell/geometry/rules.py. Spec: docs/reference/cellgeom_v1.md §4.3. It reproduces the hand-coded mem_sdfs /
+# label_from of sdf_sections_v1 exactly (criterion B1, level E).
+#
+# Values are numbers or expressions over the package engine.params (PERI_W, PORE_R, IMS_W, PORE_ZWIN, PORE_LW, ...).
+# Membrane half thicknesses are NOT here: they are package data (membranes[].half_thickness_nm = engine.params.MEM_HALF).
+rule_version: 1
+layout: sdf_sections_v1
+
+# MEMBRANES: one row per engine membrane, in engine-code order (row i = membrane code i). Each SDF is negative on the
+# lumenal / non-cytoplasmic side. A row may use only membranes listed above it.
+membranes:
+  - {name: PM, kind: field, field: cell, sign: -1}                 # plasma membrane: -cell (negative outside the cell)
+  - {name: NE, kind: shell_pores, field: ne_mid, width: PERI_W, pore_r: PORE_R, zwin: PORE_ZWIN}   # |ne_mid| - PERI_W/2, pore tori
+  - {name: ER, kind: field, field: er}                              # ER membrane = er field
+  - {name: MITO_OM, kind: field, field: mito}                       # mito outer membrane = mito field
+  - {name: MITO_IM, kind: inner_cristae, of: MITO_OM, offset: IMS_W}   # matrix = OM + IMS_W carved by cristae; SDF = -matrix
+  - {name: GOLGI, kind: golgi_cisternae, field: golgi, clear_of: [MITO_OM, ER]}   # blob, or cisternae inside it (section golgi_cis)
+  - {name: ENDO, kind: field, field: endo}                          # endosome / lysosome membrane = endo field
+  - {name: CELL_OUTER, kind: wall, of: PM}                          # domain wall: min(PM, height above the open face)
+
+# LABELS: ordered, first match wins. `if` = all conditions "<term> <op> <value>" (op < or >) must hold; no `if` = always.
+# Terms: a membrane name (its SDF), field:<name> (raw field), face (height above the open face), pore (-1 inside the
+# channel of a pore of membrane NE, else +1), speckle (-1 inside a nuclear speckle sphere, else +1).
+# `requires`: package items (field:<name>, section:<name>, clip:<name>) without which the row is dropped (an empty field
+# is missing). Dropping is exact: such a row can never match (empty field = +clamp, no section / face = test false).
+labels:
+  - {label: outside_imaged_volume, if: ["face < 0"], requires: [clip:open_face]}          # beyond the truncation face
+  - {label: exterior, if: ["CELL_OUTER < 0"]}                                             # outside the PM / domain wall
+  - {label: perinuclear_space, if: ["NE < 0"]}                                            # NE lumen (between ONM and INM)
+  - {label: nuclear_pore_channel, if: ["field:ne_mid < -0.5*PERI_W", "field:ne_mid > -PERI_W-PORE_LW", "pore < 0"]}   # pore channel just inside the INM
+  - {label: nucleolus, if: ["field:ne_mid < -0.5*PERI_W", "field:nucleolus < 0"], requires: [field:nucleolus]}        # nucleolus field inside the INM
+  - {label: nuclear_speck, if: ["field:ne_mid < -0.5*PERI_W", "speckle < 0"], requires: [section:speckle]}           # speckle spheres inside the INM
+  - {label: nucleoplasm, if: ["field:ne_mid < -0.5*PERI_W"]}                              # rest of the nucleus (inside the INM)
+  - {label: nuclear_pore_channel, if: ["field:ne_mid < 0"]}                               # between NE midsurface and INM, not lumen: pore channel
+  - {label: mito_matrix, if: ["MITO_OM < 0", "MITO_IM > 0"]}                              # inside the OM, matrix side of the IM
+  - {label: mito_ims, if: ["MITO_OM < 0"]}                                                # inside the OM, IMS side (incl. crista lumen)
+  - {label: er_lumen, if: ["ER < 0"]}                                                     # ER lumen
+  - {label: golgi_lumen, if: ["GOLGI < 0"], requires: [field:golgi]}                      # Golgi cisternal lumen
+  - {label: endolysosome_lumen, if: ["ENDO < 0"], requires: [field:endo]}                 # endosome / lysosome lumen
+  - {label: golgi_intercisternal, if: ["field:golgi < 0"], requires: [section:golgi_cis]}  # inside the Golgi envelope, between cisternae
+  - {label: cytosol}                                                                      # everything else
+
+# CLEARANCE (packer, min_mem_dist_g): min over membranes of |d| - half thickness, + HALF; CELL_OUTER is a hard wall
+# except for PM proteins (their exo domains are extracellular).
+clearance: {mode: thickness_corrected, wall: CELL_OUTER, wall_exempt_for: PM}

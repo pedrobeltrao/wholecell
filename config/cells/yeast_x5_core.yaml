@@ -1,0 +1,29 @@
+# REFERENCE PRESET: the yeast cell through the core stages on the X5 geometry package with the uniform 2 nm membrane
+# half thickness (package yeast/analytic_x5_s0_f5f3a5c723b2), i.e. config/cells/yeast.yaml as it was before B6
+# (A9 state, 2026-11-17). Its packer clearance is bitwise the A9 one (a uniform MEM_HALF compiles to the plain rule).
+#   scripts/build_isolated.sh yeast_x5_core <tag> 24        (cell_id yeast: builds land under <results_root>/yeast/)
+# Only the keys that differ from yeast.yaml are listed. The X5 reproduction itself (vendored engine) stays
+# config/cells/yeast_x5_port.yaml.
+extends: yeast.yaml
+
+geometry:
+  package: "{geom_root}/yeast/analytic_x5_s0_f5f3a5c723b2"
+  manifest_sha256: 8ee3c1bc813f0051de8d08955f38e7b6866aef98eb04317315f1c159b3675302
+
+# B5 / B2 (yeast.yaml: localisation preset common; organisation AF3 pool off): the A9 reference keeps the X5 settings
+inventory:
+  adapters: {secms: null}     # Step 3 (yeast.yaml: SEC-MS toolkit step, tables only): the A9 reference has no SEC-MS step
+  params:
+    assembly_steps:           # Step 3 (yeast.yaml: preset x5_secms, SEC-fed rules): the A9 reference keeps legacy_x5
+      preset: legacy_x5
+      overrides: null
+      inputs: {uniprot_full: null, string_links: null}
+    localisation:
+      preset: legacy_x5
+      label: yeast.x5
+pack:
+  preset: legacy_x5           # the A9 reference keeps the X5 packer settings (yeast.yaml pins C3 since B1, 2026-11-18)
+  organisation:
+    pool_scores: "{data_root}/data/derived/wholecell_frozen/yeast_x5/work_seed/organisation/pool_pairs.parquet"   # YC_POOL_SCORES (cached pool table X5 read)
+    paralogs: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/alliance_yeast_paralog_pairs.csv"
+    field_cap_regions: []      # X5 split (no field cap: yeast.yaml's freeze fix 2026-11-19 is not part of the reference)

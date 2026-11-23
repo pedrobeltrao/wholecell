@@ -1,0 +1,3 @@
+# origin: yeast pipeline/assemblies.py SHARED_SUBUNITS @ e3b7448 (vendored plugins/yeast/engine); converted 2026-11-17 (unification A4)
+gene	reason
+LST8	subunit of TORC1 and TORC2: may be shared (2026-11-16, audit of build W)

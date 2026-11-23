@@ -1,0 +1,10 @@
+# origin: yeast pipeline/assemblies.py MTDNA_ENCODED @ e3b7448 (vendored plugins/yeast/engine); converted 2026-11-17 (unification A4)
+gene	reason
+ATP6	mtDNA-encoded: hydrophobic, translated in the matrix, strongly under-detected by MS (COB 40, COX3 18, ATP8 0 copies in PaxDb vs thousands of their nuclear partners)
+ATP8	mtDNA-encoded: hydrophobic, translated in the matrix, strongly under-detected by MS (COB 40, COX3 18, ATP8 0 copies in PaxDb vs thousands of their nuclear partners)
+COB	mtDNA-encoded: hydrophobic, translated in the matrix, strongly under-detected by MS (COB 40, COX3 18, ATP8 0 copies in PaxDb vs thousands of their nuclear partners)
+COX1	mtDNA-encoded: hydrophobic, translated in the matrix, strongly under-detected by MS (COB 40, COX3 18, ATP8 0 copies in PaxDb vs thousands of their nuclear partners)
+COX2	mtDNA-encoded: hydrophobic, translated in the matrix, strongly under-detected by MS (COB 40, COX3 18, ATP8 0 copies in PaxDb vs thousands of their nuclear partners)
+COX3	mtDNA-encoded: hydrophobic, translated in the matrix, strongly under-detected by MS (COB 40, COX3 18, ATP8 0 copies in PaxDb vs thousands of their nuclear partners)
+OLI1	mtDNA-encoded: hydrophobic, translated in the matrix, strongly under-detected by MS (COB 40, COX3 18, ATP8 0 copies in PaxDb vs thousands of their nuclear partners)
+VAR1	mtDNA-encoded: hydrophobic, translated in the matrix, strongly under-detected by MS (COB 40, COX3 18, ATP8 0 copies in PaxDb vs thousands of their nuclear partners)

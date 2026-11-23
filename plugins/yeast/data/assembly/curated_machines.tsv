@@ -1,0 +1,13 @@
+# origin: yeast pipeline/ingredients.py COMPLEXES, FIXED_COPIES, NUC_FROM_MAP @ e3b7448 (vendored plugins/yeast/engine); converted 2026-11-17 (unification A4)
+machine	label	pdb	comp_weights	membrane	copies	reason
+ribosome_80S	80S ribosome	4V88	{"cytosol": 0.97, "ER": 0.03}		median_families	80S ribosome (yeast crystal structure 4V88); r-protein paralogs pooled per family; ASC1 (RACK1) and STM1 are 4V88 chains (PDB audit 2026-11-12)
+proteasome_26S	26S proteasome	4CR2	from_subunits:nucleoplasm,cytosol		median_families	26S proteasome; nucleus/cytosol split from the subunits' measured weights (CYCLoPs); assembled in and mostly nuclear in growing cells (Laporte et al. 2008 J Cell Biol 181:737)
+FAS	Fatty acid synthase (a6b6)	2UV8	{"cytosol": 1.0}		median_families	fatty acid synthase a6b6 (2UV8)
+CCT	TRiC/CCT chaperonin	4V94	{"cytosol": 1.0}		median_families	TRiC/CCT chaperonin (4V94)
+PolII	RNA polymerase II	1WCM	{"nucleoplasm": 1.0}		median_families	RNA polymerase II (1WCM)
+PolI	RNA polymerase I	4C2M	{"nucleolus": 1.0}		median_families	RNA polymerase I (4C2M)
+PolIII	RNA polymerase III	5FJ8	{"nucleoplasm": 1.0}		median_families	RNA polymerase III (5FJ8)
+NPC	Nuclear pore complex	7N9F	{"nuclear_envelope": 1.0}	NE	hook:yeast_npc_count	nuclear pore complex (7N9F); copies = inventory.N_NPC (areal density x nuclear surface); stoichiometry Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+Pma1_hexamer	Pma1 H+-ATPase hexamer	7VH5	{"plasma_membrane": 1.0}	PM	family:PMA	Pma1 H+-ATPase hexamer (7VH5); Pma1 and Pma2 pooled; copies = family pool / 6
+V-ATPase	Vacuolar V-ATPase V1Vo	6O7V	{"vacuole": 1.0}	VAC	median_families	vacuolar V-ATPase V1Vo (6O7V)
+nucleosome	Nucleosome core particle	1ID3	{"nucleoplasm": 1.0}		hook:yeast_nucleosome_count	nucleosome core particle (1ID3); copies = measured dyads on the chromosome arms (nucleosome_map) + nucleosomal rDNA (DECISION: NUC_FROM_MAP)

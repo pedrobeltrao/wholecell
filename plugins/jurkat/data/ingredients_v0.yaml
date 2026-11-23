@@ -1,0 +1,18 @@
+# origin: jurkat/yc/pipeline/jingredients.py constants (legacy workspace, 2026-11-15)
+ribosome_80s_pdb: 6qzp            # human 80S (Natchiar 2017)
+ribosome_80s_ing_id: RIBO80S
+ribosome_60s_complex: CPX-5183
+ribosome_40s_complex: CPX-5223
+npc_complex: CPX-873
+npc_ing_id: NPC
+npc_pdb: 7r5k                     # human NPC (Mosalaganti 2022)
+nucleosome:
+  complex: CURATED-NUCLEOSOME
+  ing_id: NUCLEOSOME
+  mass_da: 108500.0
+  comp_weights: {nucleus: 1.0}
+  struct_src: pdb:1kx5
+ribosome_weights:                 # mature 80S are cytoplasmic; free subunits keep a small nuclear (pre-ribosome) pool
+  RIBO80S: {cytosol: 1.0}
+  CPX-5183: {cytosol: 0.9, nucleus: 0.1}
+  CPX-5223: {cytosol: 0.9, nucleus: 0.1}

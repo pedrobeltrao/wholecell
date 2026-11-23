@@ -1,0 +1,75 @@
+# Assembly preset legacy_x5: the yeast X5 assembly state exactly (vendored engine plugins/yeast/engine, code e3b7448:
+# scripts/s1_inventory.py + pipeline/{ingredients, preribosomes, assemblies, heterodimers}.py), checked against the
+# yeast port build s0 (scripts/assembly_x5_check.py: every assembly table identical). Behaviour only: the yeast lists
+# are cell data (inventory.params.assembly_steps.data = plugins/yeast/data/assembly/*.tsv, each with a reason column),
+# yeast-only biology runs as plugin steps (plugins/yeast/assembly.py, registry kind assembly_step) and the structure
+# builder (beads, own RNA, membrane orientation: structures-stage work) as a hook (kind assembly_hook).
+#
+# The ordered step list is the core one (curated machines -> Complex Portal -> AFDB heterodimers -> homo-oligomers)
+# with the yeast plugin steps between; X5 has no SEC-MS step and no AFDB-homodimer step (AF homodimers are the
+# structure fallback of the homo-oligomer step), and its homo-oligomers only map species to structures.
+pools: ingredients               # one ingredient table with fractional copies (ingredient_steps.py); v7: inventory
+steps: [curated_machines, yeast_barrel_monomers, yeast_preribosomes, complex_portal, yeast_drop_free_rproteins, yeast_er_ribosomes,
+        yeast_mitoribosomes, yeast_supercomplexes, yeast_arp23, yeast_f_actin, afdb_heterodimers, pdb_homo_oligomers]
+#  yeast_barrel_monomers     library entries of the OM beta-barrels oriented in the membrane (s1 did it first; A9)
+#  yeast_preribosomes        5 stages (90S 5WLC, 60S nucleolar 7R7A, nucleoplasm 6YLH, cytoplasm 5T62, 40S 6FAI);
+#                            n = min(cap(markers), cap(all factors)); the 80S count drops by their r-protein content
+#  yeast_drop_free_rproteins the free r-protein pool above the ribosome count (MS noise) is not packed
+#  yeast_er_ribosomes        80S on Ssh1 / Sec61 translocons; yeast_mitoribosomes 0.9 x min(LSU, SSU) on the IM;
+#  yeast_supercomplexes      III2IV2; yeast_arp23 Arp2/3 (8UXW template); yeast_f_actin cables 0.3 + patches 0.3 of ACT1
+
+curated_machines:
+  table: data                    # data.curated_machines (machine, label, PDB, weights, membrane, copies rule, reason) +
+                                 # data.curated_machine_subunits (paralog families pooled, stoichiometry, reason); copies
+                                 # rules: median_families | family:<f> | hook:<assembly_hook> (yeast: NPC = N_NPC,
+                                 # nucleosome = chromatin-map arm dyads + rDNA nucleosomes)
+  free_pool_cap: {machine: NPC, gene_regex: "^(NUP\\d+|NSP1|NIC96|NDC1|POM\\d+|ASM4|GLE1)$", max_frac_of_assembled: 0.25}
+                                 # scaffold/FG nucleoporins: free pool <= 0.25 x copies in pores, surplus not placed
+                                 # (review comment 8; Sec13, Seh1, Dyn2, Mlp1/2 left alone)
+  legacy_oligomers_require_library: yeast_structures   # data.legacy_oligomers kept as modeled when the library has
+                                                       # <gene>_oligo (hook has_entry); null = no library check
+
+complex_portal:
+  order: mass                    # copies x mass, descending (no priority list); stable on ties (Complex Portal file order)
+  overlap: skip_if_used          # a complex sharing a used subunit is skipped (data.shared_subunits may be shared: LST8)
+  copies: stoichiometry_cap      # min(median, 2 x limiting) over subunits, data.copies_exclude_subunits left out (mtDNA)
+  nucleotide_mass_da: 330.0      # mass of a kept RNA nucleotide (complexes listing an RNA keep their own RNA chains)
+  require_orientable_tm: true    # a membrane complex whose structure cannot be oriented is rejected
+  resolve_generic: {compartment: mitochondrion, into: [mito_IM, mito_OM, mito_IMS, mito_matrix]}
+                                 # generic 'mitochondrion' weight resolved to the sub-compartments the subunits name
+  structure:
+    source: rcsb                 # RCSB entries per UniProt (inputs.rcsb_cache, frozen, offline) + local assembly1 files
+    builder: yeast_structures    # structure hook (beads, own RNA, membrane orientation); null = accept every assembly
+    candidates: 40               # entries ranked by summed subunit mass (top N)
+    min_coverage: 0.8            # subunit mass in the entry (entry pre-filter) and in the assembly1 file
+    min_residue_coverage: 0.6    # mass-weighted observed residues / (mass / 110 Da)
+    max_residues: 60000
+    rank: resolution             # best verify_top by resolution checked on the file; the first passing wins
+    verify_top: 4                # data.structure_overrides: prefer_pdb (tried first), template_paralog (paralog chains)
+    stoichiometry_from: pdb_chains   # copies recomputed on the chain counts of the chosen assembly
+
+afdb_heterodimers:
+  order: file                    # AFDB candidates.csv order
+  evidence: none                 # no SEC-MS / STRING gate (IntAct is recorded, used for the bound fraction)
+  min_iptm: 0.5
+  min_pool: 20                   # both partners >= 20 copies in the monomer pool
+  max_partner_oligomer_n: 2      # a partner that is a larger homo-oligomer (UniProt n or legacy) only with Complex Portal
+  native_histone_pairs: ["H2A+H2B", "H3+H4", "H2A.Z+H2B", "CenH3+H4"]   # data.histone_classes
+  paralog_filter: {needs_evidence: true, k3: 0.30}   # paralogue (inputs.paralog_pairs or >= 0.30 shared 3-mers) needs
+                                                     # Complex Portal / IntAct evidence (2026-11-16)
+  shared_compartment: {min_shared: 0.3, facing: [ER, plasma_membrane, golgi_endosome, vacuole, nuclear_envelope, mito_OM,
+                                                 peroxisome, lipid_droplet], inner_membrane: mito_IM,
+                       inner_side: [mito_matrix, mito_IM]}
+  allocation: proportional       # offer(x->y) = c_x c_y / sum_z c_z over x's partners (initial copies);
+                                 # n = f x min(offer(a->b), offer(b->a)); pools clipped at 0 (2026-11-12)
+  bound_fraction_by_evidence: {complex_portal_or_intact: 1.0, other: 0.5}
+  builder: yeast_structures      # pLDDT >= 50 trimming (TM kept), membrane orientation; failure rejects the pair
+
+pdb_homo_oligomers:
+  copies: none                   # map ingredient -> (structure, n) only; no copies move
+  min_copies: 20
+  order: copies_desc
+  state_source: uniprot_oligomer_n   # data.homo_oligomer_audit first (PDB audit 2026-11-12), else UniProt n > 1 with the
+                                     # best-resolution single-entity entry of n instances and >= 0.6 n x length residues
+  afdb_fallback: {annotated_min_iptm: 0.5, de_novo_min_iptm: 0.5, de_novo_min_ipsae: 0.6}
+  builder: yeast_structures

@@ -1,0 +1,8 @@
+# Jurkat: histone families of the generic nucleosome (2 x H2A, H2B, H3, H4 per octamer); gene-symbol regexes.
+# origin: assembly_v0.yaml histone_families (legacy complexes_v0.py, 2026-11-15); moved to TSV 2026-11-16 (A4).
+# Read by the assembly step curated_machines (nucleosome) and by the jurkat.ingredients_v0 builder.
+family	gene_regex	reason
+H2A	^(H2AC\d+|H2AZ[12]|H2AX|H2AJ|MACROH2A[12])$	canonical H2A cluster genes + H2A.Z, H2A.X, H2A.J, macroH2A variants
+H2B	^H2BC\d+$	canonical H2B cluster genes
+H3	^(H3C\d+|H3-3[AB]|H3-5)$	canonical H3 cluster genes + H3.3 + H3.5
+H4	^H4C\d+$	canonical H4 cluster genes

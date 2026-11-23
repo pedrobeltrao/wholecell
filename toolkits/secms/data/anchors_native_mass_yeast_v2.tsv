@@ -1,0 +1,28 @@
+# Yeast SEC calibration anchor set v2 (2026-11-17, DECISION Pedro): = anchor set v1 (anchors_native_mass_yeast.tsv,
+# curated 2026-11-16) minus the orthologues of the 4 human outliers, which also elute far larger than their native mass
+# in the lab 2026 yeast NaCl run (residual -0.44 .. -0.50 log10, the four largest): COF1 (cofilin), HSP82 (Hsp90),
+# SSA1 (Hsp70), BMH1 (14-3-3). Rows otherwise identical to v1 (see that file for curation notes and the review status).
+# Species: yeast. Role in the toolkit: THE calibration (primary) of preset default (calibration.anchor_set: v2).
+gene	oligomer_n	native_kda	state
+PFY1	1		profilin, monomer
+CPR1	1		cyclophilin A, monomer
+SOD1	2		Cu/Zn SOD, homodimer
+TPI1	2		triosephosphate isomerase, homodimer
+PGK1	1		phosphoglycerate kinase, monomer
+ENO2	2		enolase 2, homodimer
+FBA1	2		class II aldolase, homodimer
+PGI1	2		glucose-6-phosphate isomerase, homodimer
+TKL1	2		transketolase, homodimer
+TDH3	4		GAPDH, homotetramer
+ADH1	4		alcohol dehydrogenase, homotetramer
+CDC19	4		pyruvate kinase, homotetramer
+PDC1	4		pyruvate decarboxylase, homotetramer
+GPM1	4		phosphoglycerate mutase, homotetramer
+EFT1	1		eEF2, monomer
+MET6	1		methionine synthase, monomer
+GLN1	10		glutamine synthetase, homodecamer
+CDC48	6		Cdc48/p97, homohexamer
+PRE1		700	20S proteasome core (28 subunits)
+PUP1		700	20S proteasome core (28 subunits)
+CCT2		960	CCT/TRiC chaperonin (16 subunits)
+TCP1		960	CCT/TRiC chaperonin (16 subunits)

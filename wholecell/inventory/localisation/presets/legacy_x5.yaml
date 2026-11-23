@@ -1,0 +1,83 @@
+# Localisation preset legacy_x5: the yeast X5 localisation exactly (vendored engine plugins/yeast/engine/pipeline/
+# inventory.py: parse_uniprot_cc, parse_go_cc, tm_go_fallback, build() location loop, LOC_FIX, apply_vogtle /
+# apply_morgenstern, weights, cyclops_weights, nucleocyto_split; read 2026-11-17 @ e3b7448). Unification plan §3d / A5:
+# rank split, Huh precedence, NUC_K = 5, CYCLoPs thresholds 0.05 / 0.5 must give the yeast comp_weights within 1e-6.
+# Checked against the yeast PORT build s0 (20261116-aabe7b5-s0-x5repro, protein_features.parquet) by
+# scripts/localisation_x5_check.py: identical for all 6,067 proteins.
+#
+# Behaviour only. Sources (adapters + their thresholds), term rules, the SPB core list, the CYCLoPs term map and the
+# LOC_FIX override row are cell data: plugins/yeast/data/localisation/ (TSVs) and the inventory.params.localisation block
+# + frozen inputs of config/cells/yeast.yaml (A9).
+# Sources of the yeast cell, in evidence-table order (evidence.SOURCES):
+#   uniprot      uniprot_cc_statements  annotation_curated  statement order = rank; Huh 2003 precedence (pmid 14562095:
+#                                                           keep Huh / dedicated-study statements); organelle-proteomics-
+#                                                           only statements dropped; generic mitochondrion refined
+#   go           go_cc_terms            annotation_ht       complexes skipped (except pore / ribosome / proteasome);
+#                                                           'cytosol' present -> only cytosol / nucleus terms
+#   go_membrane  go_cc_terms            annotation_ht       membrane-bearing terms, 'cell periphery' = plasma membrane
+#   vogtle       class_columns          fractionation       Vogtle 2017 sub-mitochondrial class (exactly one)
+#   morgenstern  proteome_classes       fractionation       Morgenstern 2017 high-confidence proteome / Class 3 / sub-class
+#   cyclops      imaging_locscore       imaging_other       Koh 2015 WT1-3 mean LOC-scores >= 0.05 (CYCLOPS_MIN); not for
+#                                                           r-proteins (GFP-tagged r-proteins pile up in the nucleus) and
+#                                                           prenylated C-terminal Cys (PRENYL_NO_CYCLOPS)
+# The general combiner steps (split / combine / new_from_imaging / nc_model) are not used: X5's chain is an ordered
+# annotation list revised by fractionation, then rank weights, then imaging by compartment group (combiner.py,
+# "Ordered-annotation steps"). Plan §3d: the common defaults (score split, class precedence) replace this later and
+# are judged on the yeast localisation benchmark (SWAT top-1 0.665, hyperLOPIT 0.848, image N/C Spearman 0.81).
+
+combiner:
+  steps: [ordered_annotation, annotation_overrides, mito_fractionation, rank_weights, imaging_groups, round]
+  within_source: max               # rows are one per key within a source (CYCLoPs reads its raw rows)
+  ordered_annotation:
+    primary: [uniprot]             # UniProt statements (Huh precedence inside the adapter) ...
+    resolve:                       # 'spindle pole' -> nuclear envelope for the SPB core, ignored otherwise
+      spindle_pole: {to: nuclear_envelope, genes: data.spb_core, feature: gene_name}
+    refine: {generic: mitochondrion, sub_keys: [mito_IM, mito_OM, mito_IMS, mito_matrix], source: go}   # GO names one sub-compartment
+    fallback:                      # ... else GO CC (GO_UNRANKED: alphabetical order carries no rank -> equal weights)
+      source: go
+      unranked: true
+      membrane_source: go_membrane # a membrane protein: its membranes from GO, cell periphery as plasma membrane
+      unless_keys: [cell_wall]
+    tm_soluble: {keys: [cytosol, nucleoplasm, nucleolus], source: go_membrane}   # TM protein with only soluble keys
+  annotation_overrides:            # LOC_FIX as override rows (field annotation, op set)
+    rows: rows.overrides
+    rule_set: yeast.x5
+    rule_ids: [x5.LOC_FIX]
+  mito_fractionation:
+    keys: [mitochondrion, mito_IM, mito_OM, mito_IMS, mito_matrix]
+    generic: mitochondrion
+    measured: vogtle               # measured sub-compartment replaces annotated / generic ones (precedence over Morgenstern)
+    proteome: morgenstern
+    veto: true                     # VOGTLE_NEEDS_MITO: outside the HC proteome + Class 3 = not mitochondrial
+    tm_map: {mito_matrix: mito_IM, mito_IMS: mito_IM}   # Matrix/IM and IMS/IM classes: membrane proteins -> inner membrane
+    not_mito_fallback:             # nothing left: membranes from GO (TM only), else GO, else cytosol
+      sources: [{source: go_membrane, transmembrane_only: true}, {source: go}]
+      default: cytosol
+    flag: mito_hc
+  rank_weights: &rank
+    base: 0.5                      # 1, 1/2, 1/4 ... by annotation order (first-listed = primary)
+    secondary:                     # MITO_SECONDARY = 0.1
+      - {primary: [cytosol, nucleoplasm], keys: [mitochondrion, mito_IM, mito_OM, mito_IMS, mito_matrix], factor: 0.1}
+      - {primary: [mitochondrion, mito_IM, mito_OM, mito_IMS, mito_matrix], keys_not: [mitochondrion, mito_IM, mito_OM,
+         mito_IMS, mito_matrix], factor: 0.1, flag: mito_hc}
+    pool:                          # cytosol + nucleoplasm pooled and split by volume (equal concentration, r = 1)
+      keys: [cytosol, nucleoplasm]
+      volumes: &vol {cytosol: 18.436635385716613, nucleoplasm: 1.6453832296215993}   # yeast inventory.geometry() + NE-lumen correction of build() (um3)
+    empty: {cytosol: 1.0}          # no location -> cytosol
+  imaging_groups:
+    source: cyclops
+    groups: {cytosol: nucleocytoplasm, nucleoplasm: nucleocytoplasm, nucleolus: nucleocytoplasm, nuclear_envelope: ER,
+             ER: ER, mito_IM: mitochondrion, mito_OM: mitochondrion, mito_IMS: mitochondrion, mito_matrix: mitochondrion}
+    periphery: {key: periphery, membrane: plasma_membrane, other: cytosol, annotated: [plasma_membrane]}
+    skip_if_keys: [cell_wall]      # secreted cell-wall proteins: no CYCLoPs
+    new: {min_score: 0.5, never: [nucleocytoplasm], needs_flag: {mitochondrion: mito_hc}}   # CYCLOPS_NEW_MIN, mito_ok
+    nc:                            # NUC_K: nucleus / cytosol concentration ratio exp(k (N - C LOC-score))
+      group: nucleocytoplasm
+      nucleus: nucleoplasm
+      cytosol: cytosol
+      nucleus_term: Nucleus
+      cytosol_term: Cytoplasm
+      k: 5.0                       # fitted on the SWAT dev half (validation/tune_nuck.py)
+      volumes: *vol
+    rank: *rank                    # within-group annotation weights: the rank rule without flags (as cyclops_weights)
+  round: {digits: 4, min_share: 0.0}   # X5 writes round(w, 4) and keeps keys that round to 0

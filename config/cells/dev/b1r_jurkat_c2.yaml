@@ -1,0 +1,7 @@
+# B1 REDUCED BENCHMARK OVERLAY (docs/unification_criteria/B1_packer_addendum_2026-11-18.md §2); only pack.preset(s) differ
+# from the base config. Built-in presets b1_s*: wholecell/pack/switches.py B1_BENCHMARK (frozen A3 values).
+# C2: rounds 6 + pilot thinning + shell cap + targeted squeeze 0.97 + packing shapes (= frozen S4p)
+extends: ../jurkat.yaml
+
+pack:
+  preset: [b1_s4p]

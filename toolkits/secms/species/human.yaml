@@ -1,0 +1,10 @@
+# SEC-MS toolkit species settings: human (Homo sapiens, taxon 9606)
+species: human
+taxon: 9606
+complex_portal_taxon: 9606           # Complex Portal ComplexTab file must be this species ('Taxonomy identifier')
+anchors: anchors_native_mass_human.tsv   # anchor set v1 (kept for compatibility: the set used when a preset names none)
+anchor_sets:                         # calibration anchor-set versions (toolkits/secms/data/); preset key calibration.anchor_set
+  v1: anchors_native_mass_human.tsv    # Jurkat v7 set (25); preset legacy_v7
+  v2: anchors_native_mass_human_v2.tsv # 2026-11-17 (Pedro): v1 minus 4 consistent outliers (PFN1, HSP90AB1, YWHAZ, HSPA8); preset default
+humap_allowed: true                  # hu.MAP 3.0 membership (human only)
+annotation_defaults: {id: Entry, mass_da: Mass, gene: "Gene Names (primary)", tm: Transmembrane}   # UniProt TSV export

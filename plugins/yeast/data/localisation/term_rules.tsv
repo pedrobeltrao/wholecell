@@ -1,0 +1,21 @@
+# Yeast localisation term rules (UniProt CC statements and GO CC terms, lower-cased): the first matching rule gives the key.
+# origin: yeast pipeline/inventory.py:RULES @ e3b7448 (order matters: first match per statement / term)
+# spindle_pole is resolved per protein by the combiner (ordered_annotation.resolve: SPB core genes -> nuclear_envelope)
+compartment	regex	reason
+cell_wall	cell wall|secreted|extracellular|periplasm|cell surface	outside the plasma membrane: wall / secreted
+nucleolus	nucleolus	nucleolus before the generic nucleus
+nuclear_envelope	nuclear pore|nucleus membrane|nucleus inner membrane|nucleus outer membrane|nuclear envelope	nuclear membranes and pores before the generic nucleus
+spindle_pole	spindle pole	resolved per protein (SPB core only, review comment 5)
+mito_IM	mitochondri\w* inner membrane|inner mitochondrial membrane|mitochondrial respiratory chain	mitochondrial sub-compartment (inventory v3)
+mito_OM	mitochondri\w* outer membrane|outer mitochondrial membrane	mitochondrial sub-compartment
+mito_IMS	mitochondri\w* intermembrane space	mitochondrial sub-compartment
+mito_matrix	mitochondri\w* matrix|mitochondrial nucleoid	mitochondrial sub-compartment
+mitochondrion	mitochondri	generic mitochondrion (fallback after the sub-compartments)
+lipid_droplet	lipid droplet|lipid particle	lipid droplets
+peroxisome	peroxisom	peroxisome
+vacuole	vacuol	vacuole
+golgi_endosome	golgi|endosome|vesicle|prevacuolar|multivesicular|clathrin|trans-golgi|autophag	Golgi, endosomes and vesicles pooled (one compartment in the yeast geometry)
+ER	endoplasmic reticulum|microsome	ER
+plasma_membrane	cell membrane|plasma membrane|eisosome|cell cortex	plasma membrane and cortex
+nucleoplasm	nucleus|nucleoplasm|chromosome|chromatin|telomere|kinetochore	nucleus (generic) and chromatin
+cytosol	cytoplasm|cytosol|cytoskeleton|p-body|stress granule|bud|ribosome|polysome|actin|microtubule	cytoplasm (generic) and cytoplasmic structures

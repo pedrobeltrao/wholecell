@@ -1,0 +1,106 @@
+# Localisation preset `common`: ONE set of defaults for every cell (unification plan §3a-§3d, step B5; criteria
+# docs/unification_criteria/B5_localisation.md, frozen before this file). A cell differs only in data: its sources
+# (inventory.params.localisation.sources), curated lists (data:) and the cell data block `common:` of its localisation
+# params (default key, N/C pool keys, imaging groups / pseudo-keys, key-selection steps, the N/C calibration), read here
+# as `cell.common.<...>` (a step whose cell data is absent is skipped: only the key-selection / imaging-resolution
+# steps). Every option is documented in wholecell/inventory/localisation/combiner.py.
+# Revision 2026-11-18 (Pedro; docs/unification_criteria/B5_localisation_revision_2026-11-18.md, before any B5 build; the
+# frozen gate of B5_localisation.md is unchanged): imaging_background (HPA nuclear background b), pool keys from
+# background-corrected imaging, N/C model prior (Itzhak 2016), bounded mixtures (max share 0.9), chromatin-bound pools.
+
+combiner:
+  steps: [drop_unreliable, ordered_annotation, annotation_overrides, mito_fractionation, annotation_evidence,
+          resolve_imaging, restrict_membrane, split, imaging_background, combine, new_from_imaging, nc_model,
+          weight_overrides, round]
+  within_source: max                # several terms of one source on one key: the largest (HPA main 1 / additional 0.3)
+  drop_unreliable: {}               # reliability 0 (HPA 'Uncertain'): the source is ignored for the gene
+  # key selection (cell data; which keys an annotation names, no weights): the yeast X5 ordered-annotation steps
+  ordered_annotation: cell.common.key_selection.ordered_annotation
+  annotation_overrides: cell.common.key_selection.annotation_overrides
+  mito_fractionation: cell.common.key_selection.mito_fractionation
+  annotation_evidence: cell.common.key_selection.annotation_evidence     # the selected list -> one annotation source
+  resolve_imaging: cell.common.imaging.resolve                          # imaging pseudo-keys (yeast 'periphery')
+  restrict_membrane:
+    keys: data.membrane_keys        # a transmembrane protein keeps only its membrane keys, per source; with none an
+    if_none: {annotation_curated: keep, annotation_ht: keep, imaging_cell: drop, imaging_other: drop}   # annotation keeps all
+  split: score                      # score-proportional within a source; equal when scores tie (plan §3a.2)
+  imaging_background: cell.common.imaging_background   # revision 2026-11-18: HPA nuclear background b (cell data:
+                                    # sources, b, nucleus_keys, provenance); true = clip((obs - b) / (1 - b), 0, 1)
+  combine:                          # precedence classes (plan §3a.1)
+    mode: classes
+    exclusive: [imaging_cell]       # same-cell imaging, when present, is used alone
+    annotation: [annotation_curated, annotation_ht]   # the first class present wins
+    imaging: [imaging_other]
+    weights: {annotation: 0.5, imaging: 0.5}           # annotation + imaging 0.5 : 0.5 (= the v7 HPA/UniProt blend)
+    groups: cell.common.imaging.groups                 # blended at the imaging's resolution (Jurkat: none = every key)
+    fallback: {compartment: cell.common.default_key, label: none}
+  new_from_imaging:                 # plan §3a.3
+    imaging_classes: [imaging_cell, imaging_other]
+    min_score: 0.5                  # X5 CYCLOPS_NEW_MIN
+    nc_keys: cell.common.nc_keys    # never new from imaging alone (they come from annotation or the N/C model)
+    groups: cell.common.imaging.groups
+    needs_flag: cell.common.imaging.needs_flag
+    no_support_classes: [fractionation]                # fractionation is a tie-breaker only
+    background_sources: all         # revision 2026-11-18: an imaging source with a background term (HPA) is blended as in
+                                    # v7 (all its keys count as supported); others (CYCLoPs) keep min_score / nc_keys
+  nc_model:                         # plan §3a.4: r from the cell's imaging calibration, else 1; this build's volumes
+    method: ratio
+    pool: cell.common.pool
+    calibration: cell.common.nc_calibration
+    volumes: {nucleus: nucleoplasm, cytoplasm: cytosol, measures: geometry}   # <build>/geometry/measures.json
+    add_min: 0.3                    # a missing pool side is added when imaging names it with score >= 0.3 ...
+    new_min: 0.5                    # ... or when its share would be >= 0.5
+    skip_transmembrane: true
+    chromatin: cell.common.chromatin  # revision 2026-11-18: chromatin-bound genes (cell data regexes) keep the whole pool
+                                    # in the nucleus (histones / linker H1 / histone variants; never spread to the cytosol)
+    prior: cell.common.nc_prior     # revision 2026-11-18: fractionation prior (Jurkat Itzhak 2016): log r = (log r_img +
+                                    # w log r_frac) / (1 + w); without imaging r = 1 takes the imaging term's place
+    bound: {max_share: 0.9, min_sources: 2, calibrations: [category]}   # revision 2026-11-18: with a categorical imaging
+                                    # calibration (HPA) the nuclear share of the pool stays in [0.1, 0.9] unless >= 2
+                                    # independent sources are exclusive on that side (CYCLoPs exp fit: continuous, unbounded)
+  weight_overrides: cell.common.weight_overrides   # 2026-11-19 (yeast B5 audit): curated comp_weights override rows of the
+                                    # cell (rows / rule_set / rule_ids; cell data, absent = skipped), final before round
+  round: {digits: 4, min_share: 0.0001}   # the rule-set convention (4 decimals, shares >= 1e-4)
+
+# Revision rule sets of cells that have them (Jurkat v4..v7), every step in code order. As legacy_v7 except the two rules
+# that gated on PLACED shares of earlier packs (plan §3b): kind `rule` = re-expressed on intended shares, no pack read.
+# The `legacy` steps are unchanged in B5; several still read frozen v4/v5-pack tables (criteria §2 lists them).
+rules:
+  jurkat.v4:
+    - {id: v4.a, kind: legacy, reason: "single-pass type I/II TM -> PM: per-protein selection from UniProt topology, signal peptide and CC/GO text"}
+    - {id: v4.b, kind: legacy, reason: "free CD3 chains: copies capped at 0.2 x the TCR-CD3 complex copies of this build (computed), then ER"}
+    - {id: v4.c, kind: overrides}
+    - {id: v4.d_e, kind: legacy, reason: "NPC stoichiometry / free pools from the 7R5K mmCIF and CPX-4747 cap: assembly arithmetic, not localisation"}
+    - {id: v4.f_curated, kind: overrides}
+    - {id: v4.f_drop_mito, kind: overrides}
+    - {id: v4.f_clic, kind: overrides}
+    - {id: v4.f_kdel, kind: legacy, reason: "ER-retrieval C-terminus + signal peptide: a sequence-motif rule over all proteins"}
+    - {id: v4.g, kind: legacy, reason: "obligate OXPHOS complexes absorb free subunits: copy-number arithmetic"}
+    - {id: v4.h, kind: legacy, reason: "cross-compartment AFDB heterodimers dissolved: reads both partners' current weights"}
+  jurkat.v5:
+    - {id: v5.T_tm_routing, kind: legacy, reason: "TM flag from the frozen list of membrane libraries built (tm_route_libs, structures stage)"}
+    - {id: v5.L_lamina, kind: legacy, reason: "per-gene lamina share of the nucleus+NE pool (a transform of the current weights, not fixed shares)"}
+    - {id: v5.A_lipid, kind: legacy, reason: "lipid anchors -> anchored shells: UniProt Lipidation rule over all proteins"}
+    - {id: v5.C_cortex, kind: legacy, reason: "candidates from the frozen v4-pack loc_compare (R6 cause classes) + HPA/UniProt PM support"}
+    - {id: v5.N_nucleolus, kind: legacy, reason: "HPA Nucleoli genes (frozen v4-pack table fields), share scaled by a nucleolus capacity cap"}
+    - {id: v5.P_nuclear_pool, kind: rule,
+       reason: "re-expressed (B5): gates on INTENDED shares of the current table + evidence.tsv nuclear support; target Vn/(Vn+Vc) of this build's geometry; capacity check; no pack read"}
+  jurkat.v6:
+    - {id: v6.R4_tm_pool, kind: legacy, reason: "TM steady-state ER/Golgi pools: gene universe and HPA calls from the frozen v5-pack table"}
+    - {id: v6.R2_cortex, kind: legacy, reason: "actin binders -> cortex: share calibrated on the frozen Tier-2 v5 rim measurements (tier2_v5)"}
+    - {id: v6.R3_peripheral, kind: legacy, reason: "peripheral membrane binders: mechanism check + tier2_v5 rim calibration"}
+    - {id: v6.R5_golgi, kind: legacy, reason: "Golgi binders: GO mechanism + HPA or the frozen v5-pack inventory golgi share"}
+    - {id: v6.R6a_npc, kind: legacy, reason: "NPC-proximal shell from GO CC/MF over the frozen v5-pack gene universe"}
+    - {id: v6.R1_nc, kind: rule,
+       reason: "re-expressed (B5): HPA category -> target N/C; universe = genes of the current table; gate on the INTENDED nucleus+cytoplasm share; Itzhak tie-breaker; this build's volumes; capacity check; no pack read; revision 2026-11-18: target through combiner.nc_target (Itzhak prior, bound 0.9) with the v0 nc_model.tsv inputs, chromatin genes skipped"}
+    - {id: v6.R6b_speckle, kind: legacy, reason: "HPA speckle genes, share scaled by the speckle capacity of the v6 geometry"}
+  jurkat.v7:
+    - {id: v7.R4b, kind: overrides}
+    - {id: v7.R6c, kind: legacy, reason: "PCM shell: HPA + GO CC selection, share capped by the PCM volume (geometry)"}
+    - {id: v7.R7, kind: legacy, reason: "MAP +TIPs / lattice MAPs: InterPro selection, shares capped by the MT band volumes (centerlines)"}
+    - {id: v7.R6d, kind: legacy, reason: "vimentin cage: InterPro IF rod + HPA selection, fixed share of the cytoplasmic pool"}
+    - {id: v7.R6e, kind: legacy, reason: "NPC FG receptors: npc share split by copies to 20 receptors x 1000 pores"}
+    - {id: v7.L3, kind: legacy, reason: "lamina share = lattice copies consumed by the lamina pre-pass (build input)"}
+    - {id: v7.F1, kind: overrides}
+    - {id: v7.N8, kind: legacy, reason: "nucleosome copies = placed v8 chromatin (copies, not localisation)"}
+    - {id: v7.history, kind: legacy, reason: "non-inventory history rows (pre-pass / geometry / packer), no table change"}

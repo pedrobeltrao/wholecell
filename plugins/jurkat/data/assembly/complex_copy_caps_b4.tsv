@@ -1,0 +1,5 @@
+# Jurkat: per-complex copy caps applied after the copies rule (copies = min(rule, cap)). B4 (2026-11-17): NPC = the
+# pore count of the geometry em_cell1_v8p = 11 NPC/um2 (Otsuka et al. 2016 eLife 5:e19071) x 245.1 um2 NE midsurface,
+# checked against the nucleoporin anchor (docs/unification_criteria/B4_preplaced.md J1). v7: complex_copy_caps.tsv (1000).
+complex_id	copies	reason
+CPX-873	2696	NPC count = pores of the geometry: 11 NPC/um2 (Otsuka 2016) x 245.1 um2 NE midsurface (B4 J1; Nup anchor 2,240 pores, ratio 0.83)

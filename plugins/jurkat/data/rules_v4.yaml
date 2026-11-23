@@ -1,0 +1,51 @@
+# origin: jurkat/yc/pipeline/jinventory_v4.py constants (legacy workspace, 2026-11-15)
+# Curated v4 lists (PLANNING_NOTES §8 "Issues found", §7f NPC caveat; top-200-by-mass review). Order is significant.
+npc_copies: 1000
+cd3_cap: 0.2                      # free CD3 chains capped at 0.2 x TCR-CD3 copies (unassembled chains ER-retained/degraded)
+n_term_tm: 60                     # type II heuristic: TM starts within the first 60 residues
+major_subunit_mass_fraction: 0.05
+tcr_complex: CPX-6482
+cd3_free_chains: [CD3E, CD3D, CD3G, CD247]
+ranbp2_complex: CPX-4747
+# pm_curated (rule c) -> plugins/jurkat/data/localisation/overrides_legacy_v7.tsv (rule_id v4.c; A5 2026-11-16)
+npc_entity_gene:                  # 7R5K entity description -> gene (assembly 1)
+  "E3 SUMO-protein ligase RanBP2": RANBP2
+  "Nuclear pore membrane glycoprotein 210": NUP210
+  "Aladin": AAAS
+  "Nuclear pore complex protein Nup93": NUP93
+  "Nucleoporin NUP188 homolog": NUP188
+  "Nuclear pore complex protein Nup205": NUP205
+  "Nuclear pore complex protein Nup155": NUP155
+  "Nucleoporin NDC1": NDC1
+  "Nucleoporin NUP35": NUP35
+  "Nucleoporin p54": NUP54
+  "Nucleoporin p58/p45": NUP58
+  "Nuclear pore glycoprotein p62": NUP62
+  "Nuclear pore complex protein Nup133": NUP133
+  "Nuclear pore complex protein Nup107": NUP107
+  "Nuclear pore complex protein Nup96": NUP98
+  "Protein SEC13 homolog": SEC13
+  "Nucleoporin SEH1": SEH1L
+  "Nuclear pore complex protein Nup85": NUP85
+  "Nucleoporin Nup43": NUP43
+  "Nuclear pore complex protein Nup160": NUP160
+  "Nucleoporin Nup37": NUP37
+  "Protein ELYS": AHCTF1
+  "Nuclear pore complex protein Nup98": NUP98
+  "Nuclear pore complex protein Nup214": NUP214
+  "Nuclear pore complex protein Nup88": NUP88
+pm_cc_regex: 'cell membrane|plasma membrane|cell surface|cell projection|cell junction|synapse|apical cell membrane|basolateral cell membrane'
+pm_go_regex: 'plasma membrane \[GO:0005886\]|cell surface \[GO:0009986\]|external side of plasma membrane|immunological synapse|plasma membrane raft|cell-cell junction|uropod'
+no_loc_keys: [unassigned, cytosol, cytoskeleton]
+# curated_w / drop_mito / soluble_not_tm / clic_weights (rule f) -> plugins/jurkat/data/localisation/
+#   overrides_legacy_v7.tsv (rule_ids v4.f_curated, v4.f_drop_mito, v4.f_clic; A5 2026-11-16)
+kdel_regex: '[KRHQSA][DENQ]EL$'   # PROSITE PS00014 ER-retrieval C-terminus
+obligate: [CPX-6151, CPX-577, CPX-561, CPX-560]   # ATP synthase, complexes I, II, III
+keep_het: [SKP1-FBXL12, ASB9-ELOC, WSB1-ELOC, RTKN-RHOC, RTKN-CDC42, UQCC1-UQCC2, BCL2L2-BMF, BCL2A1-BCL2L11,
+           BCL2A1-PMAIP1, PRELID3B-TRIAP1, CIBAR1-CBY1]
+# packer mapping used only for the expected-mass-by-region report line (= jpack_test.SOL / TMR at v4)
+report_sol: {cytosol: cytosol, cytoskeleton: cytosol, peroxisome: cytosol, lipid_droplet: cytosol, unassigned: cytosol,
+             plasma_membrane: cytosol, nucleus: nucleoplasm, nuclear_envelope: nucleoplasm, mitochondrion: matrix,
+             er: ER_lumen, secreted: ER_lumen, golgi: golgi_lumen, endolysosomal: endo_lumen}
+report_tmr: {plasma_membrane: PM, nucleus: NE, nuclear_envelope: NE, mitochondrion: MITO_IM, er: ER, golgi: GOLGI,
+             endolysosomal: ENDO}

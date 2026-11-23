@@ -1,0 +1,69 @@
+# Yeast: where each yeast step lives in the shared pipeline (X5 port 2026-11-16; wiring A9 2026-11-17).
+#   where:  core     = shared wholecell code runs it for every cell (yeast included; yeast settings = config / presets)
+#           toolkit  = toolkits/<name> (produces a shared artefact, e.g. a cellgeom_v1 package)
+#           plugin   = yeast-specific; code in plugins/yeast (registered steps / builders / hooks; some call the
+#                      vendored engine modules plugins/yeast/engine, never edited)
+#   No row says `engine`: config/cells/yeast.yaml builds through the core stages (no pipeline_engine block). The
+#   vendored engine as a whole runs only for the X5 reproduction (config/cells/yeast_x5_port.yaml, pipeline_engine yeast_x5).
+#   rule:   the Snakemake rule of the yeast DAG that runs it (plugin steps: <stage>_<id> of config plugin_steps)
+#   status: ported+run (runs in a core yeast build) | vendored+run (vendored code called from a core or plugin step)
+steps:
+  # ---------------- geometry
+  - {step: analytic_geometry, where: toolkit, rule: "(none: package named in config geometry.package)", module: toolkits/analytic/yeast.py (+ engine pipeline/cellshape.py, cell3d.py), status: vendored+run,
+     note: "one immutable cellgeom_v1 package (analytic_x5_s0_f5f3a5c723b2, written by the X5 port build s0); regenerate with the toolkit when the inventory changes"}
+  - {step: geometry_evaluator, where: core, rule: geometry, module: "wholecell/geometry/engines/cellgeom_eval_v1 + config/geometry/rules/yeast_cell3d_v1.yaml", status: ported+run,
+     note: "A1: G1-G5 level E vs the vendored cell3d (plugins/yeast/geom_engine.py kept for the reproduction tests)"}
+  - {step: tiling_measures_meshes, where: core, rule: pack_tiles, module: wholecell/pack/tiling.py (pack.regions / pack.tiling), status: ported+run,
+     note: "A2: G4/G5 identical to the port build"}
+  - {step: cell_wall_layers, where: core, rule: geometry, module: "package labels wall_mannan / wall_glucan + pack.regions cell_wall (sdf_lt CELL_OUTER 60 nm)", status: ported+run}
+  - {step: eisosome_furrows_endocytic_tubes_bud_scar, where: toolkit, rule: "(package)", module: pipeline/cell3d.py (T_SLOT, T_TORUS prims) via the analytic toolkit, status: vendored+run}
+  # ---------------- composition, localisation, assembly (inventory)
+  - {step: engine_file_layout, where: plugin, rule: inventory_yeast_engine_setup, module: plugins/yeast/bridge.py engine_setup, status: ported+run,
+     note: "<build>/engine/{root,work,pdb}: data links, work seed (md5), PDB link farm, yeast build stamp; the layout the vendored modules read"}
+  - {step: copy_numbers, where: core, rule: inventory_copies, module: wholecell/inventory/copies.py (config inventory.copies), status: ported+run}
+  - {step: not_in_this_cell_lists, where: plugin, rule: inventory_copies, module: plugins/yeast/data/inventory_copies.yaml, status: ported+run}
+  - {step: localisation_rules, where: core, rule: inventory_v0, module: "wholecell/inventory/localisation preset legacy_x5 (+ plugins/yeast/data/localisation TSVs)", status: ported+run,
+     note: "A5: comp_weights identical to the port build s0"}
+  - {step: protein_table, where: plugin, rule: inventory_yeast_protein_table, module: "plugins/yeast/bridge.py protein_table (+ engine pipeline/inventory.py build() for name, length, n_tm, oligomer_n, subunit)", status: ported+run,
+     note: "core copies + localisation in the engine's stage-1 layout; fails unless they agree with the engine values (A9: identical)"}
+  - {step: assembly_state, where: core, rule: inventory_assembly, module: "wholecell/inventory/assembly preset legacy_x5 (+ plugins/yeast/assembly.py plugin steps and structure hooks: engine preribosomes.py, er_ribosomes.py, mitoribosomes.py, supercomplexes.py, assemblies.py, heterodimers.py)", status: ported+run,
+     note: "A4: the s0 assembly tables identical; structure hooks write library entries into <build>/engine/lib"}
+  - {step: barrel_monomers, where: plugin, rule: inventory_assembly, module: "plugins/yeast/assembly.py yeast_barrel_monomers (engine assemblies.build_barrel_monomers)", status: vendored+run,
+     note: "A9 stage check found it missing from legacy_x5 (s1 ran it first): MDM10, MDM34, SAM50, TOM40 as oriented membrane entries; now identical to s0"}
+  - {step: pack_table, where: plugin, rule: inventory_ingredients, module: plugins/yeast/assembly.py x5_ingredients (inventory_builder), status: ported+run}
+  # ---------------- structures (library)
+  - {step: library_species, where: plugin, rule: library_yeast_library_species, module: "plugins/yeast/bridge.py library_species (engine pipeline/ingredients.py build_ingredients)", status: ported+run}
+  - {step: structure_library, where: core, rule: library, module: "wholecell/library (mode build) + plugins/yeast/data/library TSVs", status: ported+run,
+     note: "A3: L1-L5 at level T vs the port build s0"}
+  - {step: engine_library, where: plugin, rule: library_yeast_engine_lib, module: plugins/yeast/bridge.py engine_lib, status: ported+run,
+     note: "writable copy of the sealed library for the vendored assembly hooks and pre-placed models"}
+  # ---------------- pre-placed structures (serial builders, rule preplaced_serial; A6)
+  - {step: stage2_view, where: plugin, rule: preplaced_yeast_engine_view, module: plugins/yeast/bridge.py engine_view, status: ported+run,
+     note: "package native geometry, core tile measures (yeast names), assembly tables in the engine layout"}
+  - {step: preplaced_context, where: plugin, rule: preplaced_serial, module: plugins/yeast/preplaced/context.py (yeast.s3), status: vendored+run}
+  - {step: rabl_chromatin, where: plugin, rule: preplaced_serial, module: "yeast.rabl_chromatin (pipeline/wc3d.py, nucleosome_map.py, genome_map.py)", status: vendored+run}
+  - {step: rdna_nucleolus, where: plugin, rule: preplaced_serial, module: "yeast.rdna_transcription, yeast.rdna_chromatin (pipeline/rdna.py)", status: vendored+run}
+  - {step: spb_kinetochores, where: plugin, rule: preplaced_serial, module: "yeast.spb, yeast.kinetochores, yeast.spindle_pools", status: vendored+run}
+  - {step: microtubules, where: core, rule: preplaced_serial, module: "core.microtubules_mtoc, core.microtubule_pools (numerics: pipeline/microtubules.py until B4)", status: vendored+run}
+  - {step: npc_fg_mesh_receptors, where: core, rule: preplaced_serial, module: "core.npc_pores, core.fg_mesh, core.npc_receptors (numerics vendored until B4)", status: vendored+run}
+  - {step: pol2_origins_chromatin_sites, where: plugin, rule: preplaced_serial, module: "yeast.pol2, yeast.origins, yeast.chromatin_sites", status: vendored+run}
+  - {step: eisosomes_mcc, where: plugin, rule: preplaced_serial, module: "yeast.eisosomes, yeast.mcc", status: vendored+run}
+  - {step: actin_cables_endocytic_sites, where: plugin, rule: preplaced_serial, module: "yeast.actin_cables, yeast.endocytic_coat, yeast.amphiphysin (PORT PATCH 4), yeast.actin_patches", status: vendored+run}
+  - {step: cristae_atp_synthase_mtdna, where: core, rule: preplaced_serial, module: "core.atp_synthase_dimers, core.mtdna_nucleoids (numerics vendored until B4)", status: vendored+run}
+  - {step: vacuole_cvt_nvj, where: plugin, rule: preplaced_serial, module: "yeast.cvt, yeast.nvj", status: vendored+run}
+  - {step: polysomes_mrna_mrnp, where: core, rule: preplaced_serial, module: "core.polysomes, yeast.rac, core.mrna_threads, core.mrnp_ends (numerics vendored until B4)", status: vendored+run}
+  # ---------------- packing
+  - {step: packer, where: core, rule: "pack_tiles, pack_organisation, pack_counts, pack_index, pack_pack, pack_summary", module: "wholecell/pack (preset legacy_x5: pilot thinning, re-split, shell cap, squeeze, exclusion zones, organisation)", status: ported+run,
+     note: "A7; yeast_rsa_v1 (vendored stage 3) only in the X5 reproduction config"}
+  - {step: exclusion_zones, where: plugin, rule: pack_pack, module: plugins/yeast/exclusion.py (yeast.endocytic_sites), status: vendored+run}
+  # ---------------- validation, export
+  - {step: pack_view_for_validation, where: plugin, rule: validate_yeast_engine_pack_view, module: plugins/yeast/bridge.py engine_pack_view, status: ported+run,
+     note: "core pack in the engine layout (tiles_raw in the engine tile layout, geom link, prepass.npz, totals, tile_counts, pack_summary) for the yeast scripts"}
+  - {step: protein_features, where: plugin, rule: validate_yeast_features, module: pipeline/features.py, status: vendored+run}
+  - {step: stage4_validation, where: plugin, rule: validate_yeast_s4_validate, module: scripts/s4_validate.py, status: vendored+run}
+  - {step: validation_suite_yeast_checks, where: plugin, rule: validate_yeast_validate_all, module: "scripts/validate_all.sh, validation/*.py, pipeline/contacts.py, encounters.py, simgpu/sweeps_pooled.py (GPU)", status: vendored+run,
+     note: "checks without a common definition yet; read by the suite adapter yeast_x5"}
+  - {step: common_validation_suite, where: core, rule: validate_suite, module: "wholecell/validate/suite.py (+ plugins/yeast/validate_adapter.py)", status: ported+run}
+  - {step: viewer_encoding_yct1, where: plugin, rule: export_yeast_s5_encode, module: "scripts/s5_encode.py, pipeline/webenc.py", status: vendored+run, note: "legacy YCT1 kept for comparison with X5 and for yeast validation scripts"}
+  - {step: export_yct2, where: core, rule: "export_regions, export_tiles_v2, export_cell_entry", module: "wholecell/export/stage.py tiles_v2 / regions / cell_entry", status: ported+run}
+  - {step: build_stamp_isolation, where: core, rule: "stamp, frozen", module: "wholecell/build.py, scripts/build_isolated.sh (+ yeast build_stamp.py in yeast_engine_setup)", status: ported+run}

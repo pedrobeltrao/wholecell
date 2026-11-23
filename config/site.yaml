@@ -1,0 +1,22 @@
+# Site settings: the ONLY file with absolute paths of the machine running the builds. This is a TEMPLATE: replace each
+# <...> placeholder, or override a key with an environment variable, or point WHOLECELL_SITE=<path> at your own copy
+# (recommended: keep a site file outside the checkout so the working tree stays clean; builds refuse a dirty tree).
+#
+#   key           env override              what
+#   data_root     WHOLECELL_DATA_ROOT       root of the input data tree (layout: docs/data_inputs.md, data_manifest.tsv)
+#   results_root  WHOLECELL_RESULTS_ROOT    where builds are written: <results_root>/<cell_id>/<build_id>/
+#   geom_root     WHOLECELL_GEOM_ROOT       immutable cellgeom_v1 geometry packages: <geom_root>/<cell_id>/<geometry_id>/
+#   yeast_root    WHOLECELL_YEAST_ROOT      OPTIONAL: yeast model input tree (yeast cell only; layout in docs/data_inputs.md)
+#   afdb_root     WHOLECELL_AFDB_ROOT       OPTIONAL: folder with AlphaFold DB proteome tars (Jurkat library build only)
+#
+# Placeholders {data_root}, {results_root}, {geom_root}, {yeast_root}, {afdb_root} and {repo} in cell configs are
+# resolved from these values (wholecell/config.py). A key that is not set leaves its placeholder unresolved, so a
+# frozen input under it is reported MISSING by the check_frozen stage.
+data_root: <data_root>
+results_root: <results_root>
+geom_root: <geom_root>
+# yeast_root: <yeast_root>
+# afdb_root: <afdb_root>
+python: <path to the core env>/bin/python            # the vcell (core-cpu) interpreter, envs/README
+snakemake: <path to the orchestration env>/bin/snakemake
+max_workers: 16

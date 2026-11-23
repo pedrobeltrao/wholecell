@@ -1,0 +1,67 @@
+# Pins of the two paper builds (Magnusson, Beltrao et al., in preparation). Read-only record; nothing in the pipeline
+# reads this file. Build outputs: deposit planned (https://huggingface.co/datasets/TODO/wholecell-builds).
+#
+# Provenance chain:
+#   development repository (private, full history) commit 0a3ba79  --built-->  the two paper builds below
+#   development main e5dda5c (= 0a3ba79 + docs-only freeze addenda + applications/, which moved to wholecell-paper)
+#   --staged as-->  this release repository (fresh history; see `release` below and docs/release_notes.md)
+# The pipeline code and the two cell configs of this repository resolve to the same configuration as each build's
+# config.resolved.json, except the checkout location ({repo}) and one placeholder: the AlphaFold DB human tar path of
+# jurkat.yaml is now "{afdb_root}/UP000005640_9606_HUMAN_v6.tar" (same resolved file, same md5). Because the hash is
+# taken over the UNRESOLVED config, the Jurkat config_sha256 of a build from this repository differs from the paper
+# build's (both values below). Comparison record: docs/release_notes.md, section "Resolved-config check".
+
+source:
+  dev_commit: 0a3ba797b45da17650233f4175d683f74ca40c25      # code of both paper builds (tags paper-jurkat-v8, paper-yeast-u1)
+  dev_main_staged_from: e5dda5cf36b2bd34647b71b6b6f068954cb54ecf
+  dev_diff_0a3ba79_to_main_outside_applications: "docs only: 398944a (Jurkat freeze addendum), 07e112e (yeast freeze addendum)"
+
+release:
+  version: 0.1.0-staging
+  staged: 2026-11-23
+  commit: "the first commit of this repository (see git log; recorded in docs/release_notes.md once made)"
+
+builds:
+  jurkat:
+    tag: paper-jurkat-v8
+    build_id: 20261120-0a3ba79-s20261115-paper
+    path: "<results_root>/jurkat/20261120-0a3ba79-s20261115-paper"
+    cell_config: config/cells/jurkat.yaml
+    commit: 0a3ba797b45da17650233f4175d683f74ca40c25
+    master_seed: 20261115
+    geometry_package: "<geom_root>/jurkat/em_cell1_v8r"
+    geometry_manifest_sha256: 6c86b1688722f4320520abbb46a66fb7e9e97c95576e0186ebf3909b9c562fa1
+    export_manifest: export/MANIFEST.sha256
+    export_manifest_sha256: 4f0f69fad68297cbd5aa9215710542cd7fb4e8d13fdb712db8d6a44f853b3c6b
+    config_resolved_sha256: dc014f07a3992b6ab7b62c718a6fadcb1a68fc9d45c414f6b0411e66ca87e95a   # sha256 of the build's config.resolved.json file
+    config_sha256_build: d65560b10fb8c2d8fedd9c361c7d5e71f9a662ff3ade8fe79242c260ba18f2fa      # BUILD_STAMP.json config_sha256 (unresolved config at 0a3ba79)
+    config_sha256_release: 9538f87b4bf5547cd135c3ea98b32a400dc1b1e0664a1a3026fe0ea329f657a2    # same config with the {afdb_root} placeholder
+    criteria: docs/unification_criteria/freeze_v8.md
+    criteria_md5: 9bbd657167cf754afe6e725d3cd95d24
+    verdict: "ACCEPTED (by decision; automated NOT ACCEPTED)"
+    addendum: docs/unification_criteria/freeze_v8_addendum_jurkat_accept_2026-11-22.md
+    replicates: 1
+    freeze_date: "2026-11-22 07:01"
+  yeast:
+    tag: paper-yeast-u1
+    build_id: 20261120-0a3ba79-s0-paperds
+    path: "<results_root>/yeast/20261120-0a3ba79-s0-paperds"
+    cell_config: config/cells/yeast.yaml
+    commit: 0a3ba797b45da17650233f4175d683f74ca40c25       # downstream stages (validate, export)
+    kind: "downstream-only reuse (scripts/build_downstream_reuse.py): upstream stages copied, not re-run"
+    donor_build_id: 20261119-bedcea9-s0-paper                # geometry, inventory, library, preplaced, pack
+    donor_commit: bedcea9ca18911438391e2eefa21386c2c8656fb   # BUILD_STAMP.json and config.resolved.json come from the donor
+    master_seed: 0
+    geometry_package: "<geom_root>/yeast/analytic_x5_s0_f5f3a5c723b2_memhalf1"
+    geometry_manifest_sha256: 230b96d91559b6aca5557bae68cfafeed227c24be3aaa76879831acd29dd8f5b
+    export_manifest: export/MANIFEST.sha256
+    export_manifest_sha256: f6f2c1f4b43216a79bb5aa5795e078ef6e28d7d1b306979c0e5ab907a1cfdba1
+    config_resolved_sha256: ef1ddb50f270f8b59d42f20ba0e9743d4d90d239b38fb0a9e054f2f48f52a5d6
+    config_sha256_build: 5cd5487f73c6b0b0b89854d5bd9168927183e71d19fafd1ac6a9117a5236b9fe
+    config_sha256_release: 5cd5487f73c6b0b0b89854d5bd9168927183e71d19fafd1ac6a9117a5236b9fe    # unchanged
+    criteria: docs/unification_criteria/freeze_v8.md
+    criteria_md5: 9bbd657167cf754afe6e725d3cd95d24
+    verdict: "ACCEPTED (by decision; automated NOT ACCEPTED)"
+    addendum: docs/unification_criteria/freeze_v8_addendum_yeast_accept_2026-11-20.md
+    replicates: 1
+    freeze_date: "2026-11-20 18:09"

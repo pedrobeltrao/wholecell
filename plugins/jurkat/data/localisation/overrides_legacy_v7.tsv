@@ -1,0 +1,40 @@
+# Jurkat localisation overrides of the legacy v4..v7 rule sets as data (unification A5, 2026-11-16). Origin:
+# plugins/jurkat/data/rules_v4.yaml pm_curated / curated_w / drop_mito / soluble_not_tm + clic_weights and
+# rules_v7.yaml tcr_weights / f1 (legacy jinventory_v4.py, jinventory_v7.py). Applied in file order by
+# wholecell/inventory/localisation/overrides.apply; columns: overrides.py. rule_id = the change-table rule id.
+rule_set	rule_id	key_type	key	field	op	value	reason	citation
+jurkat.v4	v4.c	gene	CD7	comp_weights	set_keep_other	{"shares": {"plasma_membrane": 1.0}, "keep": 0.0, "exclude": ["unassigned", "cytosol", "cytoskeleton", "plasma_membrane"]}	T-cell surface protein	PLANNING_NOTES §8 (v4 curated PM routing); share kept in the other HPA/UniProt compartments = keep
+jurkat.v4	v4.c	gene	CD99	comp_weights	set_keep_other	{"shares": {"plasma_membrane": 1.0}, "keep": 0.1, "exclude": ["unassigned", "cytosol", "cytoskeleton", "plasma_membrane"]}	T-cell surface protein	PLANNING_NOTES §8 (v4 curated PM routing); share kept in the other HPA/UniProt compartments = keep
+jurkat.v4	v4.c	gene	SELPLG	comp_weights	set_keep_other	{"shares": {"plasma_membrane": 1.0}, "keep": 0.1, "exclude": ["unassigned", "cytosol", "cytoskeleton", "plasma_membrane"]}	T-cell surface protein	PLANNING_NOTES §8 (v4 curated PM routing); share kept in the other HPA/UniProt compartments = keep
+jurkat.v4	v4.f_curated	gene	VDAC1	comp_weights	set	{"mitochondrion": 1.0}	outer mitochondrial membrane porin; the PM annotation put 1.4 M copies on the PM	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_curated	species	CPX-6151	comp_weights	set	{"mitochondrion": 1.0}	F1Fo ATP synthase is an inner-membrane complex (ecto-ATP synthase negligible)	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_curated	gene	ATP5F1A	comp_weights	set	{"mitochondrion": 1.0}	ATP synthase alpha (matrix F1); PM weight packed it in the cytosol	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_curated	gene	HSPD1	comp_weights	set	{"mitochondrion": 1.0}	HSP60 is a matrix chaperone; PM weight packed 25% in the cytosol	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_curated	gene	GOT2	comp_weights	set	{"mitochondrion": 1.0}	mitochondrial aspartate aminotransferase (matrix)	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_curated	gene	ESYT1	comp_weights	set	{"er": 1.0}	extended synaptotagmins are ER TM proteins tethering ER to the PM	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_curated	gene	ESYT2	comp_weights	set	{"er": 1.0}	extended synaptotagmins are ER TM proteins tethering ER to the PM	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_curated	gene	RTN4	comp_weights	set	{"er": 1.0}	reticulon: ER tubule-shaping membrane protein	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_curated	species	CPX-2375	comp_weights	set	{"er": 1.0}	TAPBP-PDIA3 (peptide-loading complex) is ER-resident	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_curated	species	CPX-5621	comp_weights	set	{"er": 1.0}	oligosaccharyltransferase (OST-A) is ER-resident	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_curated	species	CPX-5622	comp_weights	set	{"er": 1.0}	oligosaccharyltransferase (OST-B) is ER-resident	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_curated	species	CPX-7669	comp_weights	set	{"nuclear_envelope": 1.0}	SUN2-SYNE2 LINC complex spans the nuclear envelope	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_curated	gene	ATP2B4	comp_weights	set	{"plasma_membrane": 1.0}	PMCA4 is a plasma-membrane Ca2+ pump	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_drop_mito	gene	PGK1	comp_weights	drop	{"keys": ["mitochondrion"], "fallback": {"cytosol": 1.0}}	cytosolic protein without a mitochondrial presequence; HPA/UniProt mito share would pack it into the matrix	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_drop_mito	species	CPX-6598	comp_weights	drop	{"keys": ["mitochondrion"], "fallback": {"cytosol": 1.0}}	cytosolic protein without a mitochondrial presequence; HPA/UniProt mito share would pack it into the matrix	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_drop_mito	gene	GSTP1	comp_weights	drop	{"keys": ["mitochondrion"], "fallback": {"cytosol": 1.0}}	cytosolic protein without a mitochondrial presequence; HPA/UniProt mito share would pack it into the matrix	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_drop_mito	gene	VAT1	comp_weights	drop	{"keys": ["mitochondrion"], "fallback": {"cytosol": 1.0}}	cytosolic protein without a mitochondrial presequence; HPA/UniProt mito share would pack it into the matrix	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_drop_mito	gene	PRDX1	comp_weights	drop	{"keys": ["mitochondrion"], "fallback": {"cytosol": 1.0}}	cytosolic protein without a mitochondrial presequence; HPA/UniProt mito share would pack it into the matrix	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_drop_mito	gene	UBA1	comp_weights	drop	{"keys": ["mitochondrion"], "fallback": {"cytosol": 1.0}}	cytosolic protein without a mitochondrial presequence; HPA/UniProt mito share would pack it into the matrix	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_drop_mito	gene	ILF3	comp_weights	drop	{"keys": ["mitochondrion"], "fallback": {"cytosol": 1.0}}	cytosolic protein without a mitochondrial presequence; HPA/UniProt mito share would pack it into the matrix	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_drop_mito	gene	HSP90AA1	comp_weights	drop	{"keys": ["mitochondrion"], "fallback": {"cytosol": 1.0}}	cytosolic protein without a mitochondrial presequence; HPA/UniProt mito share would pack it into the matrix	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_drop_mito	species	CPX-3288	comp_weights	drop	{"keys": ["mitochondrion"], "fallback": {"cytosol": 1.0}}	cytosolic protein without a mitochondrial presequence; HPA/UniProt mito share would pack it into the matrix	PLANNING_NOTES §8 top-200-by-mass localisation review (v4)
+jurkat.v4	v4.f_clic	gene	CLIC1	transmembrane	set	false	CLIC proteins are mostly soluble (metamorphic; the membrane form is minor)	PLANNING_NOTES §8 (v4)
+jurkat.v4	v4.f_clic	gene	CLIC1	n_tm	set	0	soluble	PLANNING_NOTES §8 (v4)
+jurkat.v4	v4.f_clic	gene	CLIC1	comp_weights	set	{"cytosol": 0.8, "nucleus": 0.2}	CLIC soluble pool (cytosol/nucleus)	PLANNING_NOTES §8 (v4)
+jurkat.v4	v4.f_clic	gene	CLIC4	transmembrane	set	false	CLIC proteins are mostly soluble (metamorphic; the membrane form is minor)	PLANNING_NOTES §8 (v4)
+jurkat.v4	v4.f_clic	gene	CLIC4	n_tm	set	0	soluble	PLANNING_NOTES §8 (v4)
+jurkat.v4	v4.f_clic	gene	CLIC4	comp_weights	set	{"cytosol": 0.8, "nucleus": 0.2}	CLIC soluble pool (cytosol/nucleus)	PLANNING_NOTES §8 (v4)
+jurkat.v7	v7.R4b	species	CPX-6482	comp_weights	set	{"plasma_membrane": 0.75, "endolysosomal": 0.17, "er": 0.06, "golgi": 0.02}	TCR:CD3 complex member; literature recycling/ER-assembly pools (Liu et al. 2000 Immunity 13:665)	Liu et al. 2000 Immunity 13:665 (judgement)
+jurkat.v7	v7.F1	species	CPX-2511	comp_weights	set	{"nucleolus": 0.338, "nucleus": 0.662}	SSU processome (Complex Portal CPX-2511): nucleolus; v5 nucleolar cap factor 0.338	v7 test pack (CPX-2511 placed as an NE TM ingredient); v5 rule N cap
+jurkat.v7	v7.F1	species	CPX-2511	transmembrane	set	false	SSU processome (Complex Portal CPX-2511): nucleolus; v5 nucleolar cap factor 0.338	v7 test pack
+jurkat.v7	v7.F1	species	CPX-2511	n_tm	set	0	SSU processome (Complex Portal CPX-2511): nucleolus; v5 nucleolar cap factor 0.338	v7 test pack (v7 changed n_tm without a change-table row)

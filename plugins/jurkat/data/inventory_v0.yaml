@@ -1,0 +1,12 @@
+# origin: jurkat/inventory/inventory_v0.py constants ZERO, ZERO_PATTERNS, HPA_MAP, COMP, MEMB (legacy workspace, 2026-11-15)
+# Curated Jurkat inventory-v0 lists (PLANNING_NOTES §4b). Order matters for uniprot_comp_rules (first match order).
+zero_genes:            # literature-verified losses and DepMap homozygous deletions -> 0 copies
+  PTEN: "absent protein (Shan 2000)"
+  INPP5D: "absent protein, biallelic mutation (Freeburn 2002)"
+  CDKN2A: "9p21 homozygous deletion"
+  CDKN2B: "9p21 homozygous deletion"
+  MTAP: "9p21 homozygous deletion"
+  C1GALT1C1: "COSMC loss (DepMap)"
+zero_patterns: ['^IFNA\d+$', '^IFNB1$', '^IFNE$', '^IFNW1$']        # 9p21 interferon cluster
+# hpa_map / uniprot_comp_rules / membrane_keys moved 2026-11-16 (A5) to plugins/jurkat/data/localisation/
+#   hpa_term_map.tsv, uniprot_cc_rules.tsv, membrane_keys.tsv (TSVs with a reason column; same content and order)

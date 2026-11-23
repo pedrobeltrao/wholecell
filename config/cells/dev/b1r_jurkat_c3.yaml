@@ -1,0 +1,9 @@
+# B1 REDUCED BENCHMARK OVERLAY (docs/unification_criteria/B1_packer_addendum_2026-11-18.md §2); only pack.preset(s) differ
+# from the base config. Built-in presets b1_s*: wholecell/pack/switches.py B1_BENCHMARK (frozen A3 values).
+# C3: C2 with budgets 2000 / 1200 (= frozen S4y + packing shapes)
+extends: ../jurkat.yaml
+
+pack:
+  presets:
+    b1r_shapes: {shapes: {source: pack_shapes}}   # P8 packing shapes (library/pack_shapes)
+  preset: [b1_s4y, b1r_shapes]

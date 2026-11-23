@@ -1,0 +1,815 @@
+# Saccharomyces cerevisiae G1 cell, built through the core stages (unification plan A9, 2026-11-17).
+# Behaviour = the yeast X5 build (yeast_cell_viewer round X, commit e3b7448, run X5_seed0) through the shared stages
+# with the legacy presets: copies (core), localisation preset legacy_x5, assembly preset legacy_x5, library mode build,
+# serial pre-placed builders, core packer preset legacy_x5, common validation suite + yeast checks, YCT2 export.
+# Steps the core does not have yet are plugin steps of the stage list (plugin_steps below; plugins/yeast/steps.yaml says
+# where every yeast step lives). The vendored yeast modules that core steps still call (plugins/yeast/engine, never
+# edited) read a yeast-style file layout: inside a build that is <build>/engine/ (plugin steps yeast_engine_*).
+# The X5 reproduction itself (pipeline engine yeast_x5, packer yeast_rsa_v1) is config/cells/yeast_x5_port.yaml.
+# Inputs are read IN PLACE from the yeast tree ({yeast_root}, read-only; nothing is written, run or locked there).
+schema_version: 1
+cell_id: yeast
+name: Saccharomyces cerevisiae G1 haploid
+organism: {name: Saccharomyces cerevisiae, taxon: 559292, strain: BY4741}
+status: core_legacy_x5    # X5 behaviour through the core stages (A9); output changes start with B1
+plugins: [yeast]          # plugins/yeast: plugin steps, assembly steps + hooks, pre-placed builders, suite adapter, steps.yaml
+seeds:
+  master: 0
+  legacy:              # yeast X5 streams (cell3d config.seed(k) = k + 1000003 x master; master 0 -> k)
+    pack.counts: 3                  # wc3d.distribute(seed=3): the tile request split (pack.requests legacy_x5)
+    pack.organisation.field: 11     # organisation.SEED: the random fields of the organisation log weights
+    # core packer with pack.preset legacy_x5 (A7 yeast side; master seed 0 only: the expressions ignore the master)
+    pack.thinning: 4242             # wc3d.pilot_capacity rng(seed(4242)): choice of the pilot tiles
+    pack.thinning.pilot: "k+500000" # wc3d.pilot_capacity: pilot tile k packed with seed(500000 + k)
+    pack.tile: "k+1000"             # wc3d.run_phase(seed0=1000): tile k, round 0 (rounds r > 0: + 7919 r in X5; core: stream pack.round)
+    pack.squeeze: "k+1007"          # wc3d.squeeze_tile: default_rng(tile seed + 7)
+geometry:
+  # ONE immutable cellgeom_v1 package, written by the analytic toolkit (toolkits/analytic/yeast.py: the vendored
+  # cellshape.build + cell3d.build calls, cellshape rng 11, cell3d stream 11, master seed 0) in the X5 port build s0
+  # (2026-11-16). The generator reads the stage-1 inventory (volumes, actin patches): a new inventory needs a new package
+  #   python toolkits/analytic/yeast.py --engine-code plugins/yeast/engine --dest-root {geom_root}/yeast --out <json>
+  # (engine layout in the environment, see plugins/yeast/runner.py step_geometry_package).
+  # B6 (2026-11-17): the same package content with per-membrane half thickness (Pogozheva 2022 Table S20 D_P-P/2,
+  # config/geometry/membrane_half_thickness.tsv; written by toolkits/analytic/yeast_mem_half.py from
+  # analytic_x5_s0_f5f3a5c723b2). Labels and SDFs are identical; the packer clearance (rule table clearance:
+  # thickness_corrected) changes by <= 0.11 nm. The uniform 2 nm X5 package: config/cells/yeast_x5_core.yaml.
+  toolkit: analytic
+  package: "{geom_root}/yeast/analytic_x5_s0_f5f3a5c723b2_memhalf1"
+  manifest_sha256: 230b96d91559b6aca5557bae68cfafeed227c24be3aaa76879831acd29dd8f5b
+  engine: yeast_cell3d_v1          # package layout (= manifest engine.name): analytic prims + SDF bricks
+  evaluator: cellgeom_eval_v1      # the core evaluator (A1: G1-G5 level E vs the vendored cell3d)
+  rules: "{repo}/config/geometry/rules/yeast_cell3d_v1.yaml"   # membrane table + label rule of the yeast layout
+  mc_points: 2000000               # Monte Carlo points for geometry/measures.json (seed stream geometry.measures)
+inventory:
+  total_protein_pg: 3.5
+  total_protein_source: >-
+    yeast inventory.py TOTAL_PROTEIN_PG (since build R, 2026-11-12): the one unbudded G1 cell holds less than the 4-6 pg
+    culture average (Carroll 2011; Sherman 2002); at 5.0 pg the anchors implied 3.9 pg (core histones) and 3.2 pg
+    (nucleoporins); 3.5 pg lies between the two (fixed value, not recomputed: the anchors run as a check)
+  # composition = copies (core step `copies`), localisation = core framework preset legacy_x5, assembly = core step
+  # list preset legacy_x5 (pools: ingredients) with the yeast plugin steps and structure hooks; the yeast ingredient
+  # table becomes the pack table through the builder yeast.x5_ingredients (plugins/yeast/assembly.py)
+  adapters: {rna: null, proteome: copies, localisation: localisation, assembly: assembly_steps, surface: null}
+  ingredients: yeast.x5_ingredients
+  copies:
+    method_id: yeast_buildW
+    avogadro: 6.02214e23              # the yeast code's constant (wholecell default 6.02214076e23); kept for exact reproduction
+    annotation: {reader: uniprot_ordered_locus, path: inv_yeast_uniprot, carry: [orf, gene_name]}
+    universe: {order: annotation}     # every UniProt entry (one per ORF), in file order; no detection required
+    value_column: ppm
+    sources:
+      - id: inv_yeast_paxdb
+        type: ppm
+        unit: "PaxDb integrated ppm (S. cerevisiae whole organism, 4932)"
+        reader: paxdb
+        path: inv_yeast_paxdb
+        strip_prefix: "4932."
+        map_on: orf                   # ids summed per ORF
+        column: ppm_paxdb
+        label: paxdb
+        aggregate: "integrated (PaxDb)"
+    combine: {mode: priority}
+    imputation: {method: none, missing_label: not_in_paxdb}   # no RNA imputation: proteins without PaxDb ppm get 0
+    absent:
+      - {id: not_in_this_cell, file: "{repo}/plugins/yeast/data/inventory_copies.yaml", categories_key: not_in_this_cell,
+         match_on: gene_name, label: not_in_this_cell}
+    per_protein_scaling:
+      - rule_id: g1_size_scaling      # round U2 (2026-11-13): PaxDb = culture-average cell (42 um3) -> the 34 um3 G1 cell
+        kind: size_slope              # ppm x (34/42)^slope, slope of log concentration vs log volume per protein
+        match_on: orf
+        ratio: {numerator: 34.0, denominator: 42.0}   # CELL_VOL / POP_MEAN_VOL of yeast inventory.py
+        evidence: "Lanz et al. 2024 Nat Struct Mol Biol 31:1859, Table S3 (G1 arrest, glucose)"
+        table: {path: inv_yeast_lanz2024_s3, sheet: G1_arrest_time_Glucose, id_column: "Systematic name",
+                slope_column: Mean_protein_slope, replicate_prefix: Protein_slope_Exp, min_replicates: 2, max_se: 0.15,
+                clip: [-1.2, 0.8], default: median}
+    total_protein: {mode: fixed}      # 3.5 pg (inventory.total_protein_pg)
+    adjustments:
+      - rule_id: ribosomes_cryoet_density   # round U1 (2026-11-13): ribosomes from the counted density, not from PaxDb
+        kind: family_target
+        structure: cytosolic 80S ribosome
+        match_on: gene_name
+        members: {regex: "^(RP[LS]\\d+|RPP[012])[AB]?$", genes: [ASC1]}
+        family_sub: ["[AB]$", ""]
+        target:
+          density_per_um3: 14250.0      # mean of the cryo-ET counts 14,000 (Delarue 2018) and 14,517 (Goetz 2025 preprint)
+          volume_um3: 18.436635385716613   # cytosol of yeast inventory.geometry() (34 um3 cell, 0.11 um wall, fractions) + NE lumen correction of build()
+          source: "yeast inventory.py RIBO_PER_UM3 x vol[cytosol] (build W: 262,722)"
+    round_copies: false               # the yeast method keeps fractional copies
+    anchor_check: {use: final}
+    anchors:                          # the yeast validation/anchors.py set (check, not used for the scale)
+      - id: nucleoporins
+        structure: nuclear pore complex
+        statistic: median
+        stoich_map: {file: "{repo}/plugins/yeast/data/inventory_copies.yaml", key: npc_copies}
+        filter_regex: "^(NUP\\d+|NSP1|NIC96|NDC1|POM\\d+|ASM4|GLE1)$"
+        counts:
+          - {label: model_pores_W, value: 93, primary: true, source: "inventory.N_NPC = 10.8 per um2 x nuclear surface (build W)"}
+          - {label: winey1997_mean, value: 117, source: "Winey 1997, mean over the cell cycle (65-182)"}
+      - id: core_histones
+        structure: nucleosome
+        statistic: median
+        families:
+          H3: {stoich: 2, genes: ["HHT1; HHT2"]}
+          H4: {stoich: 2, genes: ["HHF1; HHF2"]}
+          H2A: {stoich: 2, genes: [HTA1, HTA2]}
+          H2B: {stoich: 2, genes: [HTB1, HTB2]}
+        counts:
+          - {label: build_W_nucleosomes, value: 69714, primary: true, source: "build W ingredients.csv nucleosome copies (measured dyads on the arms + rDNA nucleosomes)"}
+          - {label: genome_over_nrl, value: 73151.51515151515, source: "12.07 Mb / 165 bp"}
+      - id: ribosomal_proteins
+        structure: cytosolic 80S ribosome
+        statistic: median
+        match_on: gene_name
+        members: {regex: "^(RP[LS]\\d+|RPP[012])[AB]?$", genes: [ASC1]}
+        family_sub: ["[AB]$", ""]
+        counts:
+          - {label: warner1999, value: 200000, primary: true, source: "~2 x 10^5 per cell (Warner 1999)"}
+          - {label: vonderhaar2008, value: 187000, source: "187,000 +- 56,000 (von der Haar 2008)"}
+          - {label: cryoet_density_target, value: 262722.0542464617, source: "14,250 per um3 x 18.44 um3 cytosol (the adjustment target)"}
+    future_sources:
+      - {id: yeast_secms_abundance, type: secms_abundance, role: cross_check, enabled: false, notes: "yeast SEC-MS (toolkits/secms, species yeast) summed intensity; cross-check"}
+      - {id: yeast_surface_proteomics, type: surface_proteomics, role: pm_copies, enabled: false, notes: "PM copy numbers when available"}
+  params:
+    # Localisation (core framework, wholecell/inventory/localisation; preset legacy_x5 = yeast inventory.py @ e3b7448:
+    # A5 comp_weights identical to the port build s0). Thresholds and term sets: HT_ORGANELLE_PROTEOMICS, HUH2003,
+    # HT_MIN_ENTRIES, VOGTLE_SUB, CYCLOPS_FILES / CYCLOPS_MIN, RPROT, PRENYL_NO_CYCLOPS of that file.
+    localisation:
+      preset: legacy_x5
+      label: yeast.x5
+      # evidence key = ORF (one UniProt entry per ORF, file order); the copies table is keyed by gene name: its column
+      # orf carries the key (key: orf)
+      genes: {reader: uniprot_ordered_locus, input: inv_yeast_uniprot, key: orf}
+      sources:
+        - source: uniprot
+          adapter: uniprot_cc_statements
+          evidence_class: annotation_curated
+          input: inv_yeast_uniprot
+          rules: plugins/yeast/data/localisation/term_rules.tsv
+          drop_only_pmids: ["14576278", "16823961"]     # Sickmann 2003, Reinders 2006 mitochondrial proteomes
+          keep_eco: "ECO:0000250"
+          precedence: {pmid: "14562095", dedicated_eco: "ECO:0000269", ht_min_entries: 40}   # Huh 2003 GFP
+          refine: {generic: mitochondrion, sub_keys: [mito_IM, mito_OM, mito_IMS, mito_matrix]}
+        - source: go
+          adapter: go_cc_terms
+          evidence_class: annotation_ht
+          input: inv_yeast_uniprot
+          rules: plugins/yeast/data/localisation/term_rules.tsv
+          skip: {regex: "complex$", unless: "pore|ribosom|proteasome"}
+          restrict_if: {key: cytosol, keep: [cytosol, nucleoplasm, nucleolus]}   # GO inherits HT organelle calls
+        - source: go_membrane
+          adapter: go_cc_terms
+          evidence_class: annotation_ht
+          input: inv_yeast_uniprot
+          rules: plugins/yeast/data/localisation/term_rules.tsv
+          extra_rules: [{compartment: plasma_membrane, regex: "cell periphery"}]
+          exclude_keys: [cytosol, nucleoplasm, nucleolus, cell_wall]
+        - source: vogtle
+          adapter: class_columns
+          evidence_class: fractionation
+          input: loc_yeast_vogtle2017
+          header: 1
+          id_column: ORF
+          classes: {"Outer membrane": mito_OM, "Inner membrane": mito_IM, "Inter-membrane space": mito_IMS, "Matrix": mito_matrix}
+          exactly_one: true
+        - source: morgenstern
+          adapter: proteome_classes
+          evidence_class: fractionation
+          input: loc_yeast_morgenstern2017
+          sheet: "Results - Summary of Study"
+          header: 1
+          id_column: "Gene Systematic Name"
+          hc_column: "High-confidence mito. proteome"
+          class_column: Classes
+          depleted_class: "Class 3"
+          sub_column: "Submitochondrial localization5"
+          sub_classes: {OM: mito_OM, "Matrix/IM": mito_matrix, "IMS/IM": mito_IMS}
+          organelle_key: mitochondrion
+        - source: cyclops
+          adapter: imaging_locscore
+          evidence_class: imaging_other
+          inputs: [loc_yeast_cyclops_wt1, loc_yeast_cyclops_wt2, loc_yeast_cyclops_wt3]
+          header: 3
+          id_column: ORF
+          term_map: plugins/yeast/data/localisation/cyclops_map.tsv
+          min_score: 0.05
+          exclude:
+            genes_input: inv_yeast_uniprot
+            gene_regex: "^(RP[LS]\\d+|RPP[012])[AB]?$"
+            prenylated: {features: loc_yeast_uniprot_features, lengths: inv_yeast_uniprot, last_n: 4}
+      data:
+        spb_core: plugins/yeast/data/localisation/spb_core.tsv
+        overrides: plugins/yeast/data/localisation/overrides_legacy_x5.tsv
+        membrane_keys: plugins/yeast/data/localisation/membrane_keys.tsv   # preset common (restrict_membrane)
+        chromatin_pool: plugins/yeast/data/localisation/chromatin_pool.tsv   # preset common nc_model.chromatin (revision 2026-11-18)
+      common:                          # cell data of preset `common` (B5; docs/unification_criteria/B5_localisation.md);
+                                       # inert under legacy_x5. Key selection = the X5 ordered-annotation steps (which keys,
+                                       # no weights; options as presets/legacy_x5.yaml); weights by the common defaults
+        default_key: cytosol           # no location -> cytosol (X5)
+        nc_keys: [cytosol, nucleoplasm, nucleolus]   # X5: never a new nucleocytoplasm group from imaging
+        pool: {nucleus: nucleoplasm, cytoplasm: [cytosol], default_cytoplasm: cytosol}
+        nc_calibration:                # "the current calibration": X5 NUC_K, fitted on the SWAT dev half (validation/tune_nuck.py)
+          method: exp
+          source: cyclops
+          k: 5.0
+          nucleus_term: Nucleus
+          cytosol_term: Cytoplasm
+        chromatin: {regex: data.chromatin_pool, feature: gene_name}   # revision 2026-11-18: histones keep the pool in the nucleus
+        # no imaging_background (CYCLoPs is live GFP: no antibody background) and no nc_prior (no N/C fractionation source)
+        imaging:                       # CYCLoPs resolution (X5 imaging_groups data)
+          resolve:
+            imaging_classes: [imaging_other]
+            pseudo: {periphery: {membrane: plasma_membrane, other: cytosol, annotated: [plasma_membrane]}}
+            skip_if_keys: [cell_wall]  # secreted cell-wall proteins: no CYCLoPs
+          groups: {cytosol: nucleocytoplasm, nucleoplasm: nucleocytoplasm, nucleolus: nucleocytoplasm, nuclear_envelope: ER,
+                   ER: ER, mito_IM: mitochondrion, mito_OM: mitochondrion, mito_IMS: mitochondrion, mito_matrix: mitochondrion}
+          needs_flag: {mitochondrion: mito_hc}   # a new mitochondrion group only in the high-confidence proteome
+        key_selection:
+          ordered_annotation:
+            primary: [uniprot]
+            resolve:
+              spindle_pole: {to: nuclear_envelope, genes: data.spb_core, feature: gene_name}
+            refine: {generic: mitochondrion, sub_keys: [mito_IM, mito_OM, mito_IMS, mito_matrix], source: go}
+            fallback: {source: go, unranked: true, membrane_source: go_membrane, unless_keys: [cell_wall]}
+            tm_soluble: {keys: [cytosol, nucleoplasm, nucleolus], source: go_membrane}
+          annotation_overrides: {rows: rows.overrides, rule_set: yeast.x5, rule_ids: [x5.LOC_FIX]}
+          mito_fractionation:
+            keys: [mitochondrion, mito_IM, mito_OM, mito_IMS, mito_matrix]
+            generic: mitochondrion
+            measured: vogtle
+            proteome: morgenstern
+            veto: true
+            tm_map: {mito_matrix: mito_IM, mito_IMS: mito_IM}
+            not_mito_fallback:
+              sources: [{source: go_membrane, transmembrane_only: true}, {source: go}]
+              default: cytosol
+            flag: mito_hc
+          annotation_evidence:         # the selected list -> one annotation source (class of the source it came from)
+            source: annotation
+            classes: {uniprot: annotation_curated, go: annotation_ht, go_membrane: annotation_ht, "override:x5.LOC_FIX": annotation_curated}
+            default_class: annotation_curated
+            consume: [uniprot, go, go_membrane]
+    # Assembly (core step list, wholecell/inventory/assembly, preset legacy_x5; A4: the s0 assembly tables identical).
+    # inputs: frozen input name or "<frozen name>/<path inside>" or build:<path>.
+    assembly_steps:
+      preset: legacy_x5
+      # yeast plugin steps / hooks call the vendored engine modules: their file layout is this build's engine/ (made by
+      # the plugin steps yeast_engine_setup and yeast_engine_lib; the structure hooks add entries to engine/lib)
+      engine: &yeast_engine
+        root: "build:engine/root"        # YC_ROOT: links to the yeast pipeline data + the engine's non-code files
+        work: "build:engine/work"        # YC_WORK: seeded from yeast_x5_work_seed (RCSB cache, pool pairs, sweeps, ...)
+        lib: "build:engine/lib"          # YC_LIB: copy of the sealed library/lib, extended by assembly + pre-placed models
+        pdb: "build:engine/pdb"          # YC_PDB: link farm to yeast_pdb_cache
+        code: "{repo}/plugins/yeast/engine"
+        inputs: "{yeast_root}/inputs"    # AFDB tar, AFDB dimers, AF3 pool summary (read in place)
+        seed: 0                          # YC_SEED (master seed; 0 = the reference streams)
+        nproc: 8                         # YC_NPROC (joblib workers of the engine modules)
+      inputs:
+        # the stage-1 protein table = core copies + core localisation in the engine's column layout (plugin step
+        # yeast_protein_table; the columns the core does not make yet: name, length, n_tm, oligomer_n, subunit)
+        protein_table: build:inventory/yeast/protein_table.parquet
+        complex_portal: yeast_pipeline_data/complexportal_559292.tsv
+        intact_pairs: yeast_pipeline_data/intact_pairs.tsv
+        paralog_pairs: yeast_pipeline_data/alliance_yeast_paralog_pairs.csv
+        proteome_fasta: yeast_pipeline_data/uniprot/UP000002311.fasta
+        rcsb_cache: yeast_x5_work_seed/rcsb_cache.json
+        pdb_assemblies: yeast_pdb_cache
+        afdb_heterodimers: yeast_afdb_dimers/heterodimers/candidates.csv
+        afdb_homodimers: yeast_afdb_dimers/homodimers/candidates.csv
+      data:
+        curated_machines: plugins/yeast/data/assembly/curated_machines.tsv
+        curated_machine_subunits: plugins/yeast/data/assembly/curated_machine_subunits.tsv
+        legacy_oligomers: plugins/yeast/data/assembly/legacy_oligomers.tsv
+        copies_exclude_subunits: plugins/yeast/data/assembly/copies_exclude_subunits.tsv
+        shared_subunits: plugins/yeast/data/assembly/shared_subunits.tsv
+        structure_overrides: plugins/yeast/data/assembly/structure_overrides.tsv
+        histone_classes: plugins/yeast/data/assembly/histone_classes.tsv
+        monomeric_families: plugins/yeast/data/assembly/monomeric_families.tsv
+        homo_oligomer_audit: plugins/yeast/data/assembly/homo_oligomer_audit.tsv
+# Structure library (core library stage, mode build: the yeast s0 policy; A3: L1-L5 at level T vs the port build s0).
+library:
+  mode: build
+  start: yeast_x5_lib_start          # 342 X5 entries never rebuilt (Boltz-2 tRNA species, builder templates, leftovers)
+  # species to build (ing_id, kind, uniprot, pdb), in ingredient order: the curated ingredients of the protein table
+  # (engine ingredients.build_ingredients, as yeast s0_library.py; plugin step yeast_library_species)
+  species: "{build}/inventory/yeast/library_species.tsv"
+  pdb_dir: yeast_pdb_cache           # RCSB assemblies, read in place; offline (a missing entry is an error)
+  afdb_tar: yeast_afdb_tar           # AlphaFold DB v6 yeast proteome
+  topology: {path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/uniprot_topology.tsv", columns: [acc, topo, tm, intramem]}
+  nproc: 8
+  steps:
+    - {step: complexes, table: plugins/yeast/data/library/complexes_orient.tsv, per: 40}   # curated complexes (ingredients.COMPLEXES)
+    - {step: af_models, plddt_min: 50, min_kept: 10, per: 30}   # residues pLDDT < 50 left out (TM segments kept)
+    - {step: pdb_oligomers, table: plugins/yeast/data/library/pdb_oligomers.tsv, per: 30}
+    - {step: pdb_rna, entries: [{id: tRNA, pdb: 1EHZ, per: 15}]}   # tRNA-Phe: reference of the tRNA species
+  pack_shapes: {per: 15}             # wc3d.PACK_PER (2026-11-13): 15 residues per sphere for packing (sealed library
+                                     # only; the yeast packer reads the engine/lib trees, pack.presets.legacy_x5.shapes)
+  options: {tm_graft: false, tm_route: false, adaptive_trees: false}   # Jurkat builders: declared, not run (B3)
+preplaced:                           # pre-placed structures ("prepass" before A0c)
+  # Serial pre-placed builders (wholecell/preplaced/serial.py, `preplaced --step serial`; unification A6): the pre-pass of
+  # the vendored stage 3 (scripts/s3_pack.py) as registered modules, in its order (the order is part of the result:
+  # each builder avoids the ones before it and deducts its copies from the pools the next ones read). `seed` values
+  # are the yeast stream numbers (engine config.seed(k) = k + 1000003 x master seed). Reproduces the port build's
+  # prepass.npz (scripts/preplaced_a6_check.py; builders 19-28 = s0 + PORT PATCH 4). core.* = mechanism shared with
+  # other cells (numerics still the engine's until B4). The context reads the stage-2 view of this build
+  # (engine/work/yc3d: package geometry, core tile measures; plugin step yeast_engine_view) and writes
+  # engine/work/yc3d/pack_trees_15.npz (packing trees of the packed types, wc3d.PACK_PER = 15; pack.shapes below).
+  numba_threads: 8
+  serial:
+    context: yeast.s3
+    context_params:
+      engine: *yeast_engine          # the same layout as the assembly steps (one process may configure it once)
+    out: preplaced/serial
+    builders:
+      - {name: npc, builder: core.npc_pores, params: {lib_id: NPC, seed: 5}}
+      - {name: microtubules, builder: core.microtubules_mtoc, params: {seed: 31}}
+      - {name: kinetochores, builder: yeast.kinetochores, params: {seed: 61, outer_seed: 67}}
+      - {name: spb, builder: yeast.spb, params: {seed: 71, ring_spc110_per_nuclear_ring: 14}}
+      - {name: chromatin, builder: yeast.rabl_chromatin, params: {seed: 5}}
+      - {name: spindle_pools, builder: yeast.spindle_pools}
+      - {name: pore_receptors, builder: core.npc_receptors, params: {seed: 73}}
+      - {name: fg_mesh, builder: core.fg_mesh, params: {seed: 37}}
+      - {name: rdna, builder: yeast.rdna_transcription, params: {seed: 41}}
+      - {name: rdna_chromatin, builder: yeast.rdna_chromatin, params: {seed: 9, n_chains: 8}}
+      - {name: pol2, builder: yeast.pol2, params: {seed: 91}}
+      - {name: origins, builder: yeast.origins, params: {seed: 77}}
+      - {name: chromatin_sites, builder: yeast.chromatin_sites, params: {seed: 53, loci: true, loci_seed: 59}}
+      - name: microtubule_pools
+        builder: core.microtubule_pools
+        params: {tusc_per_ring: 6, tusc_subunits: {TUB4: 2}, ring_attachment: {ings: [SPC110, CMD1_SPC110_het], per_nuclear_ring: 14}}
+      - {name: eisosomes, builder: yeast.eisosomes, params: {seed: 53}}
+      - {name: mcc, builder: yeast.mcc, params: {seed: 73}}
+      - {name: actin_cables, builder: yeast.actin_cables, params: {seed: 23}}
+      - {name: endocytic_coat, builder: yeast.endocytic_coat, params: {seed: 69}}
+      - {name: amphiphysin, builder: yeast.amphiphysin, params: {seed: 67}}
+      - {name: actin_patches, builder: yeast.actin_patches, params: {seed: 41}}
+      - {name: atp_synthase, builder: core.atp_synthase_dimers, params: {seed: 7, region: mem_MITO_IM}}
+      - {name: mtdna, builder: core.mtdna_nucleoids, params: {seed: 81}}
+      - {name: cvt, builder: yeast.cvt, params: {seed: 61}}
+      - {name: nvj, builder: yeast.nvj, params: {seed: 63}}
+      - name: polysomes             # common polysome builder (B4); yeast data from plugins/yeast/preplaced/polysome_data.py
+        builder: core.polysomes
+        params: {seed: 17, transcripts_seed: 23, tether_seed: 29, n_mrna: 30000, ribosome: ribosome_80S,
+                 polysome_fraction: 0.835,       # Arava 2003 (85 +- 5 %), Metzl-Raz 2017 (0.82); polysome.POLY_FRACTION
+                 channel: "lib:ribosome_80S_mrna_channel.npy", disome: "lib:ribosome_80S_disome_6I7O.npy",   # 7ZW0, 6I7O
+                 transcripts: {provider: yeast.mrna_gene_table}, exclusion_zones: yeast.ribosome_exclusion,
+                 tether: yeast.mrna_tether, obstacles: [other, cortex, fg], start_radius_slot: 2}
+      - {name: rac, builder: yeast.rac, params: {seed: 71}}
+      - {name: mrna, builder: core.mrna_threads, params: {seed: 29}}
+      - {name: mrnp, builder: core.mrnp_ends, params: {seed: 37, pab: PAB1, cap: CDC33}}
+pack:
+  # core packer (wholecell/pack/stage.py) with the yeast X5 packer settings (preset legacy_x5 below; A7)
+  preset: legacy_x5           # pinned (B1: switches.COMMON_DEFAULTS apply only to cells without a pin)
+  tile_nm: 200.0              # yeast tiles3d.TILE (the core v7 packer uses 500 nm); grid from the geometry, not TGRID
+  # Tiling (core step `pack --step tiles`, wholecell/pack/tiling.py; A2): the yeast tiles3d settings (G4/G5 identical
+  # to the port build).
+  meas_vox_nm: 4.0            # tiles3d.VOX: voxel size of the region volume measures
+  meas_h_nm: 8.0              # tiles3d.MESH_H: marching-cubes lattice of the membrane areas and the tile meshes
+  halo_nm: 36.7               # X5 s3: largest bounding radius of the packed types (NPC excluded) + 1 nm; the yeast packer
+                              # derives it from the library, the core packer (preset legacy_x5) reads this value
+  tiling:
+    select: enclosing_sphere  # tiles3d.tile_list: tiles meeting the enclosing sphere minus tiles surely outside the cell
+    sample_reach_nm: 88.0     # tile_list: 27 samples 100 nm apart reach every tile point within 86.6 nm
+    box_margin_nm: 80.0       # cell3d.Cell.select margin used by tiles3d.tile_geometry (prims near the tile)
+    pore_reach_nm: 119.0      # Cell.select: pores within PORE_R 45 + PERI_W 34 + 40 nm of the grown tile
+    labvol: true              # tile_labvol.parquet (yeast stage 2 output)
+    meshes: true              # tile_geom/<tile>.npz: the packing meshes (yeast yc3d/geom)
+    mesh_membranes: [PM, ER, NE, VAC, MITO_OM, MITO_IM, GOLGI, PEROX, LD]   # every membrane but CELL_OUTER
+  # Tile requests (core step `pack --step counts`, wholecell/pack/requests.py; A2): the yeast wc3d.distribute split of
+  # the per-type totals after the pre-placed structures (shell cap applied by the packer, preset shell_cap), in the
+  # library order of the pre-placed context, with the packing-tree volumes; pilot thinning factors and organisation
+  # loadings come from the pack step and pack/organisation (preset legacy_x5). Paths relative to the build.
+  requests:
+    method: legacy_x5
+    totals: preplaced/serial/expected_after_preplaced.parquet
+    lib_order: preplaced/serial/lib_ids.npy
+    shape_volumes: engine/work/yc3d/pack_trees_15.npz     # wc3d.PACK_PER = 15 residues per sphere (written by the pre-placed context)
+  # Regions = the yeast tiles3d tables (REGION_NAMES, REG_MASK, BANDS, WALL_DEPTH @ e3b7448), in the yeast id order:
+  # the position in this list is the region id (job_region) of the yeast tiles, 0-26. Not grouped by kind: the core
+  # packer maps it to its kernel order (Regions.k_of / c_of; A7). Bands are shells with side 0 (|SDF| < d1, cytosol
+  # voxels only) measured as volumes, packed like volume regions from their voxels (as the yeast packer did).
+  # Labels / membranes: names of the yeast cellgeom_v1 package.
+  regions:
+    - {name: cytosol, kind: volume, labels: [cytosol]}                          # 0
+    - {name: nucleoplasm, kind: volume, labels: [nucleoplasm]}                  # 1
+    - {name: nucleolus, kind: volume, labels: [nucleolus]}                      # 2
+    - {name: ER_lumen, kind: volume, labels: [er_lumen, perinuclear_space]}     # 3: cortical ER lumen + NE lumen (ER)
+    - {name: vacuole, kind: volume, labels: [vacuole_lumen]}                    # 4
+    - {name: mito_matrix, kind: volume, labels: [mito_matrix]}                  # 5
+    - {name: mito_IMS, kind: volume, labels: [mito_ims]}                        # 6
+    - {name: golgi_endosome, kind: volume, labels: [golgi_endosome_lumen]}      # 7
+    - {name: peroxisome, kind: volume, labels: [peroxisome_matrix]}             # 8
+    - {name: cell_wall, kind: volume, labels: [wall_mannan, wall_glucan], sdf_lt: {membrane: CELL_OUTER, nm: 60.0}}   # 9: tiles3d.WALL_DEPTH, the outer 60 nm (mannoprotein layer + outer glucan)
+    - {name: PM_peripheral, kind: shell, membrane: PM, labels: [cytosol], side: 0, d0: 0.0, d1: 22.0, measure: volume}    # 10: tiles3d.BANDS
+    - {name: NE_peripheral, kind: shell, membrane: NE, labels: [cytosol], side: 0, d0: 0.0, d1: 20.0, measure: volume}    # 11
+    - {name: ER_peripheral, kind: shell, membrane: ER, labels: [cytosol], side: 0, d0: 0.0, d1: 25.0, measure: volume}    # 12
+    - {name: LD_peripheral, kind: shell, membrane: LD, labels: [cytosol], side: 0, d0: 0.0, d1: 12.0, measure: volume}    # 13
+    - {name: mem_PM, kind: membrane, membrane: PM}                              # 14 (tiles3d.MEM_REGION0 + membrane code)
+    - {name: mem_ER, kind: membrane, membrane: ER}                              # 15
+    - {name: mem_NE, kind: membrane, membrane: NE}                              # 16
+    - {name: mem_VAC, kind: membrane, membrane: VAC}                            # 17
+    - {name: mem_MITO_OM, kind: membrane, membrane: MITO_OM}                    # 18
+    - {name: mem_MITO_IM, kind: membrane, membrane: MITO_IM}                    # 19
+    - {name: mem_GOLGI, kind: membrane, membrane: GOLGI}                        # 20
+    - {name: mem_PEROX, kind: membrane, membrane: PEROX}                        # 21
+    - {name: chromatin_nucleosome, kind: preplaced}                             # 22: pre-placed nucleosomes (webenc.R_NUCLEOSOME)
+    - {name: NE_pore_NPC, kind: preplaced}                                      # 23: pre-placed nuclear pores (webenc.R_NPC)
+    - {name: VAC_peripheral, kind: shell, membrane: VAC, labels: [cytosol], side: 0, d0: 0.0, d1: 20.0, measure: volume}  # 24: cytosolic faces added after the viewer codes
+    - {name: GOLGI_peripheral, kind: shell, membrane: GOLGI, labels: [cytosol], side: 0, d0: 0.0, d1: 20.0, measure: volume}  # 25
+    - {name: PEROX_peripheral, kind: shell, membrane: PEROX, labels: [cytosol], side: 0, d0: 0.0, d1: 20.0, measure: volume}  # 26
+  # Yeast packer settings that are cell config (B1 split, 2026-11-17: moved out of presets.legacy_x5 unchanged, so the
+  # effective pack: of preset legacy_x5 is identical; with the common defaults (B1) the cell keeps them). Origins:
+  # plugins/yeast/engine/pipeline/{wc3d,tiles3d,squeeze}.py @ e3b7448 and the s3 log of the port build s0.
+  # Paths relative to the build dir: outputs of the core stages (and the yeast engine view, see plugin_steps).
+  vox_nm: 4.0                  # tiles3d.VOX: seed voxels of the volume regions (and bands)
+  mesh_h_nm: 8.0               # tiles3d.MESH_H: marching-cubes lattice of the membrane meshes (membrane proteins)
+  lumen_align: true            # wc3d.FLAT: half of the tries align the flattest axis with the membrane normal ...
+  thin_lumens:                 # ... of these regions (wc3d.FLAT_MEM: thin lumens and the cytosolic bands)
+    ER_lumen: ER
+    mito_matrix: MITO_IM
+    mito_IMS: MITO_OM
+    golgi_endosome: GOLGI
+    PM_peripheral: PM
+    NE_peripheral: NE
+    ER_peripheral: ER
+    LD_peripheral: LD
+    VAC_peripheral: VAC
+    GOLGI_peripheral: GOLGI
+    PEROX_peripheral: PEROX
+  volume_shell_tol_nm: 4.0     # wc3d.SHELL_TOL: a partner proposal / squeezed copy of a band may sit this far beyond its width
+  thinning:                    # (the pilot thinning switches themselves are algorithm keys: presets / common defaults)
+    resplit: true              # s3_pack: counts = distribute(thin(exp3)) (seed 3 again), not binomial thinning
+  exclusion:                   # wc3d.exclusion_zones / EXCL_TYPES: no ribosome centre in the endocytic zones
+    - name: ribosomes_endocytic_sites
+      lib_prefixes: [ribosome_80S, preribo_40S, preribo_60S_cytoplasm]   # wc3d.EXCL_TYPES (startswith)
+      around: {provider: yeast.endocytic_sites, params: {r_nm: 90.5, beyond_nm: 100.0, step_nm: 30.0}}   # EXCL_R, EXCL_BEYOND, EXCL_STEP
+  organisation:                # yeast pipeline/organisation.py (X5 settings, AF3 pool ON: reproduction only, not published)
+    enabled: true
+    string: {taxon: 4932, version: "12.0", links: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/string/4932.protein.links.v12.0.txt.gz",
+             min_score: 400, ids: {table: inv_yeast_uniprot, columns: ["Gene Names (ordered locus)"]}}   # organisation.STRING_MIN 400
+    genes: {table: inv_yeast_uniprot, columns: ["Gene Names (primary)", "Gene Names (ordered locus)"]}
+    subunits: {table: inventory/assembly/ingredients.csv, lib_map: preplaced/serial/expected_after_preplaced.parquet,
+               ids: preplaced/serial/lib_ids.npy}   # assembly ingredients; types = the packed library order
+    pool_scores: "{data_root}/data/derived/wholecell_frozen/yeast_x5/work_seed/organisation/pool_pairs.parquet"   # YC_POOL_SCORES (cached pool table X5 read)
+    paralogs: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/alliance_yeast_paralog_pairs.csv"
+  # wc3d.PACK_PER = 15 residues per sphere. The trees of the pre-placed context (wc3d.pack_trees), made from
+  # engine/lib (the packed library: sealed library + assembly products such as *_oligo, the barrel monomers
+  # rewritten by yeast_barrel_monomers, pre-placed models), signature size:mtime of those files; the stale-tree
+  # guard checks them against engine/lib. Not library/pack_shapes: made from the sealed library only (no assembly
+  # products; MDM10 / MDM34 / SAM50 / TOM40 before the rewrite) and checked against the library manifest md5.
+  shapes: {source: pack_shapes, file: engine/work/yc3d/pack_trees_15.npz, library: engine/lib}
+  preplaced_index:             # pre-placed instances of the serial pre-placed stage
+    npz: preplaced/serial/preplaced.npz
+    lib_ids: preplaced/serial/lib_ids.npy
+    groups: [[npc, li_npc], [nuc, li_nuc], [poly, li_ribo], [act, li_actin], [tpm, li_tpm], [mt, null], [pat, null],
+             [atp, li_atp], [eis, null], [cvt, null], [pol2, li_pol2], [nvj, li_nvj], [rvs, li_rvs], [coat, null],
+             [mcc, null], [kt, null], [mcm, li_mcm], [orc, li_orc], [tf, null], [rnp, null], [kto, null], [spb, null],
+             [lm, null], [kap, null], [rpol, li_rpol], [r90, li_r90], [rnuc, li_nuc]]   # wc3d.PRE_GROUPS (order)
+    beads: [poly_link, mrna_pts, fg_pts, rdna_pts, prerrna_pts, mtdna_pts, pol2dna_pts, pol2rna_pts]   # wc3d.setup_shared RNA / DNA beads
+    bead_radius_nm: 0.5        # wc3d.pack_one: bead obstacles of radius 0.5 nm
+  # (requests: no thinning / organisation files: the pilot factors come from the pack step, the loadings from
+  #  pack/organisation/network.npz)
+  # The yeast X5 packer ALGORITHM settings (A7 yeast side), merged into pack: by `preset: legacy_x5`
+  # (switches.effective); only the keys of switches.ALGORITHM_KEYS (B1 split; the cell keys are above).
+  presets:
+    legacy_x5:
+      max_tries: 2000              # wc3d.PACK_TRIES (IMPROVEMENTS N1): tries per copy, every region
+      give_up: 1200                # wc3d.PACK_GIVE_UP: failures in a row before a job stops, every region
+      rounds: {n: 6, split: equal_volume, alternate: true}   # wc3d.N_ROUNDS, round_edges; s3_pack reverses the pass order in odd rounds
+      thinning:                    # wc3d.THIN / pilot_capacity / thin
+        enabled: true              # wc3d.THIN
+        pilot_tiles: 16            # wc3d.THIN_TILES
+        min_rel: 1.1               # wc3d.THIN_MIN_REL (x the cytosol's requested sphere volume fraction)
+        safety: 0.97               # wc3d.THIN_SAFETY
+        keep_above: 0.98           # pilot_capacity: regions that held >= 98 % are left alone
+        reference_region: cytosol  # pilot_capacity: phi_cyt
+        pilot_squeeze: true        # the pilot ran pack_one(last=True): squeeze included
+      shell_cap: true              # wc3d.SHELL_CAP (s3 applied it before saving expected_totals: a no-op on those totals)
+      budgets:                     # X5 reg_tries = 0 everywhere (global 2000 / 1200); listed so the core thin-lumen factors do not apply
+        per_region:
+          ER_lumen: {max_tries: 2000, give_up: 1200}
+          mito_matrix: {max_tries: 2000, give_up: 1200}
+          mito_IMS: {max_tries: 2000, give_up: 1200}
+          golgi_endosome: {max_tries: 2000, give_up: 1200}
+          PM_peripheral: {max_tries: 2000, give_up: 1200}
+          NE_peripheral: {max_tries: 2000, give_up: 1200}
+          ER_peripheral: {max_tries: 2000, give_up: 1200}
+          LD_peripheral: {max_tries: 2000, give_up: 1200}
+          VAC_peripheral: {max_tries: 2000, give_up: 1200}
+          GOLGI_peripheral: {max_tries: 2000, give_up: 1200}
+          PEROX_peripheral: {max_tries: 2000, give_up: 1200}
+      squeeze: {scope: all, rounds: 4, iterations: 60, insert_frac: 0.15}   # wc3d.SQUEEZE (every tile, last round); squeeze.N_ROUNDS, N_ITER, ROUND_FRAC
+# --- validation: the common suite + the yeast checks that have no common definition yet (plugin steps yeast_s4_validate,
+# yeast_validate_all: the vendored validation scripts on this build's engine view); the suite adapter reads them (A8) ---
+validate:
+  # the core placement / crowding / densities steps run inside the suite (core_steps, with the adapter's inputs:
+  # library = engine/lib, packing trees = engine/work/yc3d/pack_trees_15.npz); not twice as separate rules
+  steps: {placement: false, crowding: false, densities: false}
+  # Core steps on the yeast tiles (A8 phase 2): run by the suite (core_steps) into its own output folder; inputs the core
+  # cannot find in the port build (library = engine/lib, geometry package from geometry/package.json) come from the
+  # adapter (core_inputs). The packed-library mass is the library bead mass (pack/libs.json has no mass_da).
+  placement: {n_tiles: 300, clash_nm: 0.5, grid_nm: 6.0, membrane_tol_nm: 0.5, shell_tol_nm: 0.5, pore_axial_nm: 150.0, min_req: 100, mrna: true}
+  crowding:
+    regions: [cytosol, nucleoplasm, mito_matrix, ER_lumen]   # as Jurkat (cytosol, nucleoplasm, matrix, ER_lumen)
+    n_boxes: 4
+    box: 150.0
+    vox: 0.5
+    margin: 25.0
+    probes: [0.0, 1.0, 1.6, 2.3, 3.0]
+    legacy_seeds: false              # named seed streams (validate.crowding.*)
+  densities:
+    default_region: cytosol
+    shell_to_volume:                 # yeast bands are cytosol voxels next to a membrane (s4_validate reg2comp)
+      PM_peripheral: cytosol
+      NE_peripheral: cytosol
+      ER_peripheral: cytosol
+      LD_peripheral: cytosol
+      VAC_peripheral: cytosol
+      GOLGI_peripheral: cytosol
+      PEROX_peripheral: cytosol
+    preplaced_group_volume:          # pre-pass group (pack/preplaced_groups.json) -> volume region, as s4_validate books it;
+                                     # not_counted = not in any s4 compartment (NPCs, ATP synthase dimers, eisosomes)
+      chromatin_nucleosome: nucleoplasm
+      "chromatin_nucleosome[1]": nucleolus      # 2nd entry = rDNA nucleosomes (s4: rnuc_pos -> nucleolus)
+      rdna_transcription: nucleolus
+      transcribing_pol2: nucleoplasm
+      licensed_origins: nucleoplasm
+      kinetochores: nucleoplasm
+      chromatin_bound_proteins: nucleoplasm
+      npc_transport_receptors: {cytosol: 0.5, nucleoplasm: 0.5}
+      spindle_pole_body: cytosol
+      polysome_ribosomes: cytosol
+      actin_cables: cytosol
+      endocytic_actin_patches: cytosol
+      cvt_complex: cytosol
+      mrnp_ends: cytosol
+      endocytic_coat_bar: cytosol
+      nucleus_vacuole_junction: cytosol
+      microtubules: cytosol          # s4 splits by mt_reg (nuclear MTs to the nucleoplasm): not in the pre-pass index
+      "microtubules[2]": nucleoplasm # gTuRC_nuc
+      NE_pore_NPC: not_counted
+      atp_synthase_dimers: not_counted
+      eisosomes: not_counted
+    nucleus_group: [nucleoplasm, nucleolus]
+    ratio_denominator: cytosol
+  suite:                             # common validation suite (plan s4; docs/stages/validation.md)
+    adapter: yeast_x5                # plugins/yeast/validate_adapter.py: reads engine/work validation outputs
+    core_steps: [placement, crowding, densities]   # A8 phase 2: core steps on the yeast tiles (into the suite's folder)
+    notes:                           # explanations attached to suite rows (A8 phase 2 findings)
+      C8/a.containment_rate_per_1e6: >-
+        all from shells (peripheral bands); the yeast packer draws shell centres in 4 nm region voxels (voxel centre
+        |SDF| < d1) with +-2 nm jitter, so centres reach d1 + 3.5 nm (diagnosed: every failing centre is in the cytosol,
+        |SDF| - d1 = 0.6-4.0 nm, 95 % <= 3.5 nm); the core test allows d1 + 0.5 nm. Beads outside their region: C8 (b)
+      C8/a.containment_rate_per_1e6.shell: "see a.containment_rate_per_1e6: voxel sampling of the yeast packer, not beads outside"
+      C7/a.prepass_prepass_per_1e6: >-
+        built pre-pass structures (polysome chains, actin filaments and cables, nucleosome arrays) touch by construction;
+        report only
+    seam: {region: cytosol, min_frac: 0.95, n_tiles: 300, seed: 0}
+    reference:                       # no-regression reference build (plan s5) and its suite output (A8: run into _dev_unify)
+      build: "{results_root}/yeast/20261116-aabe7b5-s0-x5repro"
+      suite: "{results_root}/yeast/_dev_unify/a8p2/20261116-aabe7b5-s0-x5repro/suite.json"
+export:
+  enabled: true
+  steps: [regions, tiles_v2, cell_entry]
+  tiles: {enabled: true, tile_nm: 200.0, block_tiles: 5, q_org_nm: 80.0, q_range_nm: 360.0, shard_max_mb: 45, origin_nm: [0.0, 0.0, 0.0]}
+  # pre-pass group (yeast wc3d.PRE_GROUPS key) -> export region; groups not listed get their own region named after the key
+  preplaced_group_regions:
+    nuc: chromatin_nucleosome
+    rnuc: chromatin_nucleosome
+    npc: NE_pore_NPC
+    poly: polysome_ribosomes
+    rnp: mrnp_ends
+    act: actin_cables
+    tpm: actin_cables
+    pat: endocytic_actin_patches
+    rvs: endocytic_coat_bar
+    coat: endocytic_coat_bar
+    mt: microtubules
+    kt: kinetochores
+    kto: kinetochores
+    spb: spindle_pole_body
+    atp: atp_synthase_dimers
+    eis: eisosomes
+    mcc: eisosomes
+    cvt: cvt_complex
+    nvj: nucleus_vacuole_junction
+    pol2: transcribing_pol2
+    rpol: rdna_transcription
+    r90: rdna_transcription
+    mcm: licensed_origins
+    orc: licensed_origins
+    tf: chromatin_bound_proteins
+    lm: chromatin_bound_proteins
+    kap: npc_transport_receptors
+  cell_type: haploid yeast (BY4741), G1
+  state: log phase, YPD
+  status: preview
+  licence: {data: "CC BY-NC 4.0 (intended; yeast code has no licence yet: local only)"}
+# --- plugin steps (wholecell/plugin_steps.py): yeast steps of the normal stage list, each in plugins/yeast/steps.yaml
+# with where: plugin. yeast_engine_* make the vendored engine's file layout inside this build (<build>/engine/: links,
+# copies and format views of core outputs, never the other way round); the others run vendored yeast code there.
+plugin_steps:
+  # inventory (composition / localisation / assembly)
+  - id: yeast_engine_setup
+    stage: inventory
+    run: yeast.engine_setup        # engine/{root,work,pdb}: data links, work seed copy (md5), PDB link farm, yeast build stamp
+    outputs: [engine/setup.json]
+    before: [inventory_v0]
+    params:
+      engine: *yeast_engine
+      data: yeast_pipeline_data    # frozen inputs (read in place); their manifests are re-checked file by file
+      pdb: yeast_pdb_cache
+      work_seed: yeast_x5_work_seed
+      check: [yeast_x5_work_seed, yeast_pipeline_data, yeast_pdb_cache, yeast_afdb_dimers]
+  - id: yeast_protein_table
+    stage: inventory
+    run: yeast.protein_table       # core copies + localisation -> the engine's stage-1 protein table layout
+    inputs: [inventory/v0/inventory_v0.tsv, inventory/copies/copies.tsv]
+    outputs: [inventory/yeast/protein_table.parquet, inventory/yeast/protein_table_check.json]
+    after: [yeast_engine_setup]
+    before: [inventory_assembly]
+    params: {engine: *yeast_engine, tolerance_rel: 1.0e-9}   # core vs engine values: identical up to float noise, else fail
+  # structures (library)
+  - id: yeast_library_species
+    stage: library
+    run: yeast.library_species     # species of the base library (engine ingredients.build_ingredients, as s0_library.py)
+    inputs: [inventory/yeast/protein_table.parquet]
+    outputs: [inventory/yeast/library_species.tsv]
+    before: [library]
+    params: {engine: *yeast_engine}
+  - id: yeast_engine_lib
+    stage: library
+    run: yeast.engine_lib          # engine/lib = writable copy of the sealed library/lib (assembly + pre-placed models add to it)
+    inputs: [library/library_manifest.tsv]
+    outputs: [engine/lib.json]
+    after: [yeast_engine_setup]
+    before: [inventory_assembly]
+    params: {engine: *yeast_engine}
+  # pre-placed structures
+  - id: yeast_engine_view
+    stage: preplaced
+    run: yeast.engine_view         # stage-1/2 files the pre-placed context reads: package native geometry, core tile
+                                   # measures (yeast names), assembly tables -> engine/work/{yc3d,results/inventory}
+    inputs: [geometry/package.json, pack/tiles.parquet, inventory/assembly/ingredients.csv, inventory/assembly/oligo_map.json]
+    outputs: [engine/work/yc3d/tile_measure.parquet, engine/work/yc3d/tile_labvol.parquet, engine/work/results/inventory/ingredients.csv]
+    after: [yeast_engine_lib]
+    before: [preplaced_serial]
+    params: {engine: *yeast_engine}
+  # validation (yeast checks without a common definition yet; the suite adapter yeast_x5 reads their outputs)
+  - id: yeast_engine_pack_view
+    stage: validate
+    run: yeast.engine_pack_view    # core pack -> engine/work/yc3d (tiles_raw links, prepass.npz, totals after shell cap,
+                                   # tile_counts, pack_summary, thinning.json) for the vendored validation scripts
+    inputs: [pack/summary.json, preplaced/serial/preplaced.npz]
+    outputs: [engine/work/yc3d/pack_summary.parquet, engine/work/yc3d/expected_totals.parquet]
+    params: {engine: *yeast_engine}
+  - id: yeast_features
+    stage: validate
+    run: yeast.engine_script       # per-protein feature table (run_all.sh ran it after stage 1)
+    threads: 8
+    after: [yeast_engine_view]
+    outputs: [engine/work/features/protein_features.parquet]
+    params: {engine: *yeast_engine, cwd: pipeline, script: features.py, log: features.log}
+  - id: yeast_s4_validate
+    stage: validate
+    run: yeast.engine_script       # yeast stage 4 (clashes, containment, densities, libpack_meta.npz)
+    threads: max
+    after: [yeast_engine_pack_view]
+    outputs: [engine/work/results/wholecell3d_validation.json, engine/work/yc3d/libpack_meta.npz]
+    before: [validate_suite]
+    params: {engine: *yeast_engine, cwd: scripts, script: s4_validate.py, log: s4_validate.log}
+  - id: yeast_validate_all
+    stage: validate
+    run: yeast.validate_all        # the yeast validation suite (scripts/validate_all.sh; GPU: contacts, diffusion sweeps)
+    threads: max
+    gpu: true
+    after: [yeast_s4_validate, yeast_features, yeast_s5_encode]
+    before: [validate_suite]
+    params: {engine: *yeast_engine, gpus: 1}
+  # export (YCT1, the legacy viewer encoding: input of some yeast validation scripts and of the X5 comparison; the
+  # export stage writes YCT2)
+  - id: yeast_s5_encode
+    stage: export
+    run: yeast.engine_script
+    threads: max
+    after: [yeast_s4_validate]
+    params: {engine: *yeast_engine, cwd: scripts, script: s5_encode.py, log: s5_encode.log}
+frozen_inputs:
+  inv_yeast_uniprot:
+    path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/uniprot_yeast.tsv"
+    md5: 2fb50d8fad91b67fe2b8193083372bd3
+    why: "yeast UniProt export (S288C, one row per ORF): keys, masses (read in place, read-only)"
+    kind: annotation
+    origin: "yeast_cell_viewer pipeline/data (main 34d123f)"
+    licence: "UniProt CC BY 4.0"
+  inv_yeast_paxdb:
+    path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/paxdb_integrated.txt"
+    md5: 8abd042a58ea1f7e781f1958847a00ba
+    why: "PaxDb S. cerevisiae whole-organism integrated abundances (ppm)"
+    kind: proteome
+    origin: "yeast_cell_viewer pipeline/data (main 34d123f); PaxDb id 4098344127"
+  inv_yeast_lanz2024_s3:
+    path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/validation/literature/g1_cell/lanz2024/41594_2024_1353_MOESM5_ESM.xlsx"
+    md5: fe32404e39966e238bae4c464506c44a
+    why: "Lanz et al. 2024 Table S3: per-protein size-scaling slopes (G1 arrest, glucose)"
+    kind: literature
+    origin: "yeast_cell_viewer pipeline/data/validation/literature (main 34d123f)"
+  val_yeast_buildW_protein_features:
+    path: "{yeast_root}/runs/P2_seed0/work/features/protein_features.parquet"
+    md5: 339b70dd4852fbe7b0e206ff704c5873
+    why: "REFERENCE: build W per-protein copies_per_cell (criteria Y1-Y3)"
+    kind: reference
+    origin: "yeast build W (20261115-151321-8f84387-s0, run P2_seed0)"
+  val_yeast_buildW_anchors:
+    path: "{yeast_root}/runs/P2_seed0/work/validation/anchors.json"
+    md5: e81123ca818418304ee5fb12e5f3c0cb
+    why: "REFERENCE: build W anchors.json (criterion Y4)"
+    kind: reference
+    origin: "yeast build W"
+  # ---- yeast X5 port (2026-11-16): read-in-place trees are checked against md5 manifests made 2026-11-16 17:57
+  # (data/derived/wholecell_frozen/yeast_x5/make_manifests.sh); the engine setup step re-checks every file (size +
+  # mtime; md5 for the copied lib_start / work_seed)
+  yeast_x5_lib_start:
+    path: "{data_root}/data/derived/wholecell_frozen/yeast_x5/lib_start"
+    manifest: "{data_root}/data/derived/wholecell_frozen/yeast_x5/manifest_lib_start.tsv"
+    md5: 37c2513eb20091532e0de1700fe62d82
+    why: "the 342 X5 library entries X5 did not rebuild (mtime before its stamp 14:17:11): tRNA species (Boltz-2, manual), builder templates, stale leftovers"
+    kind: library
+    origin: "{yeast_root}/runs/X5_seed0/lib (copied 2026-11-16)"
+  yeast_x5_work_seed:
+    path: "{data_root}/data/derived/wholecell_frozen/yeast_x5/work_seed"
+    manifest: "{data_root}/data/derived/wholecell_frozen/yeast_x5/manifest_work_seed.tsv"
+    md5: 3d73e73a0aacf12f294d0336a780d298
+    why: "YC_WORK seed: rcsb_cache.json (X5 final), organisation/pool_pairs.parquet, interactions/pair_summary.parquet (no generator), sweeps/ (bundle copy X5 started from), validation/{image_nc_raw,proximity_sets}.tsv"
+    kind: cache
+    origin: "{yeast_root}/runs/X5_seed0/work + yeast_cell_dev_bundle/work (copied 2026-11-16)"
+  yeast_pipeline_data:
+    path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data"
+    manifest: "{data_root}/data/derived/wholecell_frozen/yeast_x5/manifest_pipeline_data.tsv"
+    md5: d732fd5878639c10e83613fa13a7292e
+    why: "yeast pipeline/data, read in place (X5 linked the live bundle copy); 43 literature files are not readable by this user (not used by the build)"
+    kind: data
+  yeast_pdb_cache:
+    path: "{yeast_root}/yeast_cell_dev_bundle/work/pdb"
+    manifest: "{data_root}/data/derived/wholecell_frozen/yeast_x5/manifest_pdb.tsv"
+    md5: a224bce3fe5b893986aa20f50ff0820f
+    why: "RCSB assembly files (YC_PDB), read in place through a link farm"
+    kind: cache
+  yeast_afdb_dimers:
+    path: "{yeast_root}/inputs/afdb_yeast_dimers"
+    manifest: "{data_root}/data/derived/wholecell_frozen/yeast_x5/manifest_afdb_dimers.tsv"
+    md5: cefad99191782b42366f08065e1d4b47
+    why: "AFDB predicted yeast homo/heterodimers (YC_DIMERS)"
+    kind: structures
+  yeast_afdb_tar:
+    path: "{yeast_root}/inputs/UP000002311_559292_YEAST_v6.tar"
+    md5: ce6128f5839d98b3a98bf1e7e0a00dab
+    why: "AlphaFold DB v6 yeast proteome (stage 0 monomers, stage 5 pLDDT)"
+    kind: structures
+    licence: "AlphaFold DB CC BY 4.0"
+  yeast_af3_pool_summary:
+    path: "{yeast_root}/inputs/summary_models.parquet"
+    md5: 8d4c6d6de2414b8fab2c9e04efd06447
+    why: "in-house AlphaFold 3 pool pair scores (YC_POOL_SCORES; NOT public); the organisation layer reads the cached pool_pairs.parquet"
+    kind: structures
+    licence: "unpublished; not redistributable"
+  val_yeast_x5_build_json:
+    path: "{yeast_root}/runs/X5_seed0/work/build.json"
+    md5: e35ae972aad963b6dca1c39a93a1fde8
+    why: "REFERENCE identity: X5 build.json (build_id 20261116-141711-e3b7448-s0); compare_x5 reads X5_seed0 read-only"
+    kind: reference
+  val_yeast_x5_build_log:
+    path: "{yeast_root}/runs/X5_seed0/build.log"
+    md5: 61d255d186404c91fd9a4ba2438117b0
+    why: "REFERENCE: X5 build.log (finished 16:33:03, validate exit 0)"
+    kind: reference
+  # ---- localisation sources (A5; read in place)
+  loc_yeast_vogtle2017:
+    path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/vogtle2017_submito.xlsx"
+    md5: c08e3b1006ee4f7708b44b66029656e8
+    why: "Vogtle et al. 2017 Nat Commun 8:290, Supplementary Data 5: sub-mitochondrial classes (SILAC)"
+    kind: literature
+  loc_yeast_morgenstern2017:
+    path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/morgenstern2017/TableS1_mmc2.xlsx"
+    md5: 90c8662854b10aa126aceaca5d9a82ff
+    why: "Morgenstern et al. 2017 Cell Rep 19:2836, Table S1: high-confidence mitochondrial proteome, classes"
+    kind: literature
+  loc_yeast_cyclops_wt1:
+    path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/cyclops/WT1_LOCscore.xls"
+    md5: 15cbcf3e04101eecd77dcaf03aaecb00
+    why: "Koh et al. 2015 G3 CYCLoPs LOC-scores, wild-type screen 1 (.xls: needs xlrd, or a TSV conversion)"
+    kind: imaging
+  loc_yeast_cyclops_wt2:
+    path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/cyclops/WT2_LOCscore.xls"
+    md5: 9dca2af7ed067d2a8acd81cbc0ea1b07
+    why: "CYCLoPs wild-type screen 2"
+    kind: imaging
+  loc_yeast_cyclops_wt3:
+    path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/cyclops/WT3_LOCscore.xls"
+    md5: df8e4b411ac6f2910ffaf1b369aba930
+    why: "CYCLoPs wild-type screen 3"
+    kind: imaging
+  loc_yeast_uniprot_features:
+    path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/validation/uniprot_features.tsv"
+    md5: 60239553e0521a4f20bbf4d2b3fd09d1
+    why: "UniProt feature export (Lipidation): prenylated C-terminal cysteines (CYCLoPs exclusion)"
+    kind: annotation

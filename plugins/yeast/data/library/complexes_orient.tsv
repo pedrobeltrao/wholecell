@@ -1,0 +1,4 @@
+ing_id	orient	membrane	tm_uniprot	reason
+NPC	ring_axis	NE		ring axis = smallest-variance axis of 7N9F to +z, z median = 0 (yeast build_structs.process_complex)
+Pma1_hexamer	tm_slab	PM	P05030	TM layer (PMA1 UniProt TRANSMEM residues) = slab, cytoplasmic domains to +z (yeast build_structs.process_complex)
+V-ATPase	long_axis_cring	VAC		long axis to +z, c-ring (chains 140-220 aa) median = membrane midplane, V1 head cytoplasmic (yeast build_structs.process_complex)

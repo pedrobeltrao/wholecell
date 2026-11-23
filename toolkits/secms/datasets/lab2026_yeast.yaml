@@ -1,0 +1,31 @@
+# Beltrao lab SEC-MS, S. cerevisiae (unpublished lab data; no longer confidential since 2026-11-23: processed tables deposited, raw files to PRIDE).
+# Wide protein x fraction matrices (ID + columns 1..60, blank = not detected). Paralog protein groups '[P1;P2]'
+# (histones, ribosomal proteins, ...) are expanded to every member (shape-based outputs only).
+# NaCl first: its anchor calibration (QC ok) is the column's calibration, reused for YPD (calibration_from).
+# Unknown (ask the experimenters): strain, column, void fraction, standards, lysis / spin, replicates, NaCl dose / time.
+species: yeast
+preset: default
+annotation: {path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/uniprot_yeast.tsv"}
+complexes: [{format: complex_portal, path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/complexportal_559292.tsv"}]
+datasets:
+  - source_id: lab2026_yeast_NaCl
+    format: protein_matrix
+    path: "{data_root}/data/proteomics/umpublished_datasets/nacl.tsv"
+    id_col: ID
+    value_regex: '^(?P<fraction>\d+)$'
+    id_groups: {strip: '[]', sep: ';', mode: expand}
+    n_fractions: 60
+    void_fraction: null
+    condition: NaCl
+  - source_id: lab2026_yeast_YPD
+    format: protein_matrix
+    path: "{data_root}/data/proteomics/umpublished_datasets/ypd.tsv"
+    id_col: ID
+    value_regex: '^(?P<fraction>\d+)$'
+    id_groups: {strip: '[]', sep: ';', mode: expand}
+    n_fractions: 60
+    void_fraction: null             # unknown; no signal in fractions 1-7
+    condition: YPD
+    calibration_from: lab2026_yeast_NaCl   # YPD's own anchor fit fails QC (rho -0.50, x2.53: CCT2/TCP1 apex at f47/f57,
+                                          # HSP82 at f60); the other 21 anchors elute within +/-1 fraction of NaCl ->
+                                          # same column and fractions assumed (to confirm with the experimenters)

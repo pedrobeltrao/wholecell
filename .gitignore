@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.snakemake/
+results/
+*.tmp*
+.numba_cache/
+plugins/yeast/engine/.venv
+plugins/yeast/engine/pipeline/data
+plugins/yeast/engine/pipeline/lib
+.venv/
+node_modules/
+dist/
+*.egg-info/
+.ipynb_checkpoints/
+# a local site file kept in the checkout must not be committed (prefer one outside the checkout, WHOLECELL_SITE)
+config/site.local.yaml

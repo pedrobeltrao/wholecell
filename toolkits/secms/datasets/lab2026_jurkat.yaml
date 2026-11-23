@@ -1,0 +1,32 @@
+# Beltrao lab SEC-MS, Jurkat (unpublished lab data; no longer confidential since 2026-11-23: processed tables deposited, raw files to PRIDE).
+# Two conditions = two datasets, each calibrated on its own (fraction numbering is not assumed to be shared).
+# Format: Spectronaut-like long export at precursor level (r_condition, r_fraction, pg_ibaq, input_id.y): the
+# protein-group iBAQ is repeated on every precursor row of a protein x fraction (1-265 rows, never two different values)
+# -> duplicate_rows: unique. 'NA' ids = protein groups without a UniProt mapping (~40% of summed iBAQ, see the dataset
+# sheets in {data_root}/data/derived/secms_lab2026/dataset_sheets/); contaminants CON_* dropped.
+# Unknown (ask the experimenters): column, void fraction, standards, lysis / spin, replicates.
+species: human
+preset: default
+annotation: {path: "{data_root}/data/reference/uniprot_human_reviewed.tsv.gz"}
+complexes: [{format: complex_portal, path: "{data_root}/data/complexes/complex_portal/9606.tsv"}]
+pair_candidates: {path: "{data_root}/data/structures/afdb_complexes/heterodimer_human.tsv.gz", a: uniprot_ac_1,
+                  b: uniprot_ac_2, require_true: passes_quality_threshold}
+datasets:
+  - source_id: lab2026_jurkat_NT
+    format: protein_long
+    path: "{data_root}/data/proteomics/umpublished_datasets/JurkatNT.tsv"
+    columns: {protein: input_id.y, fraction: r_fraction, intensity: pg_ibaq, condition: r_condition}
+    duplicate_rows: unique
+    exclude_ids_regex: '^NA$|^CON_'
+    n_fractions: 54                 # fractions 1-54 present (Act: 1-60); whether 55-60 were collected is unknown
+    void_fraction: null             # unknown (column not documented); empirical estimate in the dataset sheet
+    condition: JurkatNT
+  - source_id: lab2026_jurkat_TCRAct24h
+    format: protein_long
+    path: "{data_root}/data/proteomics/umpublished_datasets/JurkatTCRAct.tsv"
+    columns: {protein: input_id.y, fraction: r_fraction, intensity: pg_ibaq, condition: r_condition}
+    duplicate_rows: unique
+    exclude_ids_regex: '^NA$|^CON_'
+    n_fractions: 60
+    void_fraction: null
+    condition: JurkatTCRActivationT24

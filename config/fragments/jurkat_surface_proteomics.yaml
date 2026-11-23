@@ -1,0 +1,36 @@
+# Jurkat surface proteomics (lab glyco-capture time course 2026; unpublished lab data; no longer confidential since 2026-11-23).
+# Config FRAGMENT, not used by any build. To try it:
+#     wholecell.config.load("jurkat", overrides=yaml.safe_load(open("config/fragments/jurkat_surface_proteomics.yaml")))
+# Spec: docs/reference/inventory_schema.md §4c; code: wholecell/inventory/surface.py; tests: tests/test_surface.py.
+# Analysis behind the defaults: data/derived/surface_jurkat_2026/report.md (DECISION 2026-11-19 in PLANNING_NOTES.md).
+frozen_inputs:
+  inv_surface_jurkat_glyco2026:
+    path: "{data_root}/data/proteomics/umpublished_datasets/surface_jurkat_2026/jurkat_surface_glyco_timecourse_prot_level.csv"
+    md5: e092247b63d5df60fdddeab57b29d389
+    why: "Jurkat surface glyco-capture time course (NAct, Act_0, 0.5/1/2/4/24/72 h anti-CD3/CD28; 4 series), protein level"
+    kind: measurement
+    url: ""
+    version: "received 2026-11-19"
+    licence: "unpublished lab data"
+    redistributable: no
+inventory:
+  adapters:
+    surface: surface_proteomics       # canonical surface.tsv (evidence only); does NOT change copies or localisation
+  params:
+    surface_proteomics:
+      path: inv_surface_jurkat_glyco2026
+      source_id: surface_glyco_jurkat2026
+      conditions: [NAct, Act_0, Act_0_5h, Act_1h, Act_2h, Act_4h, Act_24h, Act_72h]   # drops the one truncated row
+      recentre: complete_median       # removes the global yield drift with activation (+0.35 log2 at 2 h, +0.55 at 72 h)
+      baseline: [NAct, Act_0]         # resting cell of the build (Act_0 = antibody added, harvested at once: ~ resting)
+      min_detected: 3
+      annotation: inv_uniprot_full    # topology / n_term_side (UniProt topological domains)
+      mode: presence                  # presence (default) | pm_share (the 2026-11-19 fit did NOT validate: its table is marked validated: false and is refused) | timepoint
+      # mode: timepoint
+      # timepoint: {condition: Act_24h, reference: NAct, min_abs_log2: 0.585, min_pairs_agree: 3, min_detected: 3}
+# Activated-cell variant (future; not a resting build): write the factor table once with
+#     surface.factor_table(cfg_ctx.resolve, params | {timepoint: {condition: Act_24h, reference: NAct, pm_only_genes: [...]}})
+# and add to inventory.copies:
+#     per_protein_scaling:
+#       - {kind: factor_table, rule_id: surface_act24h, path: <factor table>, id_column: gene, factor_column: factor,
+#          evidence: "surface glyco-capture Act_24h vs NAct (robust changes, PM-dominant genes)"}

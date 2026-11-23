@@ -1,0 +1,11 @@
+# Combination of final2026_yeast.yaml (toolkits/secms/combine.py spec; DECISION 2026-11-17 in PLANNING_NOTES):
+# primary = lab NaCl and Pang 2020 (unstressed log phase) with EQUAL weight: Pang avoids the NaCl stress confound but has
+# its own upward bias (lysate concentrated on 100 kDa MWCO filters "to enrich for complexes", low-salt buffer, one
+# profile, 1.9k proteins), so neither is up-weighted. YPD = fill only (proteins neither primary dataset scores; confidence
+# low) and consistency check, with the NaCl calibration.
+label: yeast_final
+discordant_range: 0.3
+datasets:
+  - {source_id: lab2026_yeast_NaCl, weight: 1.0, role: primary}
+  - {source_id: pang2020_yeast, weight: 1.0, role: primary}
+  - {source_id: lab2026_yeast_YPD, weight: 1.0, role: fill}

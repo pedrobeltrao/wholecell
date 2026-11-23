@@ -1,0 +1,60 @@
+# origin: yeast pipeline/ingredients.py COMPLEXES, NPC_COPIES, RIBO_EXTRA, complex_families @ e3b7448 (vendored plugins/yeast/engine); converted 2026-11-17 (unification A4)
+machine	family	stoich	members	family_sub	only_if_present	reason
+ribosome_80S		1	re:^(RP[LS]\d+|RPP[012])[AB]?$|^(ASC1|STM1)$	[AB]$		r-protein families (A/B paralogs pooled) + 4V88 extra chains
+proteasome_26S			cpx:CPX-2262			subunits and stoichiometry from Complex Portal
+FAS	FAS1	6	FAS1			subunit (stoichiometry of the PDB assembly)
+FAS	FAS2	6	FAS2			subunit (stoichiometry of the PDB assembly)
+CCT			cpx:CPX-2156			subunits and stoichiometry from Complex Portal
+PolII			cpx:CPX-2662			subunits and stoichiometry from Complex Portal
+PolI			cpx:CPX-1664			subunits and stoichiometry from Complex Portal
+PolIII			cpx:CPX-2660			subunits and stoichiometry from Complex Portal
+NPC	GLE1	8	GLE1		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP42	8	NUP42		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP116	16	NUP116		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP100	16	NUP100		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	DYN2	16	DYN2		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP82	16	NUP82		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP159	16	NUP159		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NSP1	48	NSP1		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NIC96	32	NIC96		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP49	32	NUP49		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP57	32	NUP57		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP84	16	NUP84		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP85	16	NUP85		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP120	16	NUP120		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP133	16	NUP133		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP145	16	NUP145		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	SEH1	16	SEH1		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	SEC13	16	SEC13		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP157	16	NUP157		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP170	16	NUP170		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP188	16	NUP188		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP192	16	NUP192		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP53	16	NUP53		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	ASM4	16	ASM4		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NDC1	16	NDC1		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	POM34	16	POM34		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	POM152	16	POM152		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP1	8	NUP1		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	NUP60	16	NUP60		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	MLP1	8	MLP1		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+NPC	MLP2	8	MLP2		yes	copies per NPC, Kim et al. 2018 Nature 555:475 Suppl. Table 2A
+Pma1_hexamer	PMA	6	PMA1|PMA2			paralogs pooled
+V-ATPase	VMA1	3	VMA1			subunit (stoichiometry of the PDB assembly)
+V-ATPase	VMA2	3	VMA2			subunit (stoichiometry of the PDB assembly)
+V-ATPase	VMA4	3	VMA4			subunit (stoichiometry of the PDB assembly)
+V-ATPase	VMA10	3	VMA10			subunit (stoichiometry of the PDB assembly)
+V-ATPase	VMA8	1	VMA8			subunit (stoichiometry of the PDB assembly)
+V-ATPase	VMA7	1	VMA7			subunit (stoichiometry of the PDB assembly)
+V-ATPase	VMA5	1	VMA5			subunit (stoichiometry of the PDB assembly)
+V-ATPase	VMA13	1	VMA13			subunit (stoichiometry of the PDB assembly)
+V-ATPase	VPH1	1	VPH1			subunit (stoichiometry of the PDB assembly)
+V-ATPase	VMA3	8	VMA3			subunit (stoichiometry of the PDB assembly)
+V-ATPase	VMA11	1	VMA11			subunit (stoichiometry of the PDB assembly)
+V-ATPase	VMA16	1	VMA16			subunit (stoichiometry of the PDB assembly)
+V-ATPase	VMA6	1	VMA6			subunit (stoichiometry of the PDB assembly)
+V-ATPase	VMA9	1	VMA9			subunit (stoichiometry of the PDB assembly)
+nucleosome	H3	2	HHT1; HHT2			subunit (stoichiometry of the PDB assembly)
+nucleosome	H4	2	HHF1; HHF2			subunit (stoichiometry of the PDB assembly)
+nucleosome	H2A	2	HTA1|HTA2			paralogs pooled
+nucleosome	H2B	2	HTB1|HTB2			paralogs pooled

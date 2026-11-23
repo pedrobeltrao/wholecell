@@ -1,0 +1,14 @@
+# Yeast SEC-MS combination, update 2026-11-17 (toolkits/secms/combine.py spec; DECISION in PLANNING_NOTES "SEC-MS yeast
+# update"), on runs of update2026_yeast.yaml:
+# primary = lab NaCl + Swamy et al. 2022 (PXD028358; unstressed log phase, 120 mM KCl, no lysate concentration,
+# Superose 6, 4 wild-type profiles) with EQUAL weight per dataset (Swamy's weight split over its replicate runs).
+# Pang 2020 demoted to fill: lowest agreement with both other datasets (NaCl 0.32, Swamy 0.34 at k = 2), the outlier on
+# the disputed glycolytic enzymes / chaperones (ALD6, PFK1/2, FBA1, SSA1, CDC19 free in Pang only, ALD6 / PFK2 apex
+# below monomer size), 100 kDa MWCO-concentrated lysate, low salt, one pooled profile. YPD = fill (as before).
+label: yeast_final
+discordant_range: 0.3
+datasets:
+  - {source_id: lab2026_yeast_NaCl, weight: 1.0, role: primary}
+  - {source_id: swamy2022_yeast, weight: 1.0, role: primary, replicates: split_weight}
+  - {source_id: lab2026_yeast_YPD, weight: 1.0, role: fill}
+  - {source_id: pang2020_yeast, weight: 1.0, role: fill}

@@ -1,0 +1,40 @@
+# origin: plugins/jurkat/data/inventory_v0.yaml hpa_map (legacy jurkat/inventory/inventory_v0.py HPA_MAP, 2026-11-15; PLANNING_NOTES §4b)
+# HPA subcellular term (HPA v25 vocabulary, exact case) -> Jurkat localisation key. Read by evidence adapter hpa_subcellular.
+term	compartment	reason
+Nucleoplasm	nucleus	nuclear sub-compartment (nucleoplasm, bodies, nucleoli, chromosomes): one nucleus key in v0
+Nuclear bodies	nucleus	nuclear sub-compartment (nucleoplasm, bodies, nucleoli, chromosomes): one nucleus key in v0
+Nuclear speckles	nucleus	nuclear sub-compartment (nucleoplasm, bodies, nucleoli, chromosomes): one nucleus key in v0
+Nucleoli	nucleus	nuclear sub-compartment (nucleoplasm, bodies, nucleoli, chromosomes): one nucleus key in v0
+Nucleoli fibrillar center	nucleus	nuclear sub-compartment (nucleoplasm, bodies, nucleoli, chromosomes): one nucleus key in v0
+Nucleoli rim	nucleus	nuclear sub-compartment (nucleoplasm, bodies, nucleoli, chromosomes): one nucleus key in v0
+Mitotic chromosome	nucleus	nuclear sub-compartment (nucleoplasm, bodies, nucleoli, chromosomes): one nucleus key in v0
+Kinetochore	nucleus	nuclear sub-compartment (nucleoplasm, bodies, nucleoli, chromosomes): one nucleus key in v0
+Perinuclear theca	nucleus	nuclear sub-compartment (nucleoplasm, bodies, nucleoli, chromosomes): one nucleus key in v0
+Nuclear membrane	nuclear_envelope	nuclear membrane
+Cytosol	cytosol	soluble cytoplasm and cytoplasmic bodies
+Cytoplasmic bodies	cytosol	soluble cytoplasm and cytoplasmic bodies
+Rods & Rings	cytosol	soluble cytoplasm and cytoplasmic bodies
+Aggresome	cytosol	soluble cytoplasm and cytoplasmic bodies
+Actin filaments	cytoskeleton	cytoskeletal / centrosomal / mitotic structure (cytoplasmic, structure-bound)
+Microtubules	cytoskeleton	cytoskeletal / centrosomal / mitotic structure (cytoplasmic, structure-bound)
+Microtubule ends	cytoskeleton	cytoskeletal / centrosomal / mitotic structure (cytoplasmic, structure-bound)
+Intermediate filaments	cytoskeleton	cytoskeletal / centrosomal / mitotic structure (cytoplasmic, structure-bound)
+Centrosome	cytoskeleton	cytoskeletal / centrosomal / mitotic structure (cytoplasmic, structure-bound)
+Centriolar satellite	cytoskeleton	cytoskeletal / centrosomal / mitotic structure (cytoplasmic, structure-bound)
+Basal body	cytoskeleton	cytoskeletal / centrosomal / mitotic structure (cytoplasmic, structure-bound)
+Mitotic spindle	cytoskeleton	cytoskeletal / centrosomal / mitotic structure (cytoplasmic, structure-bound)
+Midbody	cytoskeleton	cytoskeletal / centrosomal / mitotic structure (cytoplasmic, structure-bound)
+Midbody ring	cytoskeleton	cytoskeletal / centrosomal / mitotic structure (cytoplasmic, structure-bound)
+Cytokinetic bridge	cytoskeleton	cytoskeletal / centrosomal / mitotic structure (cytoplasmic, structure-bound)
+Cleavage furrow	cytoskeleton	cytoskeletal / centrosomal / mitotic structure (cytoplasmic, structure-bound)
+Mitochondria	mitochondrion	mitochondria
+Endoplasmic reticulum	er	endoplasmic reticulum
+Golgi apparatus	golgi	Golgi apparatus
+Plasma membrane	plasma_membrane	plasma membrane and its junction / adhesion structures
+Cell Junctions	plasma_membrane	plasma membrane and its junction / adhesion structures
+Focal adhesion sites	plasma_membrane	plasma membrane and its junction / adhesion structures
+Vesicles	endolysosomal	vesicles, endosomes, lysosomes
+Endosomes	endolysosomal	vesicles, endosomes, lysosomes
+Lysosomes	endolysosomal	vesicles, endosomes, lysosomes
+Peroxisomes	peroxisome	peroxisomes
+Lipid droplets	lipid_droplet	lipid droplets

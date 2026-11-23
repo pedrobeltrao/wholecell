@@ -1,0 +1,11 @@
+# origin: plugins/jurkat/data/inventory_v0.yaml membrane_keys (legacy inventory_v0.py MEMB, 2026-11-15)
+# localisation keys a transmembrane protein can sit in (combiner step restrict_membrane)
+compartment	reason
+nuclear_envelope	membrane-bounded compartment: a TM protein sits in its membrane
+mitochondrion	membrane-bounded compartment: a TM protein sits in its membrane
+er	membrane-bounded compartment: a TM protein sits in its membrane
+golgi	membrane-bounded compartment: a TM protein sits in its membrane
+plasma_membrane	membrane-bounded compartment: a TM protein sits in its membrane
+endolysosomal	membrane-bounded compartment: a TM protein sits in its membrane
+peroxisome	membrane-bounded compartment: a TM protein sits in its membrane
+lipid_droplet	membrane-bounded compartment: a TM protein sits in its membrane

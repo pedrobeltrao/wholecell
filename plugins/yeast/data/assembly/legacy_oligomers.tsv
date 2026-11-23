@@ -1,0 +1,25 @@
+# origin: yeast scripts/s1_inventory.py LEGACY_OLIGO @ e3b7448 (vendored plugins/yeast/engine); converted 2026-11-17 (unification A4)
+gene	reason
+TDH3	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+PDC1	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+CDC19	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+ADH1	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+TPI1	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+GPM1	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+ENO1	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+AHP1	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+SOD1	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+HSP82	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+IPP1	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+GND1	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+TRR1	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+HOM6	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+YDJ1	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+CYS3	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+TKL1	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+KRS1	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+TDH1	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+TDH2	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+ENO2	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+ADH2	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled
+PDC5	curated PDB homo-oligomer of inventory v2 (paralogs reuse the same entry); kept as modeled

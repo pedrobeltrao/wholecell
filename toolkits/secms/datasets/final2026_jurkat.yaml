@@ -1,0 +1,37 @@
+# Final Jurkat SEC-MS assembly state (2026-11-17, DECISION Pedro): the two lab 2026 conditions (unpublished lab data; no longer confidential since 2026-11-23;
+# processed tables deposited, raw files to PRIDE) + Fossati 2021 SEC-SWATH (PXD018033, PRIDE, public) as a third
+# dataset. Preset default = anchor set v2 (v1 minus PFN1, HSP90AB1, YWHAZ, HSPA8); each dataset calibrated on its own
+# (different columns / lysis / runs). Combination (weights, roles): final2026_jurkat_combine.yaml.
+# The lab dataset entries are identical to lab2026_jurkat.yaml; the Fossati entry to config/cells/jurkat.yaml (v7 run).
+species: human
+preset: default
+annotation: {path: "{data_root}/data/reference/uniprot_human_reviewed.tsv.gz"}
+complexes: [{format: complex_portal, path: "{data_root}/data/complexes/complex_portal/9606.tsv"}]
+pair_candidates: {path: "{data_root}/data/structures/afdb_complexes/heterodimer_human.tsv.gz", a: uniprot_ac_1,
+                  b: uniprot_ac_2, require_true: passes_quality_threshold}
+datasets:
+  - source_id: lab2026_jurkat_NT
+    format: protein_long
+    path: "{data_root}/data/proteomics/umpublished_datasets/JurkatNT.tsv"
+    columns: {protein: input_id.y, fraction: r_fraction, intensity: pg_ibaq, condition: r_condition}
+    duplicate_rows: unique
+    exclude_ids_regex: '^NA$|^CON_'
+    n_fractions: 54
+    void_fraction: null
+    condition: JurkatNT
+  - source_id: lab2026_jurkat_TCRAct24h
+    format: protein_long
+    path: "{data_root}/data/proteomics/umpublished_datasets/JurkatTCRAct.tsv"
+    columns: {protein: input_id.y, fraction: r_fraction, intensity: pg_ibaq, condition: r_condition}
+    duplicate_rows: unique
+    exclude_ids_regex: '^NA$|^CON_'
+    n_fractions: 60
+    void_fraction: null
+    condition: JurkatTCRActivationT24
+  - source_id: fossati2021_jurkat
+    format: openswath
+    path: "{data_root}/data/proteomics/fossati2021_jurkat_SEC_PXD018033/feature_alignment.csv"
+    fraction_map: {path: "{data_root}/data/proteomics/fossati2021_jurkat_SEC_PXD018033/2020_Methods_in_molecular_biology_information_file.txt", skiprows: 4}
+    n_fractions: 60
+    void_fraction: 8                # PLANNING_NOTES 2026-11-07: void at fractions <~ 8 (clathrin at 5)
+    condition: FossatiSteadyState   # Jurkat E6-1 steady state, mild lysis (0.5% NP-40), SEC-SWATH

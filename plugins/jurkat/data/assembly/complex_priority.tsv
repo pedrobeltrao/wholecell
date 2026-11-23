@@ -1,0 +1,12 @@
+# Jurkat: Complex Portal ids built first, in this order (greedy pool consumption); every other complex follows by
+# complex mass (copies_rule x mass). origin: plugins/jurkat/data/assembly_v0.yaml complex_priority (legacy
+# jurkat/inventory/complexes_v0.py PRIORITY, 2026-11-15); moved to TSV 2026-11-16 (A4).
+complex_id	name	reason
+CPX-5183	60S cytosolic large ribosomal subunit	ribosome first: most abundant machine; must get its r-proteins before smaller complexes sharing them
+CPX-5223	40S cytosolic small ribosomal subunit	ribosome first (with the 60S)
+CPX-5993	26S proteasome complex	large essential machine; built before sub-complexes that share its subunits
+CPX-25754	Nucleosome complex, H2A type 1 variant	legacy v7 list (order is part of v7 reproduction); Nucleosome rows are skipped here, nucleosomes come from curated_machines
+CPX-873	Nuclear pore complex	NPC built before nucleoporin sub-complexes (copies capped, see complex_copy_caps.tsv)
+CPX-6030	Chaperonin-containing T-complex (CCT/TRiC)	large abundant machine; built before overlapping sub-complexes
+CPX-6151	Mitochondrial proton-transporting ATP synthase complex	large abundant machine; built before its sub-complexes
+CPX-2940	MCM complex	MCM2-7 hexamer before partial MCM sub-complexes

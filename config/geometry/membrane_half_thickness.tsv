@@ -1,0 +1,22 @@
+# Per-membrane exclusion half thickness = D_P-P / 2 (phosphate-phosphate distance) from Pogozheva et al. 2022 J Chem Inf Model 62:1036, SI Table S20
+# (data/literature/lipids/pogozheva2022_SI.pdf, page 23). Packages carry these values as engine.params.MEM_HALF / membranes[].half_thickness_nm
+# (docs/reference/cellgeom_v1.md section 5). Jurkat rows = the values in em_cell1_v7/v8 (PLANNING_NOTES 7c, 2026-11-08); yeast rows = B6 (2026-11-17).
+cell	membrane	half_thickness_nm	pogozheva_system	D_PP_angstrom	reason
+jurkat	PM	2.275	PMm	45.5	mammalian asymmetric plasma membrane
+jurkat	NE	2.01	ERm	40.2	NE is continuous with the ER; mammalian ER
+jurkat	ER	2.01	ERm	40.2	mammalian ER
+jurkat	MITO_OM	1.975	MOM	39.5	mitochondrial outer membrane
+jurkat	MITO_IM	1.955	MIM	39.1	mitochondrial inner membrane
+jurkat	GOLGI	2.095	GOLm	41.9	mammalian Golgi
+jurkat	ENDO	2.245	ENDm	44.9	mammalian endosome (LYSm 42.2 is the alternative)
+jurkat	CELL_OUTER	2.275	PMm	45.5	domain wall = PM
+yeast	PM	2.11	PMf	42.2	fungal asymmetric plasma membrane
+yeast	ER	1.895	ERf	37.9	fungal ER (cortical ER patches)
+yeast	NE	1.895	ERf	37.9	NE is continuous with the ER; fungal ER
+yeast	VAC	2.0			kept at the uniform 2 nm: Table S20 VAC is the plant tonoplast (46.3), no fungal vacuole system
+yeast	MITO_OM	1.975	MOM	39.5	no fungal mitochondrial system in Table S20; mammalian MOM
+yeast	MITO_IM	1.955	MIM	39.1	no fungal mitochondrial system in Table S20; mammalian MIM
+yeast	GOLGI	1.98	GOLf	39.6	fungal Golgi (the yeast GOLGI class also holds endosomes)
+yeast	PEROX	2.0			kept at the uniform 2 nm: no peroxisome system in Table S20
+yeast	LD	2.0			kept at the uniform 2 nm: lipid-droplet monolayer, not a bilayer
+yeast	CELL_OUTER	2.0			kept at the uniform 2 nm: outer cell-wall surface, not a membrane

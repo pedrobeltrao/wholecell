@@ -1,0 +1,51 @@
+# origin: jurkat/yc/pipeline/jinventory_v6.py constants (legacy workspace, 2026-11-15)
+# v6 systematic localisation rules (PLANNING_NOTES "v6 plan", "v6 implementation"). Order of dict entries is significant
+# only where noted.
+volumes_um3: {nucleoplasm: 254.5, cytosol: 385.5}
+cyto_keys: [cytosol, cytoskeleton, peroxisome, lipid_droplet, unassigned, plasma_membrane]
+sp_keys: [er, golgi, endolysosomal, secreted]          # cytoplasmic when the ingredient has no signal peptide
+anchor_keys: [pm_anchor_cyto, pm_anchor_exo, er_anchor_cyto, er_anchor_lumen, golgi_anchor_cyto, golgi_anchor_lumen,
+              endo_anchor_cyto, endo_anchor_lumen, om_anchor_cyto, ne_anchor_nuc, cortex, lamina, pm_periph_cyto,
+              endo_periph_cyto, golgi_periph_cyto]
+act_tub_regex: '^(ACT[BG]\d?|ACTG1|TUB[AB]\w*)$'
+nuc_terms: [Nucleoplasm, Nuclear bodies, Nuclear speckles, Nucleoli, Nucleoli fibrillar center, Nucleoli rim, Mitotic chromosome, Kinetochore]
+sperm_terms: [Acrosome, Annulus, Calyx, Connecting piece, End piece, Equatorial segment, Flagellar centriole, Mid piece, Perinuclear theca, Principal piece]
+organelle_terms: [Mitochondria, Endoplasmic reticulum, Golgi apparatus, Vesicles, Endosomes, Lysosomes, Peroxisomes, Lipid droplets, Nuclear membrane]
+pm_terms: [Plasma membrane, Cell Junctions, Focal adhesion sites]
+membrane_targets: {Plasma membrane: pm, Cell Junctions: pm, Focal adhesion sites: pm, Vesicles: endo, Endosomes: endo, Lysosomes: endo, Golgi apparatus: golgi}
+r_by_category: {N: 10.0, Nc: 3.0, NC: 1.0, Cn: 0.3, C: 0.02}   # target N/C concentration ratio (fit-half Tier 2 calibration)
+default_share: 0.5
+min_rim_contrast_log2: 0.25
+share_clip: [0.3, 0.7]
+speckle_cap_mg_ml: 150.0
+r4_keep: {pm_main: 0.5, other: 0.2}
+r4_min_pm: 0.7
+r5_share: 0.5
+r6a_shares: {nuclear_pore_cc: 0.3, transport_receptor_mf: 0.15}
+r6b_shares: {sr_type: 0.6, other: 0.3}
+itzhak: {nuclear_base: 0.05, clip: [0.3333333333333333, 3.0], min_profiles: 3}
+nc_transfer_model: {c0: 0.29, d0: 0.566}       # model image transfer fitted in tier2 (v5); calibration report only
+memb_ipr: {IPR001849: PH, IPR002219: C1, IPR000008: C2, IPR004148: BAR, IPR027267: AH/BAR, IPR031160: F-BAR, IPR001060: FCH,
+           IPR013606: I-BAR (IMD), IPR000299: FERM, IPR019749: FERM (band 4.1), IPR018979: FERM N, IPR001683: PX,
+           IPR000306: FYVE, IPR017455: FYVE-related, IPR013809: ENTH, IPR011417: ANTH, IPR004182: GRAM, IPR001464: annexin,
+           IPR000007: tubby}
+act_ipr: {IPR001715: CH, IPR002108: ADF-H, IPR007123: gelsolin, IPR003124: WH2, IPR015425: FH2, IPR000533: tropomyosin,
+          IPR003128: villin headpiece, IPR002558: I/LWEQ, IPR001609: myosin motor, IPR011259: ERM C-terminal (actin binding),
+          IPR001997: calponin/LIMCH1 repeat, IPR030379: "septin-type G (cortical septin filaments, actin-associated)"}
+act_go_regex: 'actin filament binding \[GO:0051015\]|actin binding \[GO:0003779\]'
+act_cc_regex: 'actin cytoskeleton \[GO:0015629\]|actin filament \[GO:0005884\]|cortical actin cytoskeleton \[GO:0030864\]'
+peri_cc_regex: 'cytoplasmic side of plasma membrane|extrinsic component of (cytoplasmic side of )?(plasma |endosome |golgi )?membrane|cytoplasmic side of (endosome|early endosome|late endosome|golgi) membrane'
+golgi_cc_regex: 'Golgi membrane \[GO:0000139\]|COPI vesicle coat \[GO:0030126\]|COPI-coated vesicle|cis-Golgi network \[GO:0005801\]|Golgi stack \[GO:0005795\]'
+golgi_bp_regex: 'Golgi organization \[GO:0007030\]'
+npc_cc_regex: 'nuclear pore( nuclear basket| cytoplasmic filaments| central transport channel)? \[GO:00'
+npc_mf_regex: 'nuclear (import|export) signal receptor activity|nuclear localization sequence binding \[GO:0008139\]'
+sr_regex: '^(SRSF\d+|SON|SRRM[12]|TRA2[AB]|PNN)$'
+check:
+  R1: "loc_compare class i (fractionation N/C, 409 genes) + HPA-JURKAT gallery (ITK nucleus too bright) + Tier 2 N/C"
+  R2: "loc_compare classes a/g (actin-binding at PM, packed soluble) + HPA-JURKAT gallery (LCP1/MYO1G cortex match) + Tier 2 rim"
+  R3: "HPA-JURKAT gallery (ARHGAP15/45, ADD3 PM rims; STAM vesicles) + loc_compare class g (873 genes) + Tier 2 rim"
+  R4: "HPA-JURKAT gallery (CD3E/CD3D ER/perinuclear pool, model PM rim) + Tier 2 image metric"
+  R5: "v5 pack (Golgi-cyto shell 35% placed) + loc_compare class g (COPI coats, golgins, NSF)"
+  R6a: "v6 plan R6 (transport receptors / basket annotated at the nuclear membrane, no NPC-proximal compartment)"
+  R6b: "v6 plan R6 (HPA main Nuclear speckles, 343 genes, no speckle compartment)"
+report_genes: {cd3: [CD3E, CD3D, CD3G, CD247]}

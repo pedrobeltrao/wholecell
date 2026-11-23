@@ -1,0 +1,12 @@
+# origin: yeast pipeline/heterodimers.py HISTONES @ e3b7448 (vendored plugins/yeast/engine); converted 2026-11-17 (unification A4)
+gene	histone_class	reason
+HTA1	H2A	histone-fold proteins pair promiscuously in AlphaFold; only native histone pairs are accepted (review comment 6)
+HTA2	H2A	histone-fold proteins pair promiscuously in AlphaFold; only native histone pairs are accepted (review comment 6)
+HTB1	H2B	histone-fold proteins pair promiscuously in AlphaFold; only native histone pairs are accepted (review comment 6)
+HTB2	H2B	histone-fold proteins pair promiscuously in AlphaFold; only native histone pairs are accepted (review comment 6)
+HHT1	H3	histone-fold proteins pair promiscuously in AlphaFold; only native histone pairs are accepted (review comment 6)
+HHT2	H3	histone-fold proteins pair promiscuously in AlphaFold; only native histone pairs are accepted (review comment 6)
+HHF1	H4	histone-fold proteins pair promiscuously in AlphaFold; only native histone pairs are accepted (review comment 6)
+HHF2	H4	histone-fold proteins pair promiscuously in AlphaFold; only native histone pairs are accepted (review comment 6)
+HTZ1	H2A.Z	histone-fold proteins pair promiscuously in AlphaFold; only native histone pairs are accepted (review comment 6)
+CSE4	CenH3	histone-fold proteins pair promiscuously in AlphaFold; only native histone pairs are accepted (review comment 6)

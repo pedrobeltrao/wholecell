@@ -1,0 +1,75 @@
+# Geometry rule table for cellgeom_v1 packages of layout yeast_cell3d_v1 (manifest engine.name): the yeast packages of
+# toolkits/analytic/yeast.py (real cell / vacuole / nucleus SDFs + analytic primitives). Evaluated by engine
+# cellgeom_eval_v1 (wholecell/geometry/engines/cellgeom_eval_v1.py), compiled by wholecell/geometry/rules.py.
+# Spec: docs/reference/cellgeom_v1.md §4.3. It reproduces the vendored yeast cell3d mem_sdfs / label_from exactly
+# (plugins/yeast/engine/pipeline/cell3d.py; check: tests/check_a1_yeast_geometry.py, level E on the s0 port package).
+#
+# Values are numbers or expressions over the package engine.params (PERI_W, PORE_R, EIS_K, SCAR_K, ...) and the
+# package constants below. Prim classes are names of the manifest prims.classes.
+rule_version: 1
+layout: yeast_cell3d_v1
+
+# CONSTANTS: the analytic cell constants (cell3d G[0:23]) are stored in the package's native/geometry.json (checksummed
+# in manifest.files); they are read by name here.
+constants:
+  file: native/geometry.json
+  key: G
+  names: {CELL_R: 0,                                 # outer cell-wall surface radius (enclosing sphere with a field)
+          MANNAN_R: 1,                               # mannan / glucan boundary: depth CELL_R - MANNAN_R below the outer wall
+          PM_R: 2,                                   # plasma membrane: depth CELL_R - PM_R below the outer wall
+          NUC_CX: 3, NUC_CY: 4, NUC_CZ: 5,           # nucleus centre (ellipsoid fallback)
+          NUCL_CX: 7, NUCL_CY: 8, NUCL_CZ: 9, NUCL_R: 10,   # nucleolus sphere
+          NUC_A: 11, NUC_B: 12, NUC_C: 13,           # nucleus semi-axes (ONM midsurface)
+          NUC_R00: 14, NUC_R01: 15, NUC_R02: 16, NUC_R10: 17, NUC_R11: 18, NUC_R12: 19,
+          NUC_R20: 20, NUC_R21: 21, NUC_R22: 22}     # nucleus rotation rows (local = R (p - centre))
+
+# FIELDS: analytic fallbacks used when the package lacks the field (an analytic yeast cell without real shapes).
+fields:
+  cell: {fallback: {kind: sphere, centre: [0, 0, 0], radius: CELL_R}}            # outer wall = sphere of radius CELL_R
+  nucleus: {fallback: {kind: ellipsoid_approx, centre: [NUC_CX, NUC_CY, NUC_CZ], axes: [NUC_A, NUC_B, NUC_C],
+                       rot: [NUC_R00, NUC_R01, NUC_R02, NUC_R10, NUC_R11, NUC_R12, NUC_R20, NUC_R21, NUC_R22]}}  # ONM ellipsoid
+
+# SHAPES: analytic shapes tested by the label rule (term shape:<name>, -1 inside, +1 outside).
+shapes:
+  nucleolus: {kind: ball, centre: [NUCL_CX, NUCL_CY, NUCL_CZ], radius: NUCL_R}   # nucleolus sphere
+
+# MEMBRANES: evaluated in this order; each row except smooth_union defines the next engine membrane code (PM = 0 ...
+# CELL_OUTER = 9). A row may use only membranes defined above it. SDFs are negative on the lumenal side.
+membranes:
+  - {name: PM, kind: field, field: cell, sign: -1, offset: [CELL_R, PM_R]}          # PM: depth below the outer wall - (CELL_R - PM_R) (wall thickness)
+  - {name: ER, kind: prims, prims: cortical_er, ref: PM, ref_radius: PM_R}          # cortical ER patches: sheets at fixed depth below the PM (before the furrows are cut in)
+  - {name: NE, kind: shell_pores, field: nucleus, field_offset: 0.5*PERI_W, width: PERI_W, pore_r: PORE_R, zwin: 150}   # NE lumen: |nucleus + PERI_W/2| - PERI_W/2, pore tori
+  - {name: VAC, kind: prims, prims: vacuole, base_field: vacuole}                   # vacuole field (if present) united with vacuole prims
+  - {name: MITO_OM, kind: prims, prims: mito_om}                                    # mitochondrial outer membrane: union of tubule capsules
+  - {name: MITO_IM, kind: prims_difference, prims: mito_im, minus: crista, sign: -1}   # matrix = IM capsules minus crista lumens; SDF = -matrix
+  - {name: GOLGI, kind: prims, prims: golgi}                                        # Golgi / endosome compartments
+  - {name: PEROX, kind: prims, prims: peroxisome}                                   # peroxisomes
+  - {name: LD, kind: prims, prims: lipid_droplet}                                   # lipid droplets (monolayer)
+  - {name: CELL_OUTER, kind: field, field: cell, sign: -1}                          # outer wall surface: depth below it
+  - {kind: smooth_union, into: CELL_OUTER, prims: bud_scar, k: SCAR_K, side: -1}    # bud-scar rims raised on the outer wall only
+  - {kind: smooth_union, into: PM, prims: pm_invagination, k: EIS_K, side: 1}       # eisosome furrows / endocytic tubes cut into the PM
+
+# LABELS: ordered, first match wins (cell3d.label_from order).
+labels:
+  - {label: exterior, if: ["CELL_OUTER < 0"]}                                           # outside the outer wall
+  - {label: wall_mannan, if: ["CELL_OUTER < CELL_R - MANNAN_R"]}                        # outer wall layer (mannan)
+  - {label: wall_glucan, if: ["PM < 0"]}                                                # inner wall layer (glucan), outside the PM
+  - {label: er_lumen, if: ["ER < 0"]}                                                   # cortical-ER lumen
+  - {label: perinuclear_space, if: ["NE < 0"]}                                          # NE lumen
+  - {label: nuclear_pore_channel, if: ["field:nucleus < -0.5*PERI_W", "field:nucleus > -PERI_W-8", "pore < 0"]}   # pore channel just inside the INM
+  - {label: nucleolus, if: ["field:nucleus < -0.5*PERI_W", "field:nucleus < -PERI_W", "shape:nucleolus < 0"]}    # nucleolus sphere, deeper than PERI_W
+  - {label: nucleoplasm, if: ["field:nucleus < -0.5*PERI_W"]}                           # rest of the nucleus (inside the INM)
+  - {label: nuclear_pore_channel, if: ["field:nucleus < 0"]}                            # between ONM midsurface and INM, not lumen: pore channel
+  - {label: mito_matrix, if: ["MITO_OM < 0", "MITO_IM > 0"]}                            # inside the OM, matrix side of the IM
+  - {label: mito_ims, if: ["MITO_OM < 0"]}                                              # inside the OM, IMS side (incl. crista lumen)
+  - {label: vacuole_lumen, if: ["VAC < 0"]}                                             # vacuole
+  - {label: lipid_droplet, if: ["LD < 0"]}                                              # lipid droplet core
+  - {label: golgi_endosome_lumen, if: ["GOLGI < 0"]}                                    # Golgi / endosome lumen
+  - {label: peroxisome_matrix, if: ["PEROX < 0"]}                                       # peroxisome matrix
+  - {label: cytosol}                                                                    # everything else
+
+# CLEARANCE (packer, min_mem_dist_g): thickness-corrected, min_m(|d_m| - MEM_HALF[m]) + HALF, with the package's
+# per-membrane half thickness (B6, 2026-11-17: Pogozheva 2022 SI Table S20, config/geometry/membrane_half_thickness.tsv);
+# no wall exemption (CELL_OUTER is the outer cell-wall surface, ~110 nm outside the PM). A package with a uniform
+# MEM_HALF = HALF (the X5 packages, 2 nm) compiles to the legacy plain rule min_m |d_m| (identical numbers, bitwise).
+clearance: {mode: thickness_corrected}

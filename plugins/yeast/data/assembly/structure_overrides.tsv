@@ -1,0 +1,4 @@
+# origin: yeast pipeline/assemblies.py PREFER_PDB, TEMPLATE_PARALOG @ e3b7448 (vendored plugins/yeast/engine); converted 2026-11-17 (unification A4)
+complex_id	kind	value	reason
+CPX-1717	prefer_pdb	9RSS	TORC2 dimer (2:2 as in Complex Portal; 9RST, 0.08 A better, is a monomer with a second Tsc11 chain)
+CPX-1715	template_paralog	TOR1:TOR2	TORC1 Tor1 variant built on 7PQH with its Tor2 chains standing for Tor1 (paralogues, 2470 and 2474 residues); takes Kog1 so the Tor2 variant is not built (2026-11-16)

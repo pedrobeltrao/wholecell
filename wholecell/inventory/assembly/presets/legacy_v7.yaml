@@ -1,0 +1,54 @@
+# Assembly preset legacy_v7: the Jurkat v7 assembly state exactly (legacy jurkat/inventory/{complexes_v0, sec_assembly,
+# homo_oligomers, afdb_dimers}.py, 2026-11-08..15). Behaviour only: cell data (curated lists, frozen inputs, SEC-MS run)
+# comes from inventory.params.assembly_steps.{inputs, data, overrides}. Every key is documented in
+# wholecell/inventory/assembly/__init__.py (OPTIONS); a cell overrides single values with `overrides:` (deep merge).
+#
+# Order: v7 built PDB homo-oligomers before the AFDB dimers (AFDB homodimers skip genes with a PDB homo-oligomer), so
+# this preset lists pdb_homo_oligomers before the afdb_* steps (core default order: see DEFAULT_ORDER).
+steps: [curated_machines, complex_portal, secms_fractions, pdb_homo_oligomers, afdb_homodimers, afdb_heterodimers]
+
+secms: {source_id: null, condition: null, replicate: null}     # which SEC-MS run feeds the rules (null = the only one)
+
+curated_machines:
+  nucleosome: dna_count          # nucleosomes = genome_bp / bp_per_nucleosome; histone families rescaled to 2 x that
+                                 # and consumed (DECISION 2026-11-08); none = no curated nucleosome
+
+complex_portal:
+  order: priority_then_mass      # data.complex_priority first (file order), then by copies_rule x mass, descending
+  overlap: consume_left          # a complex takes what is left of each subunit (shared subunits allowed)
+  copies: stoichiometry_cap      # min(median, 2 x limiting) of left/stoich (limiting = 25th pct if >= 4 types, else min)
+  measured_free_pool: {exclude_tm: true, min_subunits_detected: null, min_detected_frac: null, max_expected_kda: null,
+                       exclude_complex_ids: []}       # only used with copies: measured_free_pool
+  max_zero_mass_frac: 0.10       # skip a complex when subunits with 0 copies carry >= this share of its mass
+  structure:
+    source: sifts_local_pdb      # PDB entries (SIFTS chain map) present in the local assembly1 set
+    coverage: uniprot_mass       # mass fraction of the complex (mass x stoich) whose UniProt is in the entry
+    tie_break: fewest_entities_then_reference    # equal coverage: fewer UniProt entries; then inputs.pdb_tiebreak_reference
+    min_coverage: null           # null = keep every complex (the ingredients builder decides what has a structure)
+
+secms_fractions:
+  threshold_k: 2                 # sec_assembly.tsv = assembled fraction at apex > k x monomer mass
+
+pdb_homo_oligomers:
+  max_frac_in_complexes: 0.5     # candidates: copies > 0 and < this fraction already in complexes
+  min_chain_coverage: 0.5        # SIFTS span / UniProt length of the best chain
+  max_entries: 8                 # first N single-UniProt entries (sorted ids) examined per protein
+  min_chain_residues: 30         # polymer chains counted in assembly1 (L-peptide, >= N residues)
+  min_support_frac: 0.5          # most common chain count must be >= this share of the entries
+  large_state: 4                 # states above this need >= large_state_min_support entries
+  large_state_min_support: 2
+  share: {source: secms, k_by_state: [[3, 2], [5, 3], [null, 4]], default: 0.5, value: null, apex_ratio: [0.4, 2.5],
+          apex_check_min_k: 4, apex_check_min_frac: 0.2}    # share of the free pool put into the oligomer (secms.py)
+
+afdb_homodimers:
+  min_ipsae: 0.6                 # max(ipSAE_AB, ipSAE_BA) > this
+  skip_pdb_homo_oligomers: true  # genes with a PDB homo-oligomer are not dimerised again
+  share: {source: secms, k: 2, default: 0.3, value: null}
+
+afdb_heterodimers:
+  quality_column: passes_quality_threshold    # AFDB table rows with this column true
+  evidence: {sec_r_min: 0.6, string_min: 700} # keep a pair when SEC-MS profile r >= sec_r_min OR STRING >= string_min
+  skip_same_complex: true        # pairs already together in a built complex are skipped
+  order: max_ipsae               # greedy, best interface first
+  allocation: bound_fraction_of_min_free      # n = bound_fraction x min(free a, free b), running pools
+  bound_fraction: 0.5

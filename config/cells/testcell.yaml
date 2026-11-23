@@ -1,0 +1,238 @@
+# Synthetic test cell: small analytic cell (nucleus, ER, mitochondrion, PM) with a tiny inventory; builds end to end on
+# CPU in < 1 h. CI target and demo for new users. Schema: docs/reference/cell_config.md.
+schema_version: 1
+cell_id: testcell
+name: Synthetic test cell (analytic, CI + demo)
+organism: {name: synthetic, taxon: null}
+plugins: []
+
+seeds:
+  master: 1
+
+build:
+  allow_dirty: false
+
+# --- geometry (owner: geometry/toolkits) ---
+geometry:
+  toolkit: analytic                # toolkits/analytic/generate.py toolkits/analytic/specs/testcell.yaml (seed 1)
+  package: "{geom_root}/testcell/analytic_v1"
+  manifest_sha256: 4fa26c5b3cbe9f389b71e8e754681777f11d6c65c74317d0deaef554b47dce5f
+  engine: sdf_sections_v1          # package layout (= manifest engine.name)
+  evaluator: cellgeom_eval_v1      # the core evaluator: table-driven (wholecell/geometry/engines/cellgeom_eval_v1.py)
+  rules: "{repo}/config/geometry/rules/sdf_sections_v1.yaml"   # its membrane table + label rule (cellgeom_v1.md §4.3)
+  mc_points: 1000000
+
+# --- inventory (owner: inventory) ---
+inventory:
+  total_protein_pg: 0.4884              # synthetic: sum(copies x mass) of tests/data/testcell/proteome.tsv (~85-90 mg/ml)
+  total_protein_source: "synthetic testcell (tests/data/testcell/make_testcell.py)"
+  adapters:
+    rna: null
+    proteome: proteome_table            # generic adapters (wholecell/inventory/generic.py)
+    localisation: localisation_table
+    secms: secms_toolkit                # synthetic SEC-MS (tests/data/testcell/make_testcell_secms.py) through toolkits/secms
+    assembly: complex_table
+    surface: null
+  ingredients: generic.monomers
+  rule_sets: [generic.signal_lumen]     # lumenal keys of soluble species without a signal peptide -> cytosol
+  proteome_sources:
+    - {source_id: inv_testcell_proteome, weight: 1.0, unit: "copies per cell", normalisation: "absolute (synthetic)", condition: "synthetic", replicates: "1"}
+  localisation_sources:
+    - {source_id: inv_testcell_localisation, weight: 1.0, evidence_codes: "synthetic", term_map: "identity"}
+  params:
+    proteome_table: {path: inv_testcell_proteome, source_id: inv_testcell_proteome}
+    localisation_table: {path: inv_testcell_localisation, source_id: inv_testcell_localisation}
+    complex_table:
+      path: inv_testcell_complexes
+      assembly_options: {complex_copies: stoichiometry_cap}   # table copies; tests switch to measured_free_pool
+    secms_toolkit:
+      species: human                    # synthetic, human accessions and the human anchor set
+      preset: default
+      annotation: {path: inv_testcell_secms_annotation, id: uniprot, mass_da: mass_da, gene: gene, tm: tm}
+      complexes:
+        - {format: complex_portal, path: inv_testcell_secms_complexportal}
+        - {format: humap, path: inv_testcell_secms_humap}
+      pair_candidates: {path: inv_testcell_secms_pairs, a: uniprot_a, b: uniprot_b, comment: "#"}
+      datasets:
+        - source_id: testcell_sec_synthetic
+          format: peptide_long
+          path: inv_testcell_secms_peptides
+          columns: {qvalue: qvalue, replicate: replicate}
+          n_fractions: 50
+          void_fraction: 4
+          standards: {path: inv_testcell_secms_standards}
+          condition: synthetic
+    generic.signal_lumen: {lumen_keys: [er, golgi, endolysosomal, secreted], cytosol_key: cytosol, threshold: 0.5}
+  canonical:
+    abundance_columns:
+      - {column: copies, source_id: inv_testcell_proteome, unit: "copies per cell"}
+    key_compartment: {cytosol: cytosol, cortex: cytosol, nucleus: nucleus, mitochondrion: mito, er: ER, plasma_membrane: PM,
+                      pm_anchor_cyto: PM, nuclear_envelope: NE}
+  library_ids: "{repo}/tests/data/testcell/library_ids.txt"   # species ids the pack agent copies from the legacy library
+
+# --- library (owner: pack) ---
+library:
+  mode: frozen
+  frozen: lib_testcell             # 45 npz copied from the Jurkat v7 library (tests/data/testcell/library_ids.txt)
+  copy: false
+
+# --- preplaced: pre-placed structures (owner: pack; "prepass" before A0c) ---
+preplaced:
+  modules: []                      # no pre-pass structures in the synthetic cell
+
+# --- pack (owner: pack) ---
+pack:
+  tile_nm: 500.0
+  vox_nm: 4.0
+  mesh_h_nm: 8.0
+  meas_h_nm: 8.0
+  halo_nm: 40.0
+  max_tries: 200
+  give_up: 25
+  thin_try_f: 10.0
+  thin_giveup_f: 16.0
+  seed_prune: false
+  lumen_align: true
+  shell_area_factor: true
+  thin_lumens: {ER_lumen: ER, perinuclear: NE, matrix: MITO_IM}
+  regions:
+    - {name: cytosol, kind: volume, labels: [cytosol]}
+    - {name: nucleoplasm, kind: volume, labels: [nucleoplasm]}
+    - {name: matrix, kind: volume, labels: [mito_matrix]}
+    - {name: ER_lumen, kind: volume, labels: [er_lumen]}
+    - {name: perinuclear, kind: volume, labels: [perinuclear_space]}
+    - {name: nucleolus, kind: volume, labels: [nucleolus]}
+    - {name: PM, kind: membrane, membrane: PM}
+    - {name: NE, kind: membrane, membrane: NE}
+    - {name: ER, kind: membrane, membrane: ER}
+    - {name: MITO_OM, kind: membrane, membrane: MITO_OM}
+    - {name: MITO_IM, kind: membrane, membrane: MITO_IM}
+    - {name: GOLGI, kind: membrane, membrane: GOLGI}       # empty in the testcell (engine order requires every membrane)
+    - {name: ENDO, kind: membrane, membrane: ENDO}
+    - {name: sh_PM_cyto, kind: shell, membrane: PM, labels: [cytosol], side: 1, d0: 0, d1: 2.0, d1_mem_half: true, add_radius: true}
+    - {name: sh_PM_cortex, kind: shell, membrane: PM, labels: [cytosol], side: 1, d0: 0, d1: 150.0, d1_mem_half: false, add_radius: false}
+    - {name: sh_NE_lamina, kind: shell, membrane: NE, labels: [nucleoplasm], side: 1, d0: 0, d1: 25.0, d1_mem_half: true, add_radius: false}
+    - {name: sh_NPC, kind: shell, membrane: NE, labels: [cytosol, nucleoplasm], side: 1, d0: 0, d1: 100.0, d1_mem_half: true, add_radius: true, pore_limit_nm: 200}
+  region_map_default: {soluble: cytosol, tm: ER}
+  region_map:
+    cytosol: {soluble: cytosol, tm: ER}
+    plasma_membrane: {soluble: cytosol, tm: PM}
+    nucleus: {soluble: nucleoplasm, tm: NE}
+    nuclear_envelope: {soluble: nucleoplasm, tm: NE}
+    nucleolus: {soluble: nucleolus, tm: NE}
+    mitochondrion: {soluble: matrix, tm: MITO_IM}
+    er: {soluble: ER_lumen, tm: ER}
+    secreted: {soluble: ER_lumen, tm: ER}
+    cortex: {soluble: sh_PM_cortex, tm: PM}
+    pm_anchor_cyto: {soluble: sh_PM_cyto, tm: PM}
+    lamina: {soluble: sh_NE_lamina, tm: NE}
+    npc: {soluble: sh_NPC, tm: NE}
+  mapping_rules:
+    tm: [{if_region: MITO_IM, column: mito_om_frac, op: ge, value: 0.5, to: MITO_OM}]
+    soluble: [{if_region_in: [ER_lumen], column: signal_frac, op: lt, value: 0.5, to: cytosol}]
+  area_factors:
+    - {membrane: MITO_IM, factor: 3.0, measured: {when_flag: G_CRISTAE, mode: ref_membrane, ref: MITO_OM}}
+  open_face: {when_flag: G_FACE, summary_key: open_face, membranes: [PM]}
+  index_drops: []
+
+# --- validate (owner: validate) ---
+validate:                          # no localisation / EM / chromatin references: loc_compare, ribosome_nn, chromatin skip
+  nproc: 4
+  densities: {}                      # defaults: first volume region is the reference region, no RNA sources
+  crowding: {n_boxes: 1, legacy_seeds: false}
+  placement: {n_tiles: 300, clash_nm: 0.5}
+
+# --- export (owner: validate/export) ---
+export:
+  cell_type: synthetic analytic cell
+  state: CI build
+  status: preview
+  data_base: "./"
+  licence: {data: CC-BY-4.0}
+  tiles: {enabled: true, tile_nm: 200, block_tiles: 5, q_org_nm: 80, q_range_nm: 360, shard_max_mb: 45}
+  sim_defaults: {temperature_K: 310.15, viscosity_Pa_s: 6.9e-4, ionic_strength_M: 0.15}
+
+# --- frozen inputs: name -> {path, md5|sha256, origin, why}. Prefix names by stage: geom_*, inv_*, lib_*, pre_*, val_* ---
+frozen_inputs:
+  inv_testcell_proteome:
+    path: "{repo}/tests/data/testcell/proteome.tsv"
+    md5: 55866e2fcd494f892e9bf5e6b8475290
+    why: "synthetic testcell proteome (copies per gene)"
+    kind: synthetic
+    url: ""
+    version: "tests/data/testcell/make_testcell.py"
+    licence: "repository"
+    redistributable: yes
+  inv_testcell_localisation:
+    path: "{repo}/tests/data/testcell/localisation.tsv"
+    md5: 349dc2d9736767086c1718142bc33860
+    why: "synthetic testcell localisation (compartment keys, TM, signal peptide, OM)"
+    kind: synthetic
+    url: ""
+    version: "tests/data/testcell/make_testcell.py"
+    licence: "repository"
+    redistributable: yes
+  inv_testcell_complexes:
+    path: "{repo}/tests/data/testcell/complexes.tsv"
+    md5: 64abdf61a4ab8ba89c8057a0fe1abeb3
+    why: "synthetic testcell complexes / oligomers (legacy library ids)"
+    kind: synthetic
+    url: ""
+    version: "tests/data/testcell/make_testcell.py"
+    licence: "repository"
+    redistributable: yes
+  inv_testcell_secms_peptides:
+    path: "{repo}/tests/data/testcell/secms_peptides.tsv"
+    md5: 9e80f78d010cac1f39ea8ad35f2cc7c8
+    why: "synthetic SEC-MS peptide table (2 replicates, 50 fractions)"
+    kind: synthetic
+    url: ""
+    version: "tests/data/testcell/make_testcell_secms.py"
+    licence: "repository"
+    redistributable: yes
+  inv_testcell_secms_annotation:
+    path: "{repo}/tests/data/testcell/secms_annotation.tsv"
+    md5: 06202ed379c0133a21a830ea59cefcae
+    why: "synthetic SEC-MS protein annotation (mass, gene, TM)"
+    kind: synthetic
+    url: ""
+    version: "tests/data/testcell/make_testcell_secms.py"
+    licence: "repository"
+    redistributable: yes
+  inv_testcell_secms_complexportal:
+    path: "{repo}/tests/data/testcell/secms_complexportal.tsv"
+    md5: d571c0113de257974bd411060e1ab5c4
+    why: "synthetic Complex Portal export of the testcell complexes (+ 20S)"
+    kind: synthetic
+    url: ""
+    version: "tests/data/testcell/make_testcell_secms.py"
+    licence: "repository"
+    redistributable: yes
+  inv_testcell_secms_humap:
+    path: "{repo}/tests/data/testcell/secms_humap.csv"
+    md5: 3d0981c5c575815a66a55a2ca688d277
+    why: "synthetic hu.MAP-format membership (format test)"
+    kind: synthetic
+    url: ""
+    version: "tests/data/testcell/make_testcell_secms.py"
+    licence: "repository"
+    redistributable: yes
+  inv_testcell_secms_pairs:
+    path: "{repo}/tests/data/testcell/secms_pair_candidates.tsv"
+    md5: 8c36c48d7a980a186e528e4c350a1901
+    why: "synthetic heterodimer candidate pairs"
+    kind: synthetic
+    url: ""
+    version: "tests/data/testcell/make_testcell_secms.py"
+    licence: "repository"
+    redistributable: yes
+  inv_testcell_secms_standards:
+    path: "{repo}/tests/data/testcell/secms_standards.tsv"
+    md5: 4109ed6703aac682cedbcf9247fa87e2
+    why: "synthetic column standards on the column law"
+    kind: synthetic
+    url: ""
+    version: "tests/data/testcell/make_testcell_secms.py"
+    licence: "repository"
+    redistributable: yes
+  lib_testcell: {path: "{repo}/tests/data/testcell/lib", manifest: "{repo}/tests/data/testcell/library_manifest.tsv.gz", md5: aaf9bb189a5f86405b72b5ea16415072, origin: "45 npz copied from the Jurkat v7 library ({data_root}/jurkat/yc/pipeline/lib)", why: "testcell structure library (small, in the repo)"}

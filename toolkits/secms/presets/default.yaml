@@ -1,0 +1,36 @@
+# SEC-MS toolkit DEFAULTS: identical for every cell and species. A dataset config may set only dataset properties
+# (format, paths, n_fractions, void_fraction, standards, condition); it never overrides these unless a DECISION says so.
+quant:
+  qvalue_max: 0.01                 # OpenSWATH m_score / peptide q-value
+  exclude_protein_regex: "/|DECOY" # shared peptides ("1/P1/P2") and decoys
+  top_n: 3                         # CCprofiler proteinQuantification default (top-N peptides, summed)
+  rank_scope: all_runs             # same peptides in every replicate of a dataset
+  min_peptides: 2                  # single-peptide proteins dropped
+profile:
+  smooth_window: 3                 # running mean over fractions
+  smooth_mode: reflect
+calibration:
+  primary: anchors                 # curated native-mass anchors of the species (v7 approach; Pedro 2026-11-16)
+  anchor_set: {human: v2, yeast: v3}   # anchor-set version per species (species/<s>.yaml anchor_sets; a plain string =
+                                   # every species): v2 = v1 minus 4 consistent outliers (Pedro 2026-11-17); yeast v3 = v2
+                                   # minus PDC1, EFT1 (review 2026-11-19, data/ANCHORS_yeast_v3_2026-11-19.md); legacy_v7 keeps v1
+  fallback: null                   # no silent fallback: a failed QC stops the run
+  checks: [complex_portal, standards]   # diagnostics only: Complex Portal peak-level calibrants (failed in Jurkat:
+                                   # rho -0.34, too flat) and column standards when a dataset provides them
+  outlier_mad: null                # as v7 (no rejection); residuals and leave-one-out errors are reported
+  qc: {min_points: 8, max_spearman_rho: -0.7, max_resid_fold: 2.5}
+  complex_calibrants: {mw_min: 40, mw_max: 5000, height_min: 0.5, corr_min: 0.6,
+                       name_key_regex: ",.*variant.*|\\(.*|variant.*"}
+assembled:
+  thresholds_k: [2, 3, 4, 6]       # assembled = intensity at apparent MW >= k x monomer
+  primary_k: 2
+peaks: {min_rel_height: 0.05, min_rel_prominence: 0.1, min_distance: 2}
+complexes:
+  window_lo: 0.5                   # subunit in complex = app. MW >= 0.5 x expected complex MW (calibration ~x1.8)
+  k_floor: 2                       # ... and >= 2 x its own monomer MW
+  min_subunits_detected: 2
+  min_detected_frac: 0.5
+pairs: {all_pairs_min_r: null}     # candidate pairs only; set e.g. 0.9 to also list every detected pair above r
+uncertainty:
+  calibration_sd: true             # assembled_frac_lo/_hi at -/+ 1 calibration residual SD
+  bootstrap: {n: 30, seed: 20261116}   # only for matrices with a standard error per value

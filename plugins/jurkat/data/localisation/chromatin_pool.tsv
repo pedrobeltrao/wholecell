@@ -1,0 +1,14 @@
+# Jurkat chromatin-bound pool (preset common, nc_model.chromatin; revision 2026-11-18,
+# docs/unification_criteria/B5_localisation_revision_2026-11-18.md): genes whose soluble nucleus / cytoplasm share is
+# never spread to the cytosol by the N/C model (the whole pool goes to the nucleus). Full-match regexes on the gene symbol.
+# Rule: (1) the histone families the inventory consumes into the pre-placed nucleosomes (plugins/jurkat/data/assembly/
+# histone_families.tsv, read by assembly curated_machines); (2) linker histones H1; (3) the other histone-fold variants
+# of the HGNC histone groups (GO CC nucleosome GO:0000786 restricted to histone genes; the GO term alone also lists ACTB,
+# RUVBL1/2, SPHK2 and the TIP60 / SRCAP remodellers, which are not chromatin-bound pools).
+gene_regex	reason
+^(H2AC\d+|H2AZ[12]|H2AX|H2AJ|MACROH2A[12])$	H2A family consumed by the nucleosome pre-placement (histone_families.tsv H2A)
+^H2BC\d+$	H2B family consumed by the nucleosome pre-placement (histone_families.tsv H2B)
+^(H3C\d+|H3-3[AB]|H3-5)$	H3 family consumed by the nucleosome pre-placement (histone_families.tsv H3)
+^H4C\d+$	H4 family consumed by the nucleosome pre-placement (histone_families.tsv H4)
+^H1-\d+$	linker histones H1 (bind the nucleosome dyad; GO:0000786)
+^(CENPA|H3-4|H3-7|H3Y[12]|H2AB\d|H2AL3|H2AP|H2BW\d|H2BK1|H2BN1|H2BC\d+L|H4-16)$	other histone-fold variants (centromeric H3, testis / primate-specific variants; GO:0000786)

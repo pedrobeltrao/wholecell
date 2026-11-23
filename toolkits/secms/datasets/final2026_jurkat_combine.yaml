@@ -1,0 +1,10 @@
+# Combination of final2026_jurkat.yaml (toolkits/secms/combine.py spec; DECISION 2026-11-17 in PLANNING_NOTES):
+# equal weight per dataset (lab resting = lab activated, Pedro; Fossati as a third dataset with the same weight: its
+# calibration quality on anchor set v2 is comparable to the lab runs, it is the closest condition to the model (unstimulated
+# E6-1), and coverage differences are handled by renormalising the weights over the datasets that score a protein).
+label: jurkat_final
+discordant_range: 0.3
+datasets:
+  - {source_id: lab2026_jurkat_NT, weight: 1.0, role: primary}
+  - {source_id: lab2026_jurkat_TCRAct24h, weight: 1.0, role: primary}
+  - {source_id: fossati2021_jurkat, weight: 1.0, role: primary}

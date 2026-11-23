@@ -1,0 +1,1343 @@
+# Jurkat E6-1 T cell, cell 1 of OpenOrganelle jrc_jurkat-1 = port of the published pack v7.
+# Schema: docs/reference/cell_config.md. Sections are owned by stage maintainers; keep keys inside your section.
+schema_version: 1
+cell_id: jurkat
+name: Jurkat E6-1 T cell (jrc_jurkat-1 cell 1)
+organism: {name: Homo sapiens, taxon: 9606}
+aliases: {v7: "legacy pack v7 (2026-11-11)"}
+plugins: [jurkat]
+
+seeds:
+  master: 20261115
+  legacy:              # exact reproduction of the published v7 seeds (remove this block for a master-seed build)
+    pack.counts: 3
+    pack.tile: "k*7919+11"
+    prepass.lamina: 20261112
+
+build:
+  allow_dirty: false
+
+# --- geometry (owner: geometry/toolkits) ---
+geometry:
+  # em_cell1_v8 (B6, 2026-11-17) = em_cell1_v7 with ne_mid recomputed as a true signed distance on both sides
+  # (toolkits/em/jne_fix.py; perinuclear 2.74 -> ~8.1 um3; criteria docs/unification_criteria/B6_geometry.md).
+  # The v7 package (toolkits/em/convert_legacy.py, B1 exact) stays selectable: config/cells/jurkat_v7_port.yaml.
+  # em_cell1_v8p (B4, 2026-11-17) = em_cell1_v8 with the nuclear pore count set by the literature density checked
+  # against the nucleoporin anchor (DECISION 2026-11-16): 11 NPC/um2 (Otsuka et al. 2016 eLife 5:e19071) x 245.1 um2
+  # = 2,696 pores (the 1,000 v8 pores kept, 1,696 random added; toolkits/em/jpores.py; criteria B4_preplaced.md J1).
+  toolkit: em
+  # em_cell1_v8r (B6b, 2026-11-17) = em_cell1_v8p with rounded crista rims: engine param CR_RIM = 10 nm (= CR_W; the
+  # lamella ends in a half-cylinder, where the ATP synthase dimer rows sit; toolkits/em/jrims.py; all content files
+  # identical; criteria docs/unification_criteria/B6b_crista_rims.md). Only IMS -> matrix within 14.1 nm of crista rims.
+  package: "{geom_root}/jurkat/em_cell1_v8r"
+  manifest_sha256: 6c86b1688722f4320520abbb46a66fb7e9e97c95576e0186ebf3909b9c562fa1
+  engine: sdf_sections_v1          # package layout (= manifest engine.name)
+  evaluator: cellgeom_eval_v1      # the core evaluator: table-driven (wholecell/geometry/engines/cellgeom_eval_v1.py)
+  rules: "{repo}/config/geometry/rules/sdf_sections_v1.yaml"   # its membrane table + label rule (cellgeom_v1.md §4.3)
+  mc_points: 2000000               # Monte Carlo points for geometry/measures.json (seed stream geometry.measures)
+
+# --- inventory (owner: inventory) ---
+inventory:
+  total_protein_pg: 100                 # REQUIRED (no default). Pedro DECISION 2026-11-08, bounds 80-130 pg
+  total_protein_source: "DECISION 2026-11-08 (PLANNING_NOTES §4b); legacy inventory_v0.py was run as `inventory_v0.py 100` (code default 80 pg was stale)"
+  copies:                               # generic copy-number step (wholecell/inventory/copies.py; spec inventory_schema.md §4b)
+    method_id: jurkat_v0_legacy         # = legacy inventory_v0.py arithmetic (docs/reference/history/copies_regression_criteria.md C1-C7)
+    annotation: {reader: uniprot_reviewed_genes, path: inv_uniprot_full}
+    universe: {require: [sources, rna], order: sorted}     # reviewed genes with a detection or an RNA row
+    value_column: ppb                   # relative value used for the molar fractions (legacy column name)
+    sources:                            # priority order = list order (one source in v7)
+      - id: inv_geiger2012_pg
+        type: relative_ibaq
+        unit: "iBAQ ppb (linear, E-PROT-20)"
+        reader: maxquant_protein_groups
+        path: inv_geiger2012_pg
+        id_column: Majority.protein.IDs
+        sample_match: Jurkat
+        group_split: {rule: family_prefix, n: 3}   # a group's ppb split equally among genes sharing the first gene's 3-letter prefix (histones, tubulins)
+        aggregate: median_detected
+        column: ppb_geiger
+        n_rep_column: n_rep
+        label: geiger
+    combine: {mode: priority}
+    imputation:
+      method: rna_loglog                # log10 ppb = a + b log10 TPM (detected genes, TPM > 0); capped at the 5th percentile of detected ppb
+      rna: rna/rna.tsv
+      tpm_column: tpm_median
+      call_column: call
+      floor_percentile: 5
+      low_factor: 0.25
+      zero_calls: ["off", no_rna]          # quoted: YAML reads a bare off as false
+      labels: {expressed: imputed_rna, low: imputed_rna_low, zero: zero_off}
+      flag_detected_off: "detected despite RNA off"
+    absent:                             # zero lists with reasons (plugins/jurkat/data/inventory_v0.yaml, PLANNING_NOTES §4b)
+      - {id: jurkat_zero_genes, file: "{repo}/plugins/jurkat/data/inventory_v0.yaml", genes_key: zero_genes, label: zero_override,
+         reason: "verified loss / homozygous deletion"}
+      - {id: jurkat_9p21_ifn, file: "{repo}/plugins/jurkat/data/inventory_v0.yaml", patterns_key: zero_patterns, label: zero_override,
+         reason: "9p21 interferon cluster deletion", note: ""}   # note "": the legacy v0 left the note column empty for these
+    per_protein_scaling: []             # none for Jurkat
+    total_protein: {mode: fixed}        # = inventory.total_protein_pg (100 pg, DECISION 2026-11-08)
+    adjustments: []                     # no structure-count adjustment (ribosomes come from the proteome)
+    round_copies: true
+    v0_columns: [uniprot, mass_da, ppb_geiger, n_rep, tpm, rna_call, source, ppb, note, copies]
+    anchor_check: {use: final}
+    anchors:                            # DIAGNOSTIC ONLY (total_protein.mode stays fixed): implied total protein per anchor
+      - id: core_histones
+        structure: nucleosome
+        statistic: median
+        families:                       # 2 of each core histone per nucleosome; all variants of a type pooled
+          H2A: {stoich: 2, regex: "^(H2A|MACROH2A)"}
+          H2B: {stoich: 2, regex: "^H2B"}
+          H3: {stoich: 2, regex: "^(H3C\\d+|H3-\\w+|H3Y\\d+|CENPA)$"}
+          H4: {stoich: 2, regex: "^(H4C\\d+|H4-\\w+)$"}
+        counts:
+          - {label: genome_mapped_v8, value: 28190000, primary: true, source: "chromatin v8 rep5: 28.19 M nucleosomes placed on 46 chains (PLANNING_NOTES chromatin v8; v7 NUCLEOSOME copies 28,190,641)"}
+          - {label: dna_2n, value: 31000000, source: "3.1e7 from DNA content (PLANNING_NOTES §4b, v0-v6 NUCLEOSOME copies)"}
+      - id: nucleoporins
+        structure: nuclear pore complex
+        statistic: median
+        stoich_from_species: {table: inv_legacy_ingredients_v7, species_id: NPC}   # per-pore chain counts of PDB 7R5K (rule v4 d)
+        filter_regex: "^(NUP\\d+\\w*|NDC1|AAAS|AHCTF1|RANBP2)$"                    # scaffold Nups (SEC13 / SEH1L also COPII / GATOR2: excluded)
+        counts:
+          - {label: em_np_seg, value: 300, primary: true, source: "np_seg instances on cell 1 after the 2026-11-08 re-assignment (PLANNING_NOTES §1; NP Dice 0.23: under-detected)"}
+          - {label: model_geometry, value: 1000, source: "pores of the model NE (258 um2 x ~4 per um2; PLANNING_NOTES §4c, NPC pre-pass)"}
+          - {label: model_geometry_b4, value: 2696, source: "pores of em_cell1_v8p: 11 NPC/um2 (Otsuka 2016) x 245.1 um2 (B4 J1)"}
+      - id: ribosomal_proteins
+        structure: cytosolic 80S ribosome
+        statistic: median
+        members: {regex: "^(RP[LS]\\d+(A|AL|L|L1|X|Y1|Y2)?|RPLP[012]|RACK1)$"}
+        family_sub: ["^(RPL3|RPL10|RPL39|RPS27)L$|^(RPL22|RPL26)L1$|^(RPL36A)L$|^(RPS4)(X|Y1|Y2)$", "\\1\\2\\3\\4"]   # paralogs pooled with their family
+        exclude: [RPL7L1]                  # ribosome biogenesis factor, not an r-protein (pseudogene-named group shares, e.g. RPL39P5, are not matched)
+        stoich_overrides: {RPLP1: 2, RPLP2: 2}
+        counts:
+          - {label: em_recall_corrected, value: 1500000, primary: true, source: "755,935 ribo_seg / recall 0.45-0.55 = 1.4-1.7 M, central 1.5 M (PLANNING_NOTES §4-results 2026-11-08)"}
+          - {label: em_raw, value: 755935, source: "ribo_seg instances, cell 1 (lower bound, recall ~0.5)"}
+          - {label: em_recall_hi, value: 1700000, source: "upper end of the recall-corrected range"}
+    future_sources:                     # declared slots, not enabled (no data yet)
+      - {id: secms_fossati2021_abundance, type: secms_abundance, role: cross_check, enabled: false,
+         notes: "summed SEC-MS intensity per protein (toolkits/secms profiles) vs the iBAQ copies; cross-check only"}
+      - {id: jurkat_surface_proteomics, type: surface_proteomics, role: pm_copies, enabled: false,
+         notes: "plasma-membrane copy numbers / topology (adapter.surface, canonical surface.tsv); to set PM-protein copies when available"}
+  adapters:                             # registered names (wholecell.registry kinds adapter.<kind>)
+    rna: jurkat.rna_e61
+    proteome: copies                    # generic copy-number step (inventory.copies below); legacy jurkat.geiger_ibaq_v0 kept registered (equivalence test)
+    localisation: localisation          # core evidence table + combiner + overrides (wholecell/inventory/localisation), preset in params below
+    secms: secms_toolkit                # SEC-MS toolkit (toolkits/secms) -> inventory/secms/* (read by the assembly adapter)
+    assembly: assembly_steps            # core assembly step list (wholecell/inventory/assembly), preset in params below
+    surface: null                       # no surface proteomics yet (canonical surface.tsv written empty)
+  ingredients: jurkat.ingredients_v0    # inventory_builder
+  rule_sets: [jurkat.v4, jurkat.v5, jurkat.v6, jurkat.v7]   # applied in order, each on the previous step's table
+  proteome_sources:                     # -> canonical proteome_sources.tsv
+    - {source_id: inv_geiger2012_pg, weight: 1.0, unit: "iBAQ ppb (linear, E-PROT-20)", normalisation: "median over detected Jurkat replicates; molar fraction x N with sum(copies x mass) = total_protein_pg", condition: "Jurkat, steady state", replicates: "Jurkat columns of the protein-group table"}
+    - {source_id: rna_consensus, weight: 0.0, unit: "TPM (protein-coding renormalised)", normalisation: "imputation only: log10 ppb = a + b log10 TPM fitted on detected genes, capped at the 5th percentile of detected ppb; 'low' x0.25", condition: "E6-1, 5 bulk sources", replicates: "see inv_rna_*"}
+  localisation_sources:                 # -> canonical localisation_sources.tsv (term_map strings kept as in v7 for identical tables;
+                                        # the maps now live in plugins/jurkat/data/localisation/*.tsv)
+    - {source_id: inv_hpa_subcellular, weight: 0.5, evidence_codes: "HPA reliability Enhanced/Supported/Approved (Uncertain ignored); main 1.0, additional 0.3", term_map: "plugins/jurkat/data/inventory_v0.yaml:hpa_map"}
+    - {source_id: inv_uniprot_full, weight: 0.5, evidence_codes: "UniProt CC text (all statements, equal weight)", term_map: "plugins/jurkat/data/inventory_v0.yaml:uniprot_comp_rules"}
+    - {source_id: inv_itzhak2016, weight: 1.0, evidence_codes: "fractionation N/C class N, C, N/C with >= 3 good profiles; soluble proteins only", term_map: "re-split of nucleus+cytosol+cytoskeleton share"}
+  params:
+    jurkat.rna_e61:
+      ens2sym_from: HPA_E6.1
+      protein_coding_frozen: inv_uniprot_reviewed
+      sources:                          # ordered = output column order
+        HPA_E6.1: {reader: hpa_celline, frozen: inv_rna_hpa, cell_line: "Jurkat E6.1"}
+        E-MTAB-2706: {reader: expression_atlas, frozen: inv_rna_emtab2706}
+        GSE276689: {reader: rsem_mean, frozen: [inv_rna_gse276689_rep1, inv_rna_gse276689_rep2]}
+        GSE145453: {reader: featurecounts_mean, frozen: [inv_rna_gse145453_a1, inv_rna_gse145453_a2]}
+        GSE301789: {reader: deseq2_tpm_wt_ct, frozen: inv_rna_gse301789}
+      kde_bw: 0.1
+      z_expressed: -3                   # Hart 2013 zTPM
+      z_off: -2.5
+      min_sources_expressed: 2
+    jurkat.geiger_ibaq_v0:
+      proteome: inv_geiger2012_pg
+      uniprot: inv_uniprot_full
+      sample_match: Jurkat
+      source_label: geiger
+      floor_percentile: 5
+      low_factor: 0.25
+    localisation:                       # core localisation (docs/stages/localisation.md); = legacy v0 location exactly
+      preset: legacy_v7                 # presets/legacy_v7.yaml: combiner steps + the v4..v7 rule-step inventory
+      overrides: {}                     # deep-merged on the preset (only keys the preset has)
+      label: jurkat.hpa_uniprot_itzhak_v0   # provenance name in species_loc / field_provenance (the v7 tables' name)
+      genes: {input: inv_uniprot_full}  # gene -> UniProt accession + transmembrane feature (reviewed entries)
+      sources:                          # evidence adapters -> inventory/localisation/evidence.tsv (in this order)
+        - {source: hpa, adapter: hpa_subcellular, evidence_class: imaging_other, input: inv_hpa_subcellular,
+           term_map: plugins/jurkat/data/localisation/hpa_term_map.tsv, main_score: 1.0, additional_score: 0.3}
+        - {source: uniprot, adapter: uniprot_cc, evidence_class: annotation_curated, input: inv_uniprot_full,
+           rules: plugins/jurkat/data/localisation/uniprot_cc_rules.tsv, drop_if_other: [secreted]}
+        - {source: itzhak, adapter: fractionation_nc, evidence_class: fractionation, input: inv_itzhak2016,
+           min_profiles: 3, classes: [N, C, N/C]}
+      data:                             # Jurkat curation (TSVs with a reason column)
+        membrane_keys: plugins/jurkat/data/localisation/membrane_keys.tsv
+        overrides: plugins/jurkat/data/localisation/overrides_legacy_v7.tsv   # v4 c/f, v7 R4b/F1 rows (rule_id, reason, citation)
+        chromatin_pool: plugins/jurkat/data/localisation/chromatin_pool.tsv   # preset common nc_model.chromatin (revision 2026-11-18)
+      common:                           # cell data of preset `common` (B5; docs/unification_criteria/B5_localisation.md);
+                                        # inert under legacy_v7. No key selection, no imaging groups (HPA keys = UniProt keys)
+        default_key: unassigned         # no evidence (v7 fallback)
+        nc_keys: [nucleus, cytosol]     # never new from imaging alone (the N/C model decides them)
+        pool: {nucleus: nucleus, cytoplasm: [cytosol, cytoskeleton], default_cytoplasm: cytosol}
+        nc_calibration:                 # "the current calibration": v6 R1 HPA category -> target N/C concentration ratio
+          method: category
+          source: hpa                   # main terms score >= main_min, additional below
+          main_min: 1.0
+          skip_main_keys: [mitochondrion, er, golgi, endolysosomal, peroxisome, lipid_droplet, nuclear_envelope]   # rules_v6.yaml organelle_terms
+          ratios: {N: 10.0, Nc: 3.0, NC: 1.0, Cn: 0.3, C: 0.02}                # rules_v6.yaml r_by_category (fit-half Tier-2 calibration)
+          tie_break: {categories: [NC], class: fractionation, background: 0.05, clip: [0.3333333333333333, 3.0]}   # Itzhak 2016 (rules_v6.yaml itzhak)
+          exclude_genes_input: inv_holdout_genes   # the HPA-JURKAT hold-out half: no imaging calibration here (v6 R1 uses non-JURKAT consensus)
+        # revision 2026-11-18 (docs/unification_criteria/B5_localisation_revision_2026-11-18.md)
+        imaging_background:             # HPA nuclear background b: observed nuclear share = b + (1 - b) true (HPA only)
+          sources: [hpa]
+          nucleus_keys: [nucleus]
+          b: 0.1931                     # estimate.json decision.b_HPA (branch intermediate; CI 0.1154-0.2675; extremes 0 / 0.3051 = sensitivity)
+          provenance: "data/derived/v8/hpa_background/estimate.json (md5 895e677fb5b4825759c3a71e35cbbbb2; hpa_nuclear_background.py @ 8e2452a, branch hpa-background): OpenCell live HEK293T non-nuclear median 0.139 in Jurkat geometry vs HPA-Jurkat floor 0.305 -> b fitted 0.1931"
+        chromatin: {regex: data.chromatin_pool}   # chromatin-bound genes: the whole pool stays in the nucleus
+        nc_prior: {source: itzhak, background: 0.05, weight: 1.0, clip: [0.01, 100.0]}   # Itzhak 2016 N/(N+C) (rules_v6.yaml
+                                        # itzhak nuclear_base 0.05); r clipped to [0.01, 100] (fn 0.007 .. 0.985 at Vn/Vc 0.67)
+    jurkat.hpa_uniprot_itzhak_v0:       # LEGACY adapter, superseded by `localisation` (A5); kept for the equivalence test
+      uniprot: inv_uniprot_full
+      hpa: inv_hpa_subcellular
+      itzhak: inv_itzhak2016
+      hpa_main_weight: 1.0
+      hpa_additional_weight: 0.3
+      hpa_blend: 0.5                    # w = 0.5 HPA + 0.5 UniProt when both exist
+      itzhak_nuclear_base: 0.05
+      itzhak_min_profiles: 3
+    assembly_steps:                     # core assembly steps (wholecell/inventory/assembly; docs/stages/assembly.md)
+      preset: legacy_v7                 # Jurkat v7 assembly state exactly (presets/legacy_v7.yaml: steps + rule options)
+      overrides:                        # deep-merged on the preset (only keys the preset has)
+        secms: {source_id: inv_sec_fossati_features}   # SEC-MS run feeding the rules
+        # complex_portal.copies stays stoichiometry_cap (NOT measured_free_pool: Pedro 2026-11-16, not enabled for Jurkat)
+      inputs:                           # frozen inputs
+        complex_portal: inv_complex_portal
+        sifts: inv_sifts
+        pdb_assemblies: inv_pdb_assemblies
+        pdb_listing_md5: adb5e849cfb6373aac7e121030b6152c    # md5 of the sorted file-name listing (48,189 files)
+        # equal-coverage PDB candidates: the legacy pick (set order of a random-hash process) is reproduced from the
+        # legacy complexes table; without a reference the first candidate in sorted order wins
+        pdb_tiebreak_reference: inv_legacy_complexes_v0
+        uniprot_reviewed: inv_uniprot_reviewed
+        uniprot_full: inv_uniprot_full
+        afdb_homodimers: inv_afdb_homodimer_table
+        afdb_heterodimers: inv_afdb_heterodimer_table
+        string_links: inv_string_links
+      data:                             # Jurkat curation (TSVs with a reason column; PLANNING_NOTES §4c)
+        complex_priority: plugins/jurkat/data/assembly/complex_priority.tsv     # built first: 60S, 40S, 26S, ..., NPC, CCT, ATP synthase, MCM
+        complex_copy_caps: plugins/jurkat/data/assembly/complex_copy_caps_b4.tsv   # NPC = 2,696 = the pores of the geometry (B4 J1; v7: 1000)
+        histone_families: plugins/jurkat/data/assembly/histone_families.tsv
+        nucleosome:                     # DECISION 2026-11-08: nucleosome count from DNA (near-diploid male G1, DepMap ABSOLUTE CN 2)
+          genome_bp: 6200000000         # bp per G1 cell
+          bp_per_nucleosome: 200        # bp (core 147 + linker)
+          mass_kda: 108.5               # histone octamer protein mass (DNA not counted)
+          pdb: 1kx5
+          complex_name_regex: '^Nucleosome|CENP-A nucleosome'   # Complex Portal rows replaced by the curated nucleosome
+        homo_oligomer_exclude_regex: '^(ACT[BG]1|ACTA[12]|ACTC1|TUB[AB]\w*|SPT[AB]\w*|LMN[AB]\w*|VIM|KRT\d+\w*|SEPTIN\d+|NEFL|DES)$'   # built procedurally (polymers), no homo-oligomer state
+      workers: 8                        # processes for the PDB chain counts (legacy used 16; results identical)
+    secms_toolkit:                      # toolkits/secms run config (docs/reference/inventory_schema.md §4a)
+      species: human
+      preset: legacy_v7                 # v7 reproduction (docs/reference/history/secms_regression_criteria.md); default.yaml for new data
+      annotation: {path: inv_uniprot_reviewed}
+      complexes: [{format: complex_portal, path: inv_complex_portal}]
+      pair_candidates: {path: inv_afdb_heterodimer_table, a: uniprot_ac_1, b: uniprot_ac_2, require_true: passes_quality_threshold}
+      datasets:
+        - source_id: inv_sec_fossati_features
+          format: openswath
+          path: inv_sec_fossati_features
+          fraction_map: {path: inv_sec_fossati_fractions, skiprows: 4}
+          n_fractions: 60
+          void_fraction: 8              # PLANNING_NOTES 2026-11-07: void at fractions <~ 8 (clathrin at 5)
+          condition: "Jurkat E6-1 steady state, mild lysis (0.5% NP-40), SEC-SWATH"
+    jurkat.ingredients_v0:
+      uniprot_full: inv_uniprot_full
+      histone_families: plugins/jurkat/data/assembly/histone_families.tsv   # same list as assembly_steps.data
+      afdb_fetch_status: inv_afdb_fetch_status
+      pdb_mass_cov_min: 0.5
+    jurkat.v4:
+      uniprot_full: inv_uniprot_full
+      uniprot_topology: inv_uniprot_topology
+      membrane_lib_ids: inv_membrane_lib_ids
+      npc_cif: inv_npc_7r5k
+      struct_library: inv_struct_library
+      npc_copies: 2696                  # pores of the geometry (B4 J1; rule v4 e RANBP2 pool); v7 plugins/jurkat/data/rules_v4.yaml 1000
+    jurkat.v5:
+      uniprot_full: inv_uniprot_full
+      hpa_subcellular: inv_hpa_subcellular
+      hpa_celllines: inv_hpa_celllines
+      v4pack_loc_compare: inv_v4pack_loc_compare     # PACK-DEPENDENT (v4 pack placed shares)
+      tm_route_libs: inv_tm_route_libs
+    jurkat.v6:
+      uniprot_full: inv_uniprot_full
+      uniprot_domains: inv_uniprot_domains
+      hpa_subcellular: inv_hpa_subcellular
+      hpa_celllines: inv_hpa_celllines
+      itzhak: inv_itzhak2016
+      v5pack_loc_compare: inv_v5pack_loc_compare     # PACK-DEPENDENT (v5 pack placed shares)
+      tier2_v5: inv_tier2_v5                         # PACK-DEPENDENT (v5 pack Tier 2 + HPA JURKAT fit half)
+      tier2_transfer: inv_tier2_transfer
+      hpa_jurkat_manifest: inv_hpa_jurkat_manifest
+      holdout_genes: inv_holdout_genes
+      fit_genes: inv_fit_genes
+      speckle_volume_um3: 1.963         # speckle volume of the v6 geometry (jgeom_cell1.npz summary.speckles.volume_um3, 2026-11-10 02:59)
+    jurkat.v7:
+      uniprot_domains: inv_uniprot_domains
+      hpa_subcellular: inv_hpa_subcellular
+      hpa_celllines: inv_hpa_celllines
+      holdout_genes: inv_holdout_genes
+      # lamina pre-pass consumption (rule L3 + L2 rows): a frozen input name (legacy jlamina output, default), or
+      # "build:preplaced/<...>/lamina_cell1.json" to consume the lamina rebuilt by the preplaced stage of the same build
+      lamina_consumption: inv_lamina_consumption_v7
+      chromatin_json: inv_chromatin_v8_json
+      cytoskeleton_json: inv_cytoskeleton_v7_json     # history rows MT3b / FA_trim only (B4 MTs: preplaced/serial/modules/microtubules.json)
+      cytoskeleton_prev_json: inv_cytoskeleton_v6_json
+      mt_centerlines: inv_mt_centerlines
+      pcm_volume_um3: 0.24511794968760817   # cytosolic part of the 400 nm PCM sphere: legacy pcm_volume() (MC, 400k points, rng 3) on jgeom_cell1_v7.npz
+  pack_table:
+    # present the computed table in the legacy row order / JSON key order (content unchanged; differences reported)
+    order_reference: inv_legacy_ingredients_v7
+  canonical:
+    abundance_columns:                  # v0 columns -> canonical gene_abundance.tsv (long)
+      - {column: ppb_geiger, source_id: inv_geiger2012_pg, unit: "iBAQ ppb", n_rep_column: n_rep, used_when_source: [geiger]}
+      - {column: tpm, source_id: rna_consensus, unit: "TPM (median of 5 sources)", used_when_source: [imputed_rna, imputed_rna_low]}
+    key_compartment:                    # comp_weights key -> coarse compartment (version_changes.tsv, species.tsv loc summary)
+      cytosol: cytosol
+      cytoskeleton: cytosol
+      unassigned: cytosol
+      peroxisome: cytosol
+      lipid_droplet: cytosol
+      cortex: cytosol
+      pcm: cytosol
+      mt_plus: cytosol
+      mt_lattice: cytosol
+      vim_cage: cytosol
+      nucleus: nucleus
+      nucleolus: nucleus
+      speckle: nucleus
+      lamina: nucleus
+      npc: NE
+      npc_fg: NE
+      nuclear_envelope: NE
+      ne_anchor_nuc: NE
+      plasma_membrane: PM
+      pm_anchor_cyto: PM
+      pm_anchor_exo: PM
+      pm_periph_cyto: PM
+      mitochondrion: mito
+      om_anchor_cyto: mito
+      er: ER
+      er_anchor_cyto: ER
+      er_anchor_lumen: ER
+      secreted: ER
+      golgi: golgi
+      golgi_anchor_cyto: golgi
+      golgi_anchor_lumen: golgi
+      golgi_periph_cyto: golgi
+      endolysosomal: endolysosomal
+      endo_anchor_cyto: endolysosomal
+      endo_anchor_lumen: endolysosomal
+      endo_periph_cyto: endolysosomal
+  verify:                               # legacy reference files (compare step -> inventory/compare_legacy.json; B3/B4)
+    tables:
+      rna/rna.tsv: "{data_root}/data/derived/rna_e61.tsv"
+      v0/inventory_v0.tsv: "{data_root}/data/derived/inventory_v0.tsv"
+      assembly/complexes_v0.tsv: "{data_root}/data/derived/complexes_v0.tsv"
+      assembly/inventory_v0_complexed.tsv: "{data_root}/data/derived/inventory_v0_complexed.tsv"
+      assembly/sec_assembly.tsv: "{data_root}/data/derived/sec_assembly.tsv"
+      assembly/sec_calibrants_peak.tsv: "{data_root}/data/derived/sec_calibrants_peak.tsv"
+      assembly/homo_oligomers_v0.tsv: "{data_root}/data/derived/homo_oligomers_v0.tsv"
+      assembly/afdb_homodimers_v0.tsv: "{data_root}/data/derived/afdb_homodimers_v0.tsv"
+      assembly/afdb_heterodimers_v0.tsv: "{data_root}/data/derived/afdb_heterodimers_v0.tsv"
+      rules/jurkat.v4/changes_legacy.tsv: "{data_root}/data/derived/inventory_v4_changes.tsv"
+      rules/jurkat.v5/changes_legacy.tsv: "{data_root}/data/derived/inventory_v5_changes.tsv"
+      rules/jurkat.v6/changes_legacy.tsv: "{data_root}/data/derived/inventory_v6_changes.tsv"
+      rules/jurkat.v7/changes_legacy.tsv: "{data_root}/data/derived/inventory_v7_changes.tsv"
+    ingredients:                        # species tables (B3 metrics: copies log2 ratio, comp_weights diff, species set)
+      ingredients/ingredients.tsv: "{data_root}/data/derived/ingredients_v0_pre_v4.tsv"
+      rules/jurkat.v4/ingredients.tsv: "{data_root}/data/derived/ingredients_v0_pre_v5.tsv"
+      rules/jurkat.v5/ingredients.tsv: "{data_root}/data/derived/ingredients_v0_pre_v6.tsv"
+      rules/jurkat.v6/ingredients.tsv: "{data_root}/data/derived/provenance/snapshots/ingredients_v6.tsv"
+      rules/jurkat.v7/ingredients.tsv: "{data_root}/data/derived/ingredients_v7.tsv"
+      pack_table.tsv: "{data_root}/data/derived/ingredients_v7.tsv"
+    notes:
+      - "Byte differences of intermediate tables are explained by two arbitrary legacy orders, never by content: (a) random PYTHONHASHSEED of each legacy process -> order of equal-weight keys in compartments/comp_weights, order of some change rows (v4 d/e pools), R3 evidence text order (v6, 21 rows), pick among equal-coverage PDB candidates (reproduced via inv_legacy_complexes_v0); (b) non-stable quicksort on another CPU -> row order among equal sort keys (complexes_v0, homo_oligomers_v0, afdb_homodimers_v0, ingredient rows)."
+      - "Floating-point last-digit differences (rel <= 1e-14): rna zTPM (5 cells), inventory_v0 ppb of imputed genes (330 cells), sec_assembly apex_app_kda (70 cells); copies identical."
+      - "pack_table.tsv borrows only row order and equal-content dict key order from inv_legacy_ingredients_v7 (pack_table_order.json: content_cells_differing must be 0)."
+
+# --- library (owner: pack) ---
+# B3 (2026-11-17; criteria docs/unification_criteria/B3_library.md): the library is BUILT per build by the core stage
+# (mode build) with the Jurkat builder steps (wholecell/library/jurkat.py: the five legacy scripts that wrote the v7
+# library in place, final code, run once each, offline). The frozen v7 library stays the start-entry source and the
+# reference preset's library (config/cells/jurkat_v7_port.yaml: mode frozen).
+library:
+  mode: build
+  start: {frozen: lib_structures_v7, files: plugins/jurkat/data/library/start_v7.tsv}   # pre-pass templates F_ACTB, MT_TUBA1B-TUBB4B (+ json)
+  # species (one row per ingredient of the legacy table the v7 library was built from, ingredients_v0_pre_v4.tsv;
+  # struct_src = the structure recorded in the v7 npz, which differs from the inventory's for 323 assemblies)
+  species: plugins/jurkat/data/library/species_v7.tsv.gz
+  pdb_dir: lib_pdb_assemblies        # RCSB assembly cache, read in place; offline (a missing entry is an error)
+  nproc: 16                          # builder processes (results do not depend on it: one BLAS thread per process)
+  jurkat:                            # inputs of the Jurkat steps (frozen-input names)
+    afdb_tar: lib_afdb_human_tar
+    afdb_tar_index: lib_afdb_human_tar_index
+    afdb_fragment_index: lib_afdb_fragment_index_tmroute
+    afdb_complex_models: lib_afdb_complex_models
+    afdb_complex_models_manifest: plugins/jurkat/data/library/afdb_complex_models_manifest.tsv.gz
+    uniprot_rest_cache: lib_tm_route_uniprot
+    uniprot_topology: inv_uniprot_topology
+    uniprot_table: lib_uniprot_human_table
+    sifts: inv_sifts
+  steps:                             # legacy order: jlib_build (+ jlib_rebuild_tm) -> reorient_tm -> tm_route -> lib_refine_st
+    - {step: jurkat_assemblies, tm_graft: true}      # pdb / AFDB complex assemblies; TM ones oriented (AF graft of missing TM)
+    - {step: jurkat_monomers}                        # AFDB v6 F1 per protein (pLDDT < 50 trimmed, TM oriented)
+    - {step: reorient_tm}                            # 1-2-pass TM monomers: soluble blocks out of the slab
+    - {step: tm_route, ids: plugins/jurkat/data/library/tm_route_ids.tsv}   # 129 TM-routed ingredients (v5 R3)
+    - {step: adaptive_trees, include_membrane: true, max_ratio: 2.5, pers: [15, 8, 5]}   # sphere trees <= 2.5x volume
+  # P8 packing shapes (written for B1; the B3 pack keeps the library's own adaptive trees, pack.shapes source library)
+  pack_shapes: {per: 15, max_beads: 20000}
+
+# --- preplaced: pre-placed structures (owner: pack; "prepass" before A0c) ---
+preplaced:
+  numba_threads: 8
+  # B4 (2026-11-17; criteria docs/unification_criteria/B4_preplaced.md): the common pre-placed builders (one core
+  # module each, wholecell/preplaced/builders/) run in one serial pass on the core context; their layers replace the
+  # frozen v7 polysomes, traced MTs, NPCs and mRNA. Chromatin rep5, the lamina (frozen copy), nascent RNA and the
+  # centrioles + cortical F-actin of the v7 cytoskeleton stay frozen (the last selected by kind at build time).
+  # The v7 layers: config/cells/jurkat_v7_port.yaml.
+  serial:
+    context: core.cellgeom
+    context_params:
+      libs: [NPC, MT_TUBA1B-TUBB4B, RIBO80S, CPX-6151]
+      obstacles:                   # frozen instances the builders avoid (centrioles = kind 0, cortical F-actin = kind 2)
+        - {name: centrioles, npz: pre_cytoskeleton_v7, kind_key: kind, kinds: [0], obs: centrioles}
+        - {name: cortical_actin, npz: pre_cytoskeleton_v7, kind_key: kind, kinds: [2], obs: actin, shape: bounding}   # 14.4 M subunits: one sphere each
+    out: preplaced/serial
+    builders:
+      # 7R5K per pore. drop_frozen (npc-overlap fix 2026-11-17): the pores are geometry (J1: one NPC per pore), so frozen
+      # centriole / cortical actin instances overlapping an NPC are dropped (the v7 cytoskeleton predates the 1,696 added
+      # pores; B4 addendum J5b cytoskeleton_rest-npc 28 pairs); logged, out of the obstacle sets and of cytoskeleton_rest
+      - {name: npc, builder: core.npc_pores, params: {lib_id: NPC, seed: preplaced.npc, n_pores: 2696, drop_frozen: [centrioles, actin]}}
+      - name: microtubules         # the EM-traced polylines (package layer mt_traces), 13_3 lattice as v7
+        builder: core.microtubules
+        params: {tracks: traced, layer: mt_traces, lib: MT_TUBA1B-TUBB4B, ingredient: TUBA1B-TUBB4B,
+                 seed: 20261111,         # the v7 stage-3 lattice frame seed: same lattice (dimer phase) as v7
+                 obstacles: [npc, centrioles], labels: [cytosol], obstacle_shape: bounding}   # mt_all: one sphere per dimer
+      - name: atp_synthase         # dimer rows on the rims of the lamellar cristae (human monomer CPX-6151, 8H9T)
+        builder: core.atp_synthase_dimers
+        # B6b (2026-11-17): on the rounded rims of em_cell1_v8r the yeast dimer (84 deg, 8.8 nm) is used unchanged; at the
+        # frozen 2.5 nm TM tolerance it still places 0 dimers (the flat ~9.5 nm TM footprint of each monomer cannot lie
+        # within 2.5 nm of ANY smooth rim: ideal-cylinder bound 2.5-2.7 nm); tm_tol 3.0 / 3.5 / 4.5 -> 14 / 674 / 1,809
+        # dimers (square v8p: 0 / 1 / 21). J6 tolerance: decided 2026-11-18, see below (B6b_crista_rims_addendum_2026-11-17.md)
+        # J6 (B4 addendum 2026-11-18, docs/unification_criteria/B4_preplaced_addendum_J6_2026-11-18.md): tm_tol 4.5 nm accepted
+        # on the rounded rims; rim sampling `rows` = dense rim lines (seeds_per_cell seeds per enabled cristae id cell, each
+        # rim line traced every trace_step_nm and walked: a dimer tried at every trace point, then one row spacing on);
+        # spacing_nm 12 = dimer spacing along the rows (~12 nm, Strauss et al. 2008 EMBO J 27:1154; 12 to > 20 nm,
+        # Davies et al. 2011 PNAS 108:14121); tilt_deg: dimer tilts about the rim tangent tried in order (the rims of
+        # oblique lamellae are sheared: their cap normal leaves the slab plane). Literature: 50-83 dimers per um of rim.
+        # obstacles: [npc] (the pores next to mitochondria: 23 NPC-dimer overlaps at 0.5 nm without it).
+        params: {rims: lamellae, monomer: CPX-6151, seed: preplaced.atp_synthase, dimer_angle_deg: 84.0, rim_radius_nm: 8.8,
+                 tm_tol_nm: 4.5, rho_nm: [10, 9, 11, 8, 12, 7, 13, 6.5], rim_sampling: rows, seeds_per_cell: 1.0,
+                 trace_step_nm: 2.0, spacing_nm: 12.0, tilt_deg: [0, -10, 10, -20, 20], obstacles: [npc]}
+      - name: mtdna                # nucleoids in the matrix: 1,000 genomes (ASSUMPTION; O'Hara 2019), 1.4 per nucleoid (Kukat 2011)
+        builder: core.mtdna_nucleoids
+        params: {sites: matrix, seed: preplaced.mtdna, genomes: 1000, genomes_per_nucleoid: 1.4, genome_kb: 16.569, min_gap_nm: 500.0,
+                 obstacles: [atp]}
+      - name: polysomes            # yeast walk seeded by the EM ribosomes (point priors); free 80S are packed
+        builder: core.polysomes
+        params:
+          seed: preplaced.polysomes
+          transcripts_seed: preplaced.polysomes.transcripts
+          ribosome: RIBO80S
+          pool_region: null                    # pool = the pack-table RIBO80S copies
+          polysome_fraction: 0.70              # B4 J3: this cell's EM, 0.697 of de-duplicated EM ribosomes in 34-nm groups of >= 2
+          channel: "repo:plugins/jurkat/data/preplaced/RIBO80S_mrna_channel.npy"     # 7ZW0 channel via rRNA superposition (scripts/ribosome_channel_transfer.py)
+          disome: "repo:plugins/jurkat/data/preplaced/RIBO80S_disome_6I7O.npy"
+          transcripts: {table: jurkat.mrna_table, npz: pre_mrna_v1, kinds: [0, 1], occupancy: 0.79, max_ribo: 40}   # v1: 170,410 of 215,000 cytosolic mRNAs on ribosomes
+          obstacles: [npc, mt_all, centrioles, actin]
+          start_radius_slot: 0                 # random chain starts within the enclosing radius
+          mrna_step_nm: 3.0                    # polysome mRNA polylines and linker beads every 3 nm (5 nt; yeast 0.5 nm)
+          # Linker of the walk (B4 addendum 2026-11-17, docs/unification_criteria/B4_preplaced_addendum_2026-11-17.md §1):
+          # mean free nt between neighbouring ribosomes, MEASURED from this cell's EM ribosomes (val_ribo_em, ribo_seg
+          # cell 1, non-nuclear) on the calibration subset (model frame, 1-um blocks with (i + 2j + 3k) mod 5 == 0; not the
+          # J3b / J4 evaluation): scan 5 / 20 / 60 / 90 / 120 / 150 / per-transcript (B4 default, ~191 nt), each value a
+          # full polysome walk; value = argmin |NN - EM| / 1 nm + |linked - EM| / 0.05 (model + random cytosolic
+          # complement, thinned as J3b / J4) among the values keeping J3a 0.68-0.72 (60 nt fits best unconstrained but
+          # ends chains short: J3a 0.651). Subset EM: NN 27.20 nm, linked 0.691; at 150 nt: 35.38 nm, 0.437 (default
+          # 35.70, 0.426): the linker cannot reach the EM values (centre spacing floor ~27 nm, the disome pose).
+          # scripts/b4_polysome_calibration.py; results jurkat/_dev_unify/b4/addendum_20261117/calib/calibration.json
+          linker_nt_mean: 150.0
+          # Walk search (walk fix 2026-11-18, docs/unification_criteria/B4_preplaced_addendum_polysomes_2026-11-18.md):
+          # every grown ribosome is the fitting candidate nearest the chain's centroid among 40 poses per round (entry
+          # direction within 45 deg of the link), up to 30 rounds (free nt redrawn per round; the legacy budget 40 x 30 =
+          # 1,200 tries) before the chain ends. Chosen on the calibration subset of the addendum (walk_fix/calib):
+          # subset NN 35.38 -> 33.40 nm, linked 0.437 -> 0.499, J3a 0.684 -> 0.688. Default (absent) = legacy walk (yeast).
+          walk: {candidates: 40, rounds: 29, pick: compact, orient_cone: 0.7854}
+          point_priors: {table: val_ribo_em, filter_eq: {cell2: 1}, filter_not_in: {cls: [2]}, voxel_nm: [4.0, 4.0, 3.44],
+                         class_col: cls, er_classes: [3, 4], dedup_nm: 20.0, link_nm: 34.0, max_group: 40, nudge_nm: 10.0,
+                         prior_tries: 60, er_membrane: ER, er_tmax_nm: 45.0, seed: preplaced.polysomes.priors}
+      - name: mrna                 # threads through the chains + free mRNAs, 5 nt per bead (v7 mRNA representation)
+        builder: core.mrna_threads
+        params: {seed: preplaced.mrna, ribosome: RIBO80S, nt_per_bead: 5, rac: false, ribosome_tree_per: 550,
+                 obstacles: [actin, centrioles, mt_all, npc, "@ribosomes", "@links", monosomes]}
+    exports:                       # module files for the pack index (preplaced/serial/modules/)
+      - {module: npc, group: npc}
+      - {module: microtubules, group: microtubules}
+      - {module: polysomes, group: polysomes}
+      - {module: atp_synthase, group: atp_synthase}
+      - {module: cytoskeleton_rest, frozen_subset: {npz: pre_cytoskeleton_v7, key: kind, values: [0, 2],
+                                                    lib_to_ingredient: {MT_TUBA1B-TUBB4B: TUBA1B-TUBB4B, F_ACTB: ACTB}}}
+      - {module: mrna, beads: {pts: mrna_pts, offsets: mrna_off, radius: 1.0, extra: {kind: mrna_kind}}}
+      - {module: mrna_nuclear, frozen_subset: {npz: pre_mrna_v1, key: kind, values: [2]}}
+      - {module: mtdna, beads: {pts: mtdna_pts, offsets: mtdna_off, radius: 1.0}}
+  modules:                         # order = pre-pass library order of the pack index
+    # depends_on_geometry (frozen modules): the package each frozen file was checked against; mode serial = built
+    # in this build by the serial pass (files under preplaced/serial/modules/)
+    - {name: chromatin, kind: instances, mode: frozen, npz: pre_chromatin_v8_rep5, json: pre_chromatin_v8_rep5_json, depends_on_geometry: jurkat/em_cell1_v8r}   # B6b: labels outside the mitochondria identical to v8p
+    - {name: polysomes, kind: instances, mode: serial, npz: "build:preplaced/serial/modules/polysomes.npz", json: "build:preplaced/serial/modules/polysomes.json"}
+    - {name: microtubules, kind: instances, mode: serial, npz: "build:preplaced/serial/modules/microtubules.npz", json: "build:preplaced/serial/modules/microtubules.json"}
+    - {name: cytoskeleton_rest, kind: instances, mode: serial, npz: "build:preplaced/serial/modules/cytoskeleton_rest.npz", json: "build:preplaced/serial/modules/cytoskeleton_rest.json"}
+    - {name: npc, kind: instances, mode: serial, npz: "build:preplaced/serial/modules/npc.npz", json: "build:preplaced/serial/modules/npc.json"}
+    - {name: atp_synthase, kind: instances, mode: serial, npz: "build:preplaced/serial/modules/atp_synthase.npz", json: "build:preplaced/serial/modules/atp_synthase.json"}
+    - name: lamina
+      kind: instances
+      # B4: mode build. The frozen v7 lamina excludes rods only around the 1,000 v7 pores; on em_cell1_v8p (2,696 pores)
+      # it overlaps the new NPCs (pre-build check: 2,511 lamina-NPC overlap pairs on the 300 sampled tiles). The rebuilt
+      # lattice (same builder and seed, pore exclusion on the package pores) is used; compare_frozen.json still written.
+      # Inventory rule L3 keeps the frozen v7 lamina consumption (inv_lamina_consumption_v7; the rebuilt lattice consumes
+      # ~2.6 % more lamins: the pack takes them from the lamina key, clipped at 0).
+      mode: build                  # build | frozen; the rebuild is always run and compared (B5): see preplaced/lamina/compare_frozen.json
+      rebuild_check: true
+      builder: lamina_lattice
+      seed_stream: prepass.lamina  # legacy seed 20261112 (seeds.legacy); stream name kept at A0c
+      params: {genes: [LMNB1, LMNB2, LMNA], inventory_key: lamina, patch_nm: 500.0, pore_x_nm: 80.0, pore_z_nm: 150.0,
+               lat_f: 1.0, priority: chromatin}      # logs/v7_full2.sh: LAMINA_PRIORITY=chromatin
+      inputs: {chromatin: "module:chromatin", table: "build:inventory/rules/jurkat.v6/ingredients.tsv", ne_mesh: "layer:ne_mesh"}
+      frozen: {npz: pre_lamina_v7, json: pre_lamina_v7_json, drop_json: pre_chromatin_drop_lamina_v7}
+      drops_target: chromatin
+    - {name: mrna, kind: beads, mode: serial, npz: "build:preplaced/serial/modules/mrna.npz"}
+    - {name: mrna_nuclear, kind: beads, mode: serial, npz: "build:preplaced/serial/modules/mrna_nuclear.npz"}
+    - {name: mtdna, kind: beads, mode: serial, npz: "build:preplaced/serial/modules/mtdna.npz"}
+    - {name: mrna_nascent, kind: beads, mode: frozen, npz: pre_mrna_nascent_v8, depends_on_geometry: jurkat/em_cell1_v8r}   # B6b: labels outside the mitochondria identical to v8p
+
+# --- pack (owner: pack) ---
+pack:
+  # legacy jwc.py / jpack_test.py constants and JWC_* switches (v7 values)
+  tile_nm: 500.0                   # TILE
+  vox_nm: 4.0                      # VOX: volume seed voxels
+  mesh_h_nm: 8.0                   # MESH_H: marching-cubes spacing of the packing meshes
+  meas_h_nm: 8.0                   # MEAS_H: tile measures
+  halo_nm: 40.0                    # HALO
+  tile_keep_half_diag_f: 0.87      # keep tiles whose centre is deeper than -f x TILE below the cell surface
+  max_tries: 200                   # JWC_MAX_TRIES
+  give_up: 25                      # JWC_GIVE_UP
+  thin_try_f: 10.0                 # JWC_THIN_TRY_F (v7)
+  thin_giveup_f: 16.0              # JWC_THIN_GIVEUP_F (v7)
+  seed_prune: false                # JWC_SEED_PRUNE
+  lumen_align: true                # not JWC_NO_LUMEN_ALIGN
+  shell_area_factor: true          # not JWC_GOLGI_SHELL_FULL (v6+: shells of an area-factor membrane at the modelled share)
+  mrna_mean: 1500.0                # pack_tile argument (procedural mRNA off in jwc)
+  numba_threads: 8                 # counts/index steps (tiles/pack workers are single-threaded)
+  thin_lumens: {ER_lumen: ER, golgi_lumen: GOLGI, perinuclear: NE, matrix: MITO_IM}   # LUMEN_MEM (+ JWC_MATRIX_THIN=1)
+  regions:                         # = jpack_test.RNAMES_V7 (index = job_region id)
+    - {name: cytosol, kind: volume, labels: [cytosol]}
+    - {name: nucleoplasm, kind: volume, labels: [nucleoplasm]}
+    - {name: matrix, kind: volume, labels: [mito_matrix]}
+    - {name: ER_lumen, kind: volume, labels: [er_lumen]}
+    - {name: golgi_lumen, kind: volume, labels: [golgi_lumen]}
+    - {name: endo_lumen, kind: volume, labels: [endolysosome_lumen]}
+    - {name: perinuclear, kind: volume, labels: [perinuclear_space]}
+    - {name: nucleolus, kind: volume, labels: [nucleolus]}
+    - {name: speckle, kind: volume, labels: [nuclear_speck]}
+    - {name: mt_lattice, kind: virtual, labels: [cytosol], provider: cyto_v7, select: mt_lattice}
+    - {name: mt_plus, kind: virtual, labels: [cytosol], provider: cyto_v7, select: mt_plus}
+    - {name: pcm, kind: virtual, labels: [cytosol], provider: cyto_v7, select: pcm}
+    - {name: vim_cage, kind: virtual, labels: [cytosol], provider: cyto_v7, select: vim_cage}
+    - {name: PM, kind: membrane, membrane: PM}
+    - {name: NE, kind: membrane, membrane: NE}
+    - {name: ER, kind: membrane, membrane: ER}
+    - {name: MITO_OM, kind: membrane, membrane: MITO_OM}
+    - {name: MITO_IM, kind: membrane, membrane: MITO_IM}
+    - {name: GOLGI, kind: membrane, membrane: GOLGI}
+    - {name: ENDO, kind: membrane, membrane: ENDO}
+    # shells: d1 (+ MEM_HALF of the membrane if d1_mem_half) nm from the midsurface; add_radius: + library bounding radius
+    - {name: sh_PM_cyto, kind: shell, membrane: PM, labels: [cytosol], side: 1, d0: 0, d1: 2.0, d1_mem_half: true, add_radius: true}
+    - {name: sh_PM_exo, kind: shell, membrane: PM, labels: [exterior], side: -1, d0: 0, d1: 2.0, d1_mem_half: true, add_radius: true}
+    - {name: sh_PM_cortex, kind: shell, membrane: PM, labels: [cytosol], side: 1, d0: 0, d1: 150.0, d1_mem_half: false, add_radius: false}
+    - {name: sh_NE_lamina, kind: shell, membrane: NE, labels: [nucleoplasm], side: 1, d0: 0, d1: 25.0, d1_mem_half: true, add_radius: false}
+    - {name: sh_NE_nuc, kind: shell, membrane: NE, labels: [nucleoplasm], side: 1, d0: 0, d1: 2.0, d1_mem_half: true, add_radius: true}
+    - {name: sh_ER_cyto, kind: shell, membrane: ER, labels: [cytosol], side: 1, d0: 0, d1: 2.0, d1_mem_half: true, add_radius: true}
+    - {name: sh_ER_lumen, kind: shell, membrane: ER, labels: [er_lumen], side: -1, d0: 0, d1: 2.0, d1_mem_half: true, add_radius: true}
+    - {name: sh_GOLGI_cyto, kind: shell, membrane: GOLGI, labels: [cytosol, golgi_intercisternal], side: 1, d0: 0, d1: 2.0, d1_mem_half: true, add_radius: true}
+    - {name: sh_GOLGI_lumen, kind: shell, membrane: GOLGI, labels: [golgi_lumen], side: -1, d0: 0, d1: 2.0, d1_mem_half: true, add_radius: true}
+    - {name: sh_ENDO_cyto, kind: shell, membrane: ENDO, labels: [cytosol], side: 1, d0: 0, d1: 8.0, d1_mem_half: true, add_radius: true}   # ENDO_AH (v7)
+    - {name: sh_ENDO_lumen, kind: shell, membrane: ENDO, labels: [endolysosome_lumen], side: -1, d0: 0, d1: 2.0, d1_mem_half: true, add_radius: true}
+    - {name: sh_OM_cyto, kind: shell, membrane: MITO_OM, labels: [cytosol], side: 1, d0: 0, d1: 2.0, d1_mem_half: true, add_radius: true}
+    - {name: sh_NPC, kind: shell, membrane: NE, labels: [cytosol, nucleoplasm], side: 1, d0: 0, d1: 100.0, d1_mem_half: true, add_radius: true, pore_limit_nm: 200}   # NPC_D, NPC_LAT
+    - {name: sh_PM_periph, kind: shell, membrane: PM, labels: [cytosol], side: 1, d0: 0, d1: 20.0, d1_mem_half: true, add_radius: true}   # PERIPH_D
+    - {name: sh_ENDO_periph, kind: shell, membrane: ENDO, labels: [cytosol], side: 1, d0: 0, d1: 20.0, d1_mem_half: true, add_radius: true}
+    - {name: sh_GOLGI_periph, kind: shell, membrane: GOLGI, labels: [cytosol, golgi_intercisternal], side: 1, d0: 0, d1: 20.0, d1_mem_half: true, add_radius: true}
+    - {name: sh_NPC_fg, kind: shell, membrane: NE, labels: [nuclear_pore_channel, cytosol, nucleoplasm], side: 1, d0: 0, d1: 100.0, d1_mem_half: true, add_radius: true, pore_limit_nm: 25}   # NPC_FG_LAT
+  virtual_providers:
+    - id: cyto_v7
+      plugin: jurkat.cytoskeleton_v7
+      params: {band_nm: [14.0, 26.0], plus_l_nm: 400.0, plus_min_l_nm: 1000.0, r_pcm_nm: 400.0, vim_d_nm: 300.0}
+      inputs: {mt_centerlines: "layer:mt_traces", cytoskeleton_json: "layer:centrosome", ne_mesh: "layer:ne_mesh"}
+  region_map_default: {soluble: cytosol, tm: ER}
+  region_map:                      # localisation key -> region (= jpack_test.SOL / TMR with the v7 updates)
+    cytosol: {soluble: cytosol, tm: ER}
+    cytoskeleton: {soluble: cytosol, tm: ER}
+    peroxisome: {soluble: cytosol, tm: ER}
+    lipid_droplet: {soluble: cytosol, tm: ER}
+    unassigned: {soluble: cytosol, tm: ER}
+    plasma_membrane: {soluble: cytosol, tm: PM}
+    nucleus: {soluble: nucleoplasm, tm: NE}
+    nuclear_envelope: {soluble: nucleoplasm, tm: NE}
+    mitochondrion: {soluble: matrix, tm: MITO_IM}
+    er: {soluble: ER_lumen, tm: ER}
+    secreted: {soluble: ER_lumen, tm: ER}
+    golgi: {soluble: golgi_lumen, tm: GOLGI}
+    endolysosomal: {soluble: endo_lumen, tm: ENDO}
+    nucleolus: {soluble: nucleolus, tm: NE}
+    pm_anchor_cyto: {soluble: sh_PM_cyto, tm: PM}
+    pm_anchor_exo: {soluble: sh_PM_exo, tm: PM}
+    cortex: {soluble: sh_PM_cortex, tm: PM}
+    lamina: {soluble: sh_NE_lamina, tm: NE}
+    ne_anchor_nuc: {soluble: sh_NE_nuc, tm: NE}
+    er_anchor_cyto: {soluble: sh_ER_cyto, tm: ER}
+    er_anchor_lumen: {soluble: sh_ER_lumen, tm: ER}
+    golgi_anchor_cyto: {soluble: sh_GOLGI_cyto, tm: GOLGI}
+    golgi_anchor_lumen: {soluble: sh_GOLGI_lumen, tm: GOLGI}
+    endo_anchor_cyto: {soluble: sh_ENDO_cyto, tm: ENDO}
+    endo_anchor_lumen: {soluble: sh_ENDO_lumen, tm: ENDO}
+    om_anchor_cyto: {soluble: sh_OM_cyto, tm: MITO_IM}
+    speckle: {soluble: speckle, tm: NE}
+    npc: {soluble: sh_NPC, tm: NE}
+    pm_periph_cyto: {soluble: sh_PM_periph, tm: PM}
+    endo_periph_cyto: {soluble: sh_ENDO_periph, tm: ENDO}
+    golgi_periph_cyto: {soluble: sh_GOLGI_periph, tm: GOLGI}
+    mt_lattice: {soluble: mt_lattice, tm: ER}
+    mt_plus: {soluble: mt_plus, tm: ER}
+    pcm: {soluble: pcm, tm: ER}
+    vim_cage: {soluble: vim_cage, tm: ER}
+    npc_fg: {soluble: sh_NPC_fg, tm: NE}
+  mapping_rules:                   # applied in order after the map (generic; jwc.step_counts)
+    tm: [{if_region: MITO_IM, column: mito_om_frac, op: ge, value: 0.5, to: MITO_OM}]                   # OM vs IM
+    soluble: [{if_region_in: [ER_lumen, golgi_lumen, endo_lumen], column: signal_frac, op: lt, value: 0.5, to: cytosol}]   # signal-peptide lumen rule
+  area_factors:                    # inventory membrane area / modelled area (CRISTAE_F, GOLGI_STACK_F; measured when built)
+    - {membrane: MITO_IM, factor: 3.0, measured: {when_flag: G_CRISTAE, mode: ref_membrane, ref: MITO_OM}}
+    - {membrane: GOLGI, factor: 4.5, measured: {when_flag: G_GOLGI_CIS, mode: summary_area_um2, key: [golgi, area_um2]}}
+  open_face: {when_flag: G_FACE, summary_key: open_face, membranes: [PM]}   # f_pm for PM + PM shells, f_vol otherwise
+  index_drops:                     # pre-pass instances dropped at indexing (jwc.step_index)
+    - {name: open_face_cortical_actin, libs: [F_ACTB], when_flag: G_FACE, mode: face_band, z_above_face_nm: 160.0, membrane: PM, min_sdf_nm: 150.0}   # FACE_ACTIN
+    - {name: speckle_chromatin, libs: [NUCLEOSOME], lib_prefixes: ["H1-"], when_flag: G_SPECKLE, mode: g_spheres, section_slot: G_SPECKLE}
+    # B6 (criteria C3): frozen pre-placed instances whose centre lies in the NE lumen of em_cell1_v8 (cytosolic items
+    # within ~25 nm outside the NE midsurface, where the v7 ne_mid defect put cytosol)
+    - {name: ne_lumen_b6, lib_prefixes: [""], mode: inside_labels, labels: [perinuclear_space]}
+
+# --- validate (owner: validate) ---
+validate:
+  nproc: 8
+  steps: {}                          # <step>: false disables a step (it then writes <step>.skipped.json)
+  inputs:                            # the build's pack inputs used by validation, if no preplaced/preplaced_manifest.json names them
+    polysomes: "{data_root}/data/derived/prepass_v7/polysomes_cell1.npz"
+    mrna: "{data_root}/data/derived/prepass/mrna_cell1.npz"
+    mrna_nascent: "{data_root}/data/derived/chromatin/v8/prepass/mrna_nascent_cell1.npz"
+  densities:
+    default_region: cytosol
+    virtual_to: cytosol              # virtual regions are cytosol voxels (volumes overlap)
+    shell_to_volume:                 # shells add their mass to the volume region they occupy (sh_PM_exo: extracellular, not counted)
+      sh_PM_cyto: cytosol
+      sh_PM_cortex: cytosol
+      sh_NE_lamina: nucleoplasm
+      sh_NE_nuc: nucleoplasm
+      sh_ER_cyto: cytosol
+      sh_ER_lumen: ER_lumen
+      sh_GOLGI_cyto: cytosol
+      sh_GOLGI_lumen: golgi_lumen
+      sh_ENDO_cyto: cytosol
+      sh_ENDO_lumen: endo_lumen
+      sh_OM_cyto: cytosol
+      sh_PM_periph: cytosol
+      sh_ENDO_periph: cytosol
+      sh_GOLGI_periph: cytosol
+    shell_split:                     # NPC shells sit on both NE faces
+      sh_NPC: {cytosol: 0.5, nucleoplasm: 0.5}
+      sh_NPC_fg: {cytosol: 0.5, nucleoplasm: 0.5}
+    preplaced_volume:                # pre-pass library (fnmatch pattern) -> volume region; others -> default_region
+      NUCLEOSOME: nucleoplasm
+      "H1-*": nucleoplasm
+      CPX-2387: nucleoplasm
+      CTCF: nucleoplasm
+      CPX-5989: nucleoplasm
+      CPX-5991: nucleoplasm
+      LMNB1: nucleoplasm
+      LMNB2: nucleoplasm
+      LMNA: nucleoplasm
+    nucleus_group: [nucleoplasm, nucleolus, speckle]
+    ratio_denominator: cytosol
+    mrna_sources:                    # RNA mass = sum of thread nt x 330 Da per source (the build's own inputs)
+      - {input: mrna, region: cytosol}
+      - {input: mrna_nascent, region: nucleoplasm}
+  crowding:
+    regions: [cytosol, nucleoplasm, matrix, ER_lumen]
+    n_boxes: 4
+    box: 150.0
+    vox: 0.5
+    margin: 25.0
+    probes: [0.0, 1.0, 1.6, 2.3, 3.0]
+    legacy_seeds: true               # box choice seed 1, calibration seed 0, walk seed = tile id (as the v7 run)
+  loc_compare:
+    vocab: "{repo}/config/validate/loc_vocab_human.yaml"
+    cell_line: JURKAT
+    references:                      # frozen inputs (val_*)
+      hpa_consensus: val_hpa_subcellular
+      uniprot: val_uniprot_human
+      opencell: val_opencell
+      hpa_celllines: val_hpa_celllines
+      holdout_genes: val_loc_holdout_genes
+      fit_genes: val_loc_fit_genes
+    holdout_exclude: [CD3E, CD3D]    # DECISION Pedro 2026-11-10: rule R4b was motivated by their held-out disagreement
+    clean_sets: [opencell, hpa_jurkat_holdout_half]
+    families: [H2A, H2B, H3, H4]     # pack-table gene tokens expanded to inventory members (copies-weighted)
+    family_regex: '^{f}(C|-)\d'
+    fractionation_source_tag: itzhak
+    soluble_default: cytosol
+    tm_default: ER
+    lumen_rule: {regions: [ER_lumen, golgi_lumen, endo_lumen], field: signal_frac, min: 0.5, else: cytosol}
+    tm_override: {MITO_IM: {field: mito_om_frac, min: 0.5, region: MITO_OM}}
+    consumed_key: {LMNB1: lamina, LMNB2: lamina, LMNA: lamina}   # pre-pass consumption taken from this key only
+    pm_regions: [PM, sh_PM_cyto, sh_PM_exo, sh_PM_cortex, sh_PM_periph]
+    preplaced_ingredient: {NUCLEOSOME: NUCLEOSOME, NPC: NPC, RIBO80S: RIBO80S, MT_TUBA1B-TUBB4B: TUBA1B-TUBB4B, F_ACTB: ACTB, CPX-6151: CPX-6151}
+    preplaced_region:                # pre-pass library (fnmatch) -> region for localisation; others cytosol
+      F_ACTB: sh_PM_cortex
+      LMNB1: sh_NE_lamina
+      LMNB2: sh_NE_lamina
+      LMNA: sh_NE_lamina
+      CPX-2387: nucleoplasm
+      CTCF: nucleoplasm
+      CPX-5989: nucleoplasm
+      CPX-5991: nucleoplasm
+      NUCLEOSOME: nucleoplasm
+      "H1-*": nucleoplasm
+      NPC: NE
+      CPX-6151: MITO_IM              # ATP synthase dimer rows (B4)
+    preplaced_region_default: cytosol
+    reg2comp:                        # model region -> comparison compartment (light-microscopy resolution)
+      cytosol: cytosol
+      nucleoplasm: nucleus
+      matrix: mito
+      ER_lumen: ER
+      golgi_lumen: golgi
+      endo_lumen: endolysosomal
+      perinuclear: NE
+      PM: PM
+      NE: NE
+      ER: ER
+      MITO_OM: mito
+      MITO_IM: mito
+      GOLGI: golgi
+      ENDO: endolysosomal
+      nucleolus: nucleus
+      sh_PM_cyto: PM
+      sh_PM_exo: PM
+      sh_PM_cortex: PM
+      sh_NE_lamina: NE
+      sh_NE_nuc: NE
+      sh_ER_cyto: ER
+      sh_ER_lumen: ER
+      sh_GOLGI_cyto: golgi
+      sh_GOLGI_lumen: golgi
+      sh_ENDO_cyto: endolysosomal
+      sh_ENDO_lumen: endolysosomal
+      sh_OM_cyto: mito
+      speckle: nucleus
+      sh_NPC: NE
+      sh_PM_periph: PM
+      sh_ENDO_periph: endolysosomal
+      sh_GOLGI_periph: golgi
+      mt_lattice: cytosol
+      mt_plus: cytosol
+      pcm: cytosol
+      vim_cage: cytosol
+      sh_NPC_fg: NE
+    src2comp:                        # inventory localisation key -> comparison compartment (null: pre-pass region decides)
+      plasma_membrane: PM
+      golgi: golgi
+      er: ER
+      endolysosomal: endolysosomal
+      nuclear_envelope: NE
+      mitochondrion: mito
+      nucleus: nucleus
+      cytosol: cytosol
+      cytoskeleton: cytosol
+      unassigned: cytosol
+      peroxisome: cytosol
+      lipid_droplet: cytosol
+      secreted: secretory
+      prepass: null
+    mapping_descriptions:
+      PM: "PM (TM) | soluble -> cytosol"
+      cytosol: cytosol
+      nucleus: "nucleoplasm (no nucleolus compartment)"
+      NE: "NE membrane (TM) | perinuclear lumen | soluble -> nucleoplasm"
+      ER: "ER membrane (TM) | ER_lumen (signal peptide) | else cytosol"
+      mito: "MITO_OM / MITO_IM (TM) | matrix"
+      golgi: "GOLGI membrane (TM) | golgi_lumen (signal peptide) | else cytosol"
+      endolysosomal: "ENDO membrane (TM) | endo_lumen (signal peptide) | else cytosol"
+      secretory: "no compartment: supports ER/golgi/endolysosomal/PM (model: ER_lumen)"
+      anymem: "supports any membrane compartment"
+    leakage_notes:
+      - "HPA consensus locations pool all imaged lines incl. JURKAT and the inventory used them: HPA-JURKAT agreement is partly circular."
+      - "OpenCell was never used by the inventory. Clean hold-outs: opencell and hpa_jurkat_holdout_half."
+      - "CD3E and CD3D are excluded from every hold-out set (rule R4b, DECISION Pedro 2026-11-10)."
+  ribosome_nn:
+    em_input: val_ribo_em
+    em_filter_eq: {cell2: 1}
+    em_filter_not_in: {cls: [2]}     # nuclear class skipped
+    em_voxel_nm: [4.0, 4.0, 3.44]
+    em_label: "EM (cell 1, non-nuclear)"
+    legacy_seeds: true
+    packed_lib: RIBO80S              # + packed 80S row (criteria V7)
+  placement:
+    n_tiles: 300
+    clash_nm: 0.5
+    grid_nm: 6.0
+    membrane_tol_nm: 0.5
+    shell_tol_nm: 0.5
+    pore_axial_nm: 150.0
+    min_req: 100
+    mrna: true
+  chromatin:
+    preplaced_input: val_chromatin_rep5
+    expected_md5: cd4c3b4c88ba1348d3df12b30370cd24
+    metric_inputs: [val_chromatin_v8_metrics, val_chromatin_v8_metrics_table, val_chromatin_s1_em, val_chromatin_s1_lit,
+                    val_chromatin_s1_dapi, val_chromatin_genomic]
+    headline:
+      "EM voxel r, sigma 250 nm": "voxel corr EM vs model, sigma 250 nm"
+      "EM radial rho 0-100 nm": "EM radial rho 0-100 nm"
+      "radial-profile corr with EM": "radial-profile corr with EM"
+      "P(s) slope 100 kb-3 Mb": "P(s) slope 100 kb-3 Mb (rc 150 nm)"
+  compare_reference:                 # the archived legacy v7 pack (read-only) and the ported validation run on it
+    name: v7
+    legacy_pipeline_dir: "{data_root}/jurkat/yc/pipeline"
+    validate_dir: "{results_root}/jurkat/_v7_reference/validate"
+    criteria_doc: "{repo}/docs/reference/history/v7_reproduction_criteria.md"
+    files:
+      tiles_dir: "{data_root}/data/derived/wc/tiles_v7"
+      tiles_parquet: "{data_root}/data/derived/wc/tiles_v7.parquet"
+      tiles_meta: "{data_root}/data/derived/wc/tiles_meta_v7.json"
+      counts: "{data_root}/data/derived/wc/counts.npz"
+      libs: "{data_root}/data/derived/wc/libs_v7.json"
+      summary: "{data_root}/data/derived/wc/summary_v7.json"
+      preplaced_types: "{data_root}/data/derived/wc/prepass_types.npy"
+      preplaced_pos: "{data_root}/data/derived/wc/prepass_pos.npy"
+      preplaced_quat: "{data_root}/data/derived/wc/prepass_quat.npy"
+      preplaced_off: "{data_root}/data/derived/wc/prepass_off.npy"
+      preplaced_libs: "{data_root}/data/derived/wc/prepass_libs.json"
+      mrna_pts: "{data_root}/data/derived/wc/mrna_pts.npy"
+      mrna_off: "{data_root}/data/derived/wc/mrna_off.npy"
+      mrna_meta: "{data_root}/data/derived/wc/mrna_meta.json"
+      pack_table: "{data_root}/data/derived/ingredients_v7.tsv"
+      inventory_v0: "{data_root}/data/derived/inventory_v0.tsv"
+      geom: "{data_root}/data/derived/jgeom_cell1_v7.npz"
+      lib_dir: "{data_root}/jurkat/yc/pipeline/lib"
+      regions_json: "{results_root}/jurkat/_v7_reference/validate/regions_v7_legacy.json"
+      polysomes: "{data_root}/data/derived/prepass_v7/polysomes_cell1.npz"
+      mrna: "{data_root}/data/derived/prepass/mrna_cell1.npz"
+      mrna_nascent: "{data_root}/data/derived/chromatin/v8/prepass/mrna_nascent_cell1.npz"
+      lamina: "{data_root}/data/derived/prepass_v7/lamina_cell1.npz"
+    expected_md5:
+      summary: 6da1e0ee0c9ad985880e44bfdadf0115
+      pack_table: d1a0099caad792d0ba42cbc52b52f0a5
+    expected_totals: {instances: 880040974, placed_pg: 87.72, mass_frac: 0.964}
+    stored_validation:               # legacy validation files of v7 (code check, criteria section 4)
+      densities: "{data_root}/data/derived/validation/densities_v7.json"
+      crowding: "{data_root}/data/derived/validation/crowding_v7.json"
+      loc_holdout: "{data_root}/data/derived/validation/loc_holdout_v7.json"
+      loc_compare: "{data_root}/data/derived/validation/loc_compare_v7.tsv"
+      ribosome_nn: "{data_root}/data/derived/validation/ribosome_nn_v7.json"
+    port_files:                      # port build paths (relative to the build) of artefacts outside pack/
+      lamina: preplaced/lamina_cell1.npz
+      geometry_validation: geometry/validation.json
+      inventory_compare: inventory/compare_legacy.json
+    inventory_pairs: {}              # {port relpath: legacy path} for B4 when the inventory stage writes no compare table
+  suite:                             # common validation suite (plan s4, A8; docs/stages/validation.md)
+    version: v7                      # localisation version label of this build (C2 row cross-checked against C1)
+    across_versions: "{data_root}/data/derived/v8/imaging_eval/annot_by_version.tsv"   # C2: legacy imaging_across_versions.py annot table
+    seam: {region: cytosol, min_frac: 0.95, n_tiles: 300, seed: 0}
+    image_nc:                        # C3 (A8 phase 2): legacy Tier-2 per-gene table of the v7 pack (HPA JURKAT ICC images vs
+                                     # 'expected' model images, jurkat/validate/tier2.py); metric computed by the suite
+      table: "{data_root}/data/derived/validation/tier2_v7.tsv"
+      measured: nc_hpa               # log2(mean nucleus interior / mean cytoplasm interior), HPA JURKAT cells
+      model: nc_model                # same measure on the rendered model images (expected mode)
+      split: split                   # fit / holdout (frozen halves of the HPA JURKAT genes)
+      splits: [holdout, all]
+      test: holdout
+      legacy_json: "{data_root}/data/derived/validation/tier2_v7.json"
+      legacy_keys: {all: sets/all/expected/nc/spearman}
+      legacy_note: "tier2_v7.json rounds to 3 decimals"
+      note: "model: rendered model images (Tier-2 'expected' mode) of the v7 pack; image: HPA JURKAT ICC"
+    copies_reference_na: >-
+      no second Jurkat absolute proteome on disk: the inventory uses Geiger 2012 (PaxDb Jurkat sets derive from it);
+      Rieckmann 2017 (primary immune cells) and Kim 2014 (adult CD4/CD8 T cells) are other cell types (not wired)
+    proximity_na: >-
+      no BioPlex / OpenCell interactome on disk (BioGRID 5.0.263 human, IntAct and STRING v12 are) and no Jurkat
+      neighbour-enrichment code: the common contact counting comes with BD v2 (plan s6.1)
+    extras_na:
+      - {metric: jurkat.fluorescence_panels, kind: not ported, reason: "fluor.py panels (V8) not ported to the core"}
+      - {metric: jurkat.galleries, kind: not ported, reason: "image galleries (V8) not ported to the core"}
+      - {metric: jurkat.image_compartment_shares_v8, kind: phase 3, reason: "v8 imaging 1 - TVD (C4) not wired"}
+    reference:                       # no-regression reference build (plan s5) and its suite output (A8: run into _dev_unify)
+      build: "{results_root}/jurkat/20261115-ec0b403-s20261115-v7repro2"
+      suite: "{results_root}/jurkat/_dev_unify/a8p2/20261115-ec0b403-s20261115-v7repro2/suite.json"
+
+# --- export (owner: validate/export) ---
+export:
+  cell_type: "T lymphocyte (leukaemia line E6-1)"
+  state: "resting, cell 1 of jrc_jurkat-1"
+  status: preview
+  data_base: "./"                    # relative to the registry; the deploy script sets the hosted URL ({cell_id}/{build_id} allowed)
+  licence: {data: CC-BY-4.0}
+  default_bookmark: Whole cell
+  tiles: {enabled: false, tile_nm: 200, block_tiles: 5, q_org_nm: 80, q_range_nm: 360, shard_max_mb: 45}   # optional target
+  preplaced_groups:                  # pre-pass libraries -> viewer region groups (ids after pack.regions)
+    chromatin: [NUCLEOSOME, "H1-*", CPX-2387, CTCF, CPX-5989, CPX-5991]
+    polysomes: [RIBO80S]
+    cytoskeleton: [MT_*, F_ACTB]
+    npc: [NPC]
+    lamina: [LMNB1, LMNB2, LMNA]
+    atp_synthase: [CPX-6151]         # B4: ATP synthase dimer rows on the cristae rims
+  regions:                           # display data (legacy jenc.region_map: virtual regions shown as cytosol, NPC channel as NPC)
+    mt_lattice: {display_as: cytosol}
+    mt_plus: {display_as: cytosol}
+    pcm: {display_as: cytosol}
+    vim_cage: {display_as: cytosol}
+    sh_NPC_fg: {display_as: sh_NPC}
+  sim_defaults: {temperature_K: 310.15, viscosity_Pa_s: 6.9e-4, ionic_strength_M: 0.15}
+
+# --- frozen inputs: name -> {path, md5|sha256, origin, why}. Prefix names by stage: geom_*, inv_*, lib_*, pre_*, val_* ---
+frozen_inputs:
+  geom_jgeom_v7:
+    path: "{data_root}/data/derived/jgeom_cell1_v7.npz"
+    md5: 0eea64ff4e8ea430a8027ae2f522baec
+    origin: "jgeom_build + jcristae + jface_cap + jspeckles + jgolgi + jgolgi_ribbon + jspeckles(v8), in place"
+    why: "source of geometry package jurkat/em_cell1_v7 (toolkits/em/convert_legacy.py) and reference of criterion B1"
+  inv_legacy_complexes_v0:
+    path: "{data_root}/data/derived/complexes_v0.tsv"
+    md5: 0c95b67246b26e85407f5e6989d2317e
+    why: "ORDER/TIE REFERENCE: legacy complexes table; only its best_pdb is read, to break equal-coverage PDB ties as the legacy run did"
+    kind: reference
+    url: ""
+    version: "legacy 2026-11-08 21:55"
+    licence: "derived"
+    redistributable: yes
+  inv_legacy_ingredients_v7:
+    path: "{data_root}/data/derived/ingredients_v7.tsv"
+    md5: d1a0099caad792d0ba42cbc52b52f0a5
+    why: "ORDER REFERENCE: legacy v7 ingredient table; only its row order and comp_weights key order are borrowed (pack_table step)"
+    kind: reference
+    url: ""
+    version: "legacy v7 2026-11-10 21:29"
+    licence: "derived"
+    redistributable: yes
+  inv_rna_hpa:
+    path: "{data_root}/data/transcriptomics/hpa/hpa_v_rna_celline_Jurkat.tsv"
+    md5: 919631879532cffdeaa94346bc8d52f6
+    why: "HPA v25 RNA cell-line TPM (Jurkat rows)"
+    kind: rna
+    url: "https://www.proteinatlas.org/download/rna_celline.tsv.zip"
+    version: "HPA v25"
+    licence: "CC BY-SA 4.0"
+    redistributable: yes
+  inv_rna_emtab2706:
+    path: "{data_root}/data/transcriptomics/expression_atlas_E-MTAB-2706/E-MTAB-2706_Jurkat_tpm.tsv"
+    md5: 3f7c37c73bd3c155520f8ab1530efcc8
+    why: "Expression Atlas E-MTAB-2706 Jurkat TPM"
+    kind: rna
+    url: "https://www.ebi.ac.uk/gxa/experiments/E-MTAB-2706"
+    version: "E-MTAB-2706"
+    licence: "EMBL-EBI terms (open)"
+    redistributable: yes
+  inv_rna_gse276689_rep1:
+    path: "{data_root}/data/transcriptomics/geo_GSE276689/GSM8504150_J_RNA-seq_rep1.genes.RSEM_expres.txt.gz"
+    md5: b945ea71e68f1d07ab9d2d8dc27bcf6a
+    why: "GEO GSE276689 RSEM rep1"
+    kind: rna
+    url: "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE276689"
+    version: "GSM8504150"
+    licence: "GEO (public)"
+    redistributable: yes
+  inv_rna_gse276689_rep2:
+    path: "{data_root}/data/transcriptomics/geo_GSE276689/GSM8504151_J_RNA-seq_rep2.genes.RSEM_expres.txt.gz"
+    md5: 5cbade92c863c5bd5f2b7aed150b6017
+    why: "GEO GSE276689 RSEM rep2"
+    kind: rna
+    url: "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE276689"
+    version: "GSM8504151"
+    licence: "GEO (public)"
+    redistributable: yes
+  inv_rna_gse145453_a1:
+    path: "{data_root}/data/transcriptomics/geo_GSE145453/GSM4318505_FEL3610A1_featureCount_Dup.txt.gz"
+    md5: 5540a7df718879d32bb15fc883844419
+    why: "GEO GSE145453 featureCounts A1"
+    kind: rna
+    url: "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE145453"
+    version: "GSM4318505"
+    licence: "GEO (public)"
+    redistributable: yes
+  inv_rna_gse145453_a2:
+    path: "{data_root}/data/transcriptomics/geo_GSE145453/GSM4318506_FEL3610A2_featureCount_Dup.txt.gz"
+    md5: 58e3ca37148cb9d6caea32b089290d75
+    why: "GEO GSE145453 featureCounts A2"
+    kind: rna
+    url: "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE145453"
+    version: "GSM4318506"
+    licence: "GEO (public)"
+    redistributable: yes
+  inv_rna_gse301789:
+    path: "{data_root}/data/transcriptomics/geo_GSE301789/GSM9089802_Jur_WT_CD3_ACT_vs_Jur_WT_CD3_CT.deseq2.annotation.txt.gz"
+    md5: f34aaf7e93e52a2b4c64c6ea8c015a36
+    why: "GEO GSE301789 DESeq2 annotation (WT CT TPM)"
+    kind: rna
+    url: "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE301789"
+    version: "GSM9089802"
+    licence: "GEO (public)"
+    redistributable: yes
+  inv_uniprot_reviewed:
+    path: "{data_root}/data/reference/uniprot_human_reviewed.tsv.gz"
+    md5: 3d684fede3c1971b33c48842ad262792
+    why: "UniProt human reviewed (2026-11-07)"
+    kind: annotation
+    url: "https://rest.uniprot.org/uniprotkb/stream?query=organism_id:9606+AND+reviewed:true"
+    version: "2026-11-07"
+    licence: "CC BY 4.0"
+    redistributable: yes
+  inv_uniprot_full:
+    path: "{data_root}/data/reference/uniprot_human_full.tsv.gz"
+    md5: 5dcff1915004d4042433cddaa1bfdd7a
+    why: "UniProt human full dump (2026-11-07)"
+    kind: annotation
+    url: "https://rest.uniprot.org/uniprotkb/stream?query=organism_id:9606"
+    version: "2026-11-07"
+    licence: "CC BY 4.0"
+    redistributable: yes
+  inv_uniprot_domains:
+    path: "{data_root}/data/reference/uniprot_human_domains.tsv.gz"
+    md5: 51a49017038b345e4aef13b945fea95b
+    why: "UniProt human InterPro/GO/keywords (2026-11-10)"
+    kind: annotation
+    url: "https://rest.uniprot.org/uniprotkb/stream?query=organism_id:9606+AND+reviewed:true"
+    version: "2026-11-10"
+    licence: "CC BY 4.0"
+    redistributable: yes
+  inv_geiger2012_pg:
+    path: "{data_root}/data/proteomics/geiger2012_PXD002395/proteinGroups_Geiger_MCP_2012_ppb.txt"
+    md5: 3fd0cffb252b8aa77b5cd00a36c654cc
+    why: "Geiger 2012 Jurkat iBAQ (E-PROT-20 linear ppb protein groups)"
+    kind: proteome
+    url: "https://www.ebi.ac.uk/gxa/experiments/E-PROT-20 (PXD002395)"
+    version: "Geiger 2012 MCP, E-PROT-20 reprocessing"
+    licence: "EMBL-EBI terms (open)"
+    redistributable: yes
+  inv_hpa_subcellular:
+    path: "{data_root}/data/reference/hpa_subcellular/subcellular_location.tsv"
+    md5: 9020670544e3ca4c473a995fdc0040ca
+    why: "HPA v25 subcellular location consensus"
+    kind: localisation
+    url: "https://www.proteinatlas.org/download/subcellular_location.tsv.zip"
+    version: "HPA v25"
+    licence: "CC BY-SA 4.0"
+    redistributable: yes
+  inv_itzhak2016:
+    path: "{data_root}/data/literature/localisation/itzhak2016_partition.tsv"
+    md5: 739169698275b1a32424adb88fbd9e0d
+    why: "Itzhak 2016 HeLa nuclear/cytosol partition"
+    kind: localisation
+    url: "https://doi.org/10.7554/eLife.16950"
+    version: "Itzhak 2016 eLife (HeLa)"
+    licence: "CC BY 4.0"
+    redistributable: yes
+  inv_complex_portal:
+    path: "{data_root}/data/complexes/complex_portal/9606.tsv"
+    md5: 9998d50506c83e4e423d02873eb59ad3
+    why: "Complex Portal human (2026-10-17)"
+    kind: assembly
+    url: "https://ftp.ebi.ac.uk/pub/databases/intact/complex/current/complextab/9606.tsv"
+    version: "2026-10-17"
+    licence: "CC0"
+    redistributable: yes
+  inv_sifts:
+    path: "{data_root}/data/structures/pdb/sifts/pdb_chain_uniprot.tsv.gz"
+    md5: e57ffdf1c227c8d4d194c7e78d5167b0
+    why: "SIFTS pdb_chain_uniprot"
+    kind: structure
+    url: "https://ftp.ebi.ac.uk/pub/databases/msd/sifts/flatfiles/tsv/pdb_chain_uniprot.tsv.gz"
+    version: "2026-11-01"
+    licence: "CC BY 4.0"
+    redistributable: yes
+  inv_pdb_assemblies:
+    path: "{data_root}/data/structures/pdb/assemblies"
+    why: "local PDB assembly1 mmCIF set (directory; listing md5 in params)"
+    kind: structure
+    url: "https://files.wwpdb.org/pub/pdb/data/assemblies/mmCIF/"
+    version: "local set 2026-11-08 (48,189 files)"
+    licence: "CC0"
+    redistributable: yes
+  inv_sec_fossati_features:
+    path: "{data_root}/data/proteomics/fossati2021_jurkat_SEC_PXD018033/feature_alignment.csv"
+    md5: 667ce7885840e4c453c337ad11a0d6da
+    why: "Fossati 2021 Jurkat SEC-SWATH feature alignment (PXD018033)"
+    kind: secms
+    url: "https://www.ebi.ac.uk/pride/archive/projects/PXD018033"
+    version: "Fossati 2021 Jurkat SEC-SWATH"
+    licence: "PRIDE (CC0)"
+    redistributable: yes
+  inv_sec_fossati_fractions:
+    path: "{data_root}/data/proteomics/fossati2021_jurkat_SEC_PXD018033/2020_Methods_in_molecular_biology_information_file.txt"
+    md5: 860f3ac42ba8897354d86c9163331a92
+    why: "Fossati 2021 SEC file->fraction map"
+    kind: secms
+    url: "https://www.ebi.ac.uk/pride/archive/projects/PXD018033"
+    version: "Fossati 2021"
+    licence: "PRIDE (CC0)"
+    redistributable: yes
+  inv_sec_assembly_thresholds:
+    path: "{data_root}/data/derived/sec_assembly_thresholds.tsv"
+    md5: 1786089f3333d6f470ac8358e0ab6d64
+    why: "REGRESSION REFERENCE ONLY since 2026-11-16 (criterion S8): legacy orphan per-protein SEC assembled fraction at k=2/3/4/6 x monomer; regenerated exactly by toolkits/secms (preset legacy_v7); its mass_pg column came from an 80 pg inventory"
+    kind: secms
+    url: ""
+    version: "derived 2026-11-08 06:16 (no generator)"
+    licence: "derived"
+    redistributable: yes
+  inv_afdb_homodimer_table:
+    path: "{data_root}/data/structures/afdb_complexes/homodimer_human.tsv.gz"
+    md5: 35b88d873580811093833bfd5060a1cd
+    why: "AFDB/NVIDIA human homodimer predictions (ipSAE)"
+    kind: assembly
+    url: "https://alphafold.ebi.ac.uk/ (AFDB complexes, NVIDIA homodimers)"
+    version: "2026-11-08"
+    licence: "CC BY 4.0"
+    redistributable: yes
+  inv_afdb_heterodimer_table:
+    path: "{data_root}/data/structures/afdb_complexes/heterodimer_human.tsv.gz"
+    md5: db7db49bc9aacc0c7352a5f0f7ab7606
+    why: "AFDB/NVIDIA human heterodimer predictions"
+    kind: assembly
+    url: "https://alphafold.ebi.ac.uk/ (AFDB complexes, heterodimers)"
+    version: "2026-11-08"
+    licence: "CC BY 4.0"
+    redistributable: yes
+  inv_afdb_fetch_status:
+    path: "{data_root}/data/structures/afdb_complexes/fetch_status.tsv"
+    md5: 0d38f71b67bdcaf7421ad6d7f82a74c6
+    why: "AFDB dimer models on disk (fetch of 2026-11-08; frozen, no network)"
+    kind: structure
+    url: "https://alphafold.ebi.ac.uk/"
+    version: "fetch of 2026-11-08 (741/1163 homodimers available)"
+    licence: "CC BY 4.0"
+    redistributable: yes
+  inv_string_links:
+    path: "{data_root}/data/interactions/string/9606.protein.links.v12.0.txt.gz"
+    md5: 5b7c91d02926e723ad30e81ab9d009a4
+    why: "STRING v12 human links"
+    kind: interaction
+    url: "https://stringdb-downloads.org/download/protein.links.v12.0/9606.protein.links.v12.0.txt.gz"
+    version: "v12.0"
+    licence: "CC BY 4.0"
+    redistributable: yes
+  inv_npc_7r5k:
+    path: "{data_root}/data/structures/pdb/assemblies/7r5k-assembly1.cif.gz"
+    md5: 253da602d67655c87ef476a92b99202e
+    why: "PDB 7R5K assembly 1 (NPC stoichiometry, rule v4 d)"
+    kind: structure
+    url: "https://www.rcsb.org/structure/7R5K"
+    version: "PDB 7R5K"
+    licence: "CC0"
+    redistributable: yes
+  inv_uniprot_topology:
+    path: "{data_root}/jurkat/yc/pipeline/data/uniprot_topology.tsv"
+    md5: a66e428bcb923ab190d8970a5bca109b
+    why: "UniProt topology (TRANSMEM ranges) used by v4"
+    kind: annotation
+    url: "https://rest.uniprot.org/"
+    version: "2026-11-08"
+    licence: "CC BY 4.0"
+    redistributable: yes
+  inv_membrane_lib_ids:
+    path: "{data_root}/data/derived/membrane_lib_ids.txt"
+    md5: 5e83aea1f715de9564564e6b62fb21e7
+    why: "ORPHAN: ids with an oriented membrane library (v4 report + region mass)"
+    kind: library
+    url: ""
+    version: "derived 2026-11-09 (no generator)"
+    licence: "derived"
+    redistributable: yes
+  inv_struct_library:
+    path: "{data_root}/jurkat/yc/pipeline/lib"
+    why: "legacy structure library (v4 note: monomer library exists)"
+    kind: library
+    url: ""
+    version: "legacy library 2026-11-09 (16,246 npz)"
+    licence: "derived (AFDB CC BY 4.0, PDB CC0)"
+    redistributable: yes
+  inv_v4pack_loc_compare:
+    path: "{data_root}/data/derived/validation/loc_compare.tsv"
+    md5: f6c433673a1a0ded5ab173bb8c6faf7b
+    why: "PACK-DEPENDENT: v4 pack placed shares (v5 rules C, N, P)"
+    kind: pack_dependent
+    url: ""
+    version: "v4 pack (2026-11-09)"
+    licence: "derived"
+    redistributable: yes
+  inv_hpa_celllines:
+    path: "{data_root}/data/derived/validation/hpa_celllines.tsv"
+    md5: fe63de27fca9b49a7e53fb6afc399ab5
+    why: "HPA per-cell-line ICC annotations (parsed HPA v25 XML)"
+    kind: localisation
+    url: "https://www.proteinatlas.org/ (per-gene XML)"
+    version: "HPA v25"
+    licence: "CC BY-SA 4.0"
+    redistributable: yes
+  inv_tm_route_libs:
+    path: "{data_root}/data/derived/v5/tm_route_libs.tsv"
+    md5: ca79a7f1aaa88136031423796ce780e8
+    why: "LIBRARY-DEPENDENT: membrane libraries built by jlib_tm_route (v5 rule T)"
+    kind: library
+    url: ""
+    version: "jlib_tm_route 2026-11-09"
+    licence: "derived"
+    redistributable: yes
+  inv_v5pack_loc_compare:
+    path: "{data_root}/data/derived/validation/loc_compare_v5.tsv"
+    md5: 389e0dda4fa2e37442b016b86f914635
+    why: "PACK-DEPENDENT: v5 pack placed shares (v6 rules)"
+    kind: pack_dependent
+    url: ""
+    version: "v5 pack (2026-11-10)"
+    licence: "derived"
+    redistributable: yes
+  inv_tier2_v5:
+    path: "{data_root}/data/derived/validation/tier2_v5.tsv"
+    md5: 44c7bf2ac8574dd16d6c75a9e5914b26
+    why: "PACK-DEPENDENT: Tier-2 imaging metrics of the v5 pack + HPA JURKAT images (v6 calibration)"
+    kind: pack_dependent
+    url: ""
+    version: "v5 pack + HPA JURKAT images"
+    licence: "derived (HPA CC BY-SA 4.0)"
+    redistributable: yes
+  inv_tier2_transfer:
+    path: "{data_root}/data/derived/validation/tier2_transfer.json"
+    md5: 4769f0bb98f2f70c73aec27d165464f1
+    why: "Tier-2 transfer fitted on the v5 fit half (v6 calibration report only)"
+    kind: pack_dependent
+    url: ""
+    version: "fit 2026-11-10"
+    licence: "derived"
+    redistributable: yes
+  inv_hpa_jurkat_manifest:
+    path: "{data_root}/data/reference/hpa_subcellular/jurkat_images/manifest.tsv"
+    md5: 99c537a180eaaac9d0269c31dd2fec55
+    why: "HPA JURKAT image manifest (antibody -> gene; v6 shared-antibody exclusion)"
+    kind: localisation
+    url: "https://www.proteinatlas.org/"
+    version: "HPA v25"
+    licence: "CC BY-SA 4.0"
+    redistributable: yes
+  inv_holdout_genes:
+    path: "{data_root}/data/derived/validation/jurkat_holdout_genes.txt"
+    md5: 6cd039d32bec1987f8ee3b46d68244fd
+    why: "HOLD-OUT: HPA-JURKAT held-out half (seed 20261110)"
+    kind: holdout
+    url: ""
+    version: "seed 20261110 (comment line added 2026-11-10 16:33; gene list unchanged since v6)"
+    licence: "derived"
+    redistributable: yes
+  inv_fit_genes:
+    path: "{data_root}/data/derived/validation/jurkat_fit_genes.txt"
+    md5: 264c552119865f8a7ee4a25d18f6f6b7
+    why: "HOLD-OUT: HPA-JURKAT fit half"
+    kind: holdout
+    url: ""
+    version: "seed 20261110"
+    licence: "derived"
+    redistributable: yes
+  inv_lamina_consumption_v7:
+    path: "{data_root}/data/derived/prepass_v7/lamina_cell1.json"
+    md5: 28e9baa7dde4a200ce7b71ec6734c56a
+    why: "PRE-PASS: legacy jlamina consumption (v7 rule L3; default lamina input)"
+    kind: prepass
+    url: ""
+    version: "jlamina 2026-11-10 21:25 (LAMINA_PRIORITY=chromatin)"
+    licence: "derived"
+    redistributable: yes
+  inv_chromatin_v8_json:
+    path: "{data_root}/data/derived/chromatin/v8/prepass/chromatin_cell1.json"
+    md5: 13c529640b069ad0056134576f84e0f8
+    why: "PRE-PASS: v8 chromatin summary (v7 rule N8 nucleosome count)"
+    kind: prepass
+    url: ""
+    version: "chromatin v8 rep5"
+    licence: "derived"
+    redistributable: yes
+  inv_cytoskeleton_v7_json:
+    path: "{data_root}/data/derived/prepass_v7/cytoskeleton_cell1.json"
+    md5: c480b6e40d2f372f985c8d38192b22d5
+    why: "PRE-PASS: v7 cytoskeleton summary (v7 non-inventory rows; centriole position)"
+    kind: prepass
+    url: ""
+    version: "jcytoskel_v7 2026-11-10"
+    licence: "derived"
+    redistributable: yes
+  inv_cytoskeleton_v6_json:
+    path: "{data_root}/data/derived/prepass/cytoskeleton_cell1.json"
+    md5: bf4600d0aece1b6cbe00136bb68316bd
+    why: "PRE-PASS: v6 cytoskeleton summary (v7 non-inventory rows)"
+    kind: prepass
+    url: ""
+    version: "jcytoskeleton 2026-11-08"
+    licence: "derived"
+    redistributable: yes
+  inv_mt_centerlines:
+    path: "{data_root}/data/derived/cytoskel/stage3/mt_stage3_b_centerlines.npz"
+    md5: 84b33cf27d92b23c9a593a6fdfaf4305
+    why: "MT stage-3 b centerlines (v7 rule R7 band volumes)"
+    kind: prepass
+    url: ""
+    version: "MT stage 3 variant b"
+    licence: "derived"
+    redistributable: yes
+  val_hpa_subcellular: {path: "{data_root}/data/reference/hpa_subcellular/subcellular_location.tsv", md5: 9020670544e3ca4c473a995fdc0040ca, origin: "HPA v25 subcellular_location.tsv (downloaded 2026-11-08)", why: "loc_compare HPA consensus reference", licence: "CC BY-SA 4.0"}
+  val_uniprot_human: {path: "{data_root}/data/reference/uniprot_human_full.tsv.gz", md5: 5dcff1915004d4042433cddaa1bfdd7a, origin: "UniProt human reviewed, 2026-11-07", why: "loc_compare UniProt/GO-CC reference", licence: "CC BY 4.0"}
+  val_opencell: {path: "{data_root}/data/reference/opencell/opencell-localization-annotations.csv", md5: 765336ce4025b71f162576abdd3cfa72, origin: "OpenCell localisation annotations, 2026-11-09", why: "loc_compare held-out reference (never used by the inventory)"}
+  val_hpa_celllines: {path: "{data_root}/data/derived/validation/hpa_celllines.tsv", md5: fe63de27fca9b49a7e53fb6afc399ab5, origin: "legacy loc_compare.py celllines step on the HPA XML cache (2026-11-09)", why: "per-cell-line HPA annotations (HPA-JURKAT reference); the fetch/celllines steps are not ported"}
+  val_loc_holdout_genes: {path: "{data_root}/data/derived/validation/jurkat_holdout_genes.txt", md5: 6cd039d32bec1987f8ee3b46d68244fd, origin: "numpy default_rng(20261110) split of the HPA-JURKAT genes (2026-11-10)", why: "frozen clean hold-out half"}
+  val_loc_fit_genes: {path: "{data_root}/data/derived/validation/jurkat_fit_genes.txt", md5: 264c552119865f8a7ee4a25d18f6f6b7, origin: "same split, other half", why: "fit half (not a hold-out)"}
+  val_ribo_em: {path: "{data_root}/data/derived/ribo_seg_instances.parquet", md5: ec43d48f4b8e23002fb1086884d9112b, origin: "OpenOrganelle jrc_jurkat-1 ribo_seg instances", why: "ribosome NN reference"}
+  val_chromatin_rep5: {path: "{data_root}/data/derived/chromatin/v8/prepass/chromatin_cell1.npz", md5: cd4c3b4c88ba1348d3df12b30370cd24, origin: "chromatin v8 rep5 pre-pass", why: "chromatin metrics are copied only for this exact file (V5)"}
+  val_chromatin_v8_metrics: {path: "{data_root}/data/derived/chromatin/v8/v8_metrics.json", md5: e725f47259769f0512829ec2833b05fb, origin: "jurkat/chromatin/s8_validate.py collect (2026-11-10)", why: "frozen chromatin metrics (V5)"}
+  val_chromatin_v8_metrics_table: {path: "{data_root}/data/derived/chromatin/v8/v8_metrics_table.tsv", md5: 9ee0e229de56c099eb9449cfcf6a0f29, origin: "s8_validate.py collect", why: "frozen chromatin metrics table (V5)"}
+  val_chromatin_s1_em: {path: "{data_root}/data/derived/chromatin/v8/val/s1_em_metrics.json", md5: a5874d100d165f86c2e7f288aa1751c8, origin: "s8_validate.py s1 (s1_em.py on v8)", why: "EM chromatin metrics (V5)"}
+  val_chromatin_s1_lit: {path: "{data_root}/data/derived/chromatin/v8/val/s1_lit_metrics.json", md5: 234ee17da46fe4e29baf9acd5b0717d4, origin: "s8_validate.py s1 (s1_lit.py)", why: "literature chromatin metrics (V5)"}
+  val_chromatin_s1_dapi: {path: "{data_root}/data/derived/chromatin/v8/val/s1_dapi_summary.json", md5: 96551e3546d976bf45681a3abad8fdea, origin: "s8_validate.py s1 (s1_dapi.py)", why: "HPA DAPI chromatin metrics (V5)"}
+  val_chromatin_genomic: {path: "{data_root}/data/derived/chromatin/v8/val/genomic_v8.json", md5: c55885437fae342086cb2df0c2fb7e14, origin: "s8_validate.py genomic", why: "genomic chromatin metrics (V5)"}
+  lib_pdb_assemblies: {path: "{data_root}/data/structures/pdb/assemblies", why: "RCSB assembly-1 cache (shared, append-only); the md5 of every file the library build reads is recorded in <build>/library/work/pdb_assemblies_read.tsv", kind: structures}
+  lib_afdb_human_tar: {path: "{afdb_root}/UP000005640_9606_HUMAN_v6.tar", md5: 5bc6bf3812832ceb6fe8f7c9d64fd6be, why: "AlphaFold DB v6 human proteome (library monomers, TM grafts, reorient_tm, tm_route)", kind: structures, licence: "AlphaFold DB CC BY 4.0"}
+  lib_afdb_human_tar_index: {path: "{data_root}/data/derived/afdb_human_tar_index.json", md5: dd08f3c8aed436b0ca593a368b9f3b7f, origin: "legacy tm_graft index (2026-11-08): accession -> (offset, size) of the F1 model in the tar", why: "random access to the AFDB tar"}
+  lib_afdb_fragment_index_tmroute: {path: "{data_root}/data/derived/v5/afdb_fragment_index_tmroute.json", md5: c335e45c8ee075b74d6979260580ee4a, origin: "legacy jlib_tm_route (2026-11-09)", why: "AFDB fragment entries (offset, size) of multi-fragment TM proteins"}
+  lib_afdb_complex_models: {path: "{data_root}/data/structures/afdb_complexes/models", manifest: "{repo}/plugins/jurkat/data/library/afdb_complex_models_manifest.tsv.gz", md5: 2b617bf37dcfa106e667e2b120e2fb6d, origin: "AFDB complex (dimer) models fetched 2026-11-08", why: "AFDB homo/heterodimer models of the library (fetched on a date; not re-downloadable as such)", kind: structures}
+  lib_tm_route_uniprot: {path: "{data_root}/data/derived/v5/tm_route_uniprot.json", md5: 484177176fde4b32a72dd48a720120c9, origin: "UniProt REST features cached by jlib_tm_route (2026-11-09)", why: "TRANSMEM / INTRAMEM / TOPO_DOM / signal of the TM-routed accessions (REST answers change over time)", kind: annotation}
+  lib_uniprot_human_table: {path: "{data_root}/jurkat/yc/pipeline/data/uniprot_yeast.tsv", md5: 7787b048f94457231a4055fd747ae9b0, origin: "legacy pipeline/data (human UniProt table under the yeast file name so membrane_orient runs unchanged)", why: "beta-barrel accessions (membrane_orient.barrels)", kind: annotation}
+  lib_structures_v7: {path: "{data_root}/jurkat/yc/pipeline/lib", manifest: "{repo}/plugins/jurkat/data/library_v7_manifest.tsv.gz", md5: e4ba6bb3fa2555f2f5323c2c01aa6bc6, origin: "legacy structure library, last write 2026-11-09 19:54 (= v7 library)", why: "frozen v7 library (16,246 files; built in place by 5 scripts, AFDB availability time-dependent)"}
+  pre_chromatin_v8_rep5: {path: "{data_root}/data/derived/chromatin/v8/prepass/chromatin_cell1.npz", md5: cd4c3b4c88ba1348d3df12b30370cd24, origin: "chromatin v8 genome-mapped rep5 back-map (2026-11-10)", why: "GPU MD not bitwise reproducible; rep5 chosen post hoc"}
+  pre_chromatin_v8_rep5_json: {path: "{data_root}/data/derived/chromatin/v8/prepass/chromatin_cell1.json", md5: 13c529640b069ad0056134576f84e0f8, origin: "chromatin v8 rep5", why: "pre-pass consumption"}
+  pre_polysomes_v7: {path: "{data_root}/data/derived/prepass_v7/polysomes_cell1.npz", md5: 0270d7abd132abaf91a032c398ee8a6c, origin: "jpolysome v3 + jcytoskel_v7 + jgolgi_ribbon trims", why: "v7 pre-pass (built on older geometry)"}
+  pre_polysomes_v7_json: {path: "{data_root}/data/derived/prepass_v7/polysomes_cell1.json", md5: c63dda3025a3d1232f1ecdb6c9592c3c, origin: "as pre_polysomes_v7", why: "pre-pass consumption"}
+  pre_cytoskeleton_v7: {path: "{data_root}/data/derived/prepass_v7/cytoskeleton_cell1.npz", md5: 1523616f92a7ceb94aa37199fad24f57, origin: "jcytoskeleton + MT stage 3 + jcytoskel_v7 + jgolgi_ribbon", why: "traced MTs (U-Net inference not bitwise reproducible)"}
+  pre_cytoskeleton_v7_json: {path: "{data_root}/data/derived/prepass_v7/cytoskeleton_cell1.json", md5: c480b6e40d2f372f985c8d38192b22d5, origin: "as pre_cytoskeleton_v7", why: "pre-pass consumption"}
+  pre_npc_v3: {path: "{data_root}/data/derived/prepass/npc_cell1.npz", md5: 985f0601ae935105e0fddcffa2275e9f, origin: "jnpc.py v3 (2026-11-09)", why: "v7 pre-pass"}
+  pre_npc_v3_json: {path: "{data_root}/data/derived/prepass/npc_cell1.json", md5: efe82463d141b2ab371614b069b5afcf, origin: "jnpc.py v3", why: "pre-pass consumption"}
+  pre_lamina_v7: {path: "{data_root}/data/derived/prepass_v7/lamina_cell1.npz", md5: f6a755243d9a368560c4af3edc0c10f2, origin: "jlamina.py, logs/v7_full2.sh (LAMINA_PRIORITY=chromatin, seed 20261112)", why: "B5 reference for the rebuilt lamina; used when prepass lamina mode is frozen"}
+  pre_lamina_v7_json: {path: "{data_root}/data/derived/prepass_v7/lamina_cell1.json", md5: 28e9baa7dde4a200ce7b71ec6734c56a, origin: "as pre_lamina_v7", why: "lamina consumption (rule L3 input when frozen)"}
+  pre_chromatin_drop_lamina_v7: {path: "{data_root}/data/derived/prepass_v7/chromatin_drop_lamina.json", md5: 03082c7c0e2d41c133e9b7c0a988ef9f, origin: "as pre_lamina_v7", why: "chromatin drop list (empty with chromatin priority)"}
+  pre_chromatin_drop_lamina_v7_npy: {path: "{data_root}/data/derived/prepass_v7/chromatin_drop_lamina.npy", md5: fd54501d100600681e06df232da179c5, origin: "as pre_lamina_v7", why: "drop indices referenced by the drop json"}
+  pre_mrna_v1: {path: "{data_root}/data/derived/prepass/mrna_cell1.npz", md5: 147c74910616ee6350cf0fe1b2ecbe62, origin: "jmrna.py v1 (2026-11-08)", why: "mRNA beads (obstacles)"}
+  pre_mrna_drop_v7: {path: "{data_root}/data/derived/prepass_v7/mrna_drop.npy", md5: cb42555de15bfa9ff97257e2ef779e4b, origin: "jcytoskel_v7 + jgolgi_ribbon clash lists", why: "mRNA beads dropped in v7"}
+  pre_mrna_nascent_v8: {path: "{data_root}/data/derived/chromatin/v8/prepass/mrna_nascent_cell1.npz", md5: 08142fabc00b2af23227586ea35b47b8, origin: "chromatin v8 rep5 functional layer", why: "nascent RNA beads (v7 mrna_extra)"}

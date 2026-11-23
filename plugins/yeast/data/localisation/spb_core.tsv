@@ -1,0 +1,20 @@
+# Spindle pole body core components: 'spindle pole' annotations of these genes go to the nuclear envelope (spb.py draws
+# the plaque from them); for every other protein the term is ignored (calmodulin had 43,000 copies on the envelope; review comment 5)
+# origin: yeast pipeline/inventory.py:SPB_CORE @ e3b7448
+gene	reason
+SPC42	SPB core component
+SPC29	SPB core component
+SPC110	SPB core component
+CNM67	SPB core component
+NUD1	SPB core component
+SPC72	SPB core component
+SFI1	SPB core component
+KAR1	SPB core component
+CDC31	SPB core component
+MPS2	SPB core component
+MPS3	SPB core component
+BBP1	SPB core component
+NBP1	SPB core component
+TUB4	SPB core component
+SPC97	SPB core component
+SPC98	SPB core component

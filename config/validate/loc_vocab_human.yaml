@@ -1,0 +1,92 @@
+# Localisation reference vocabularies (human): source term -> comparison compartment, used by
+# wholecell/validate/loc_compare.py. Copied from jurkat/validate/loc_compare.py (legacy workspace, 2026-11-15; state of the
+# v5+ code path: "actin filaments" -> cytosol + PM support). Referenced from a cell config by
+# validate.loc_compare.vocab. A cell with other comparison compartments needs its own vocabulary file.
+comps: [PM, cytosol, nucleus, NE, ER, mito, golgi, endolysosomal]
+memcomp: [PM, NE, ER, golgi, endolysosomal, mito]
+# special (non-model) targets: they support several compartments, never count as "missing"
+special_support:
+  secretory: [ER, golgi, endolysosomal, PM]
+  anymem: [PM, NE, ER, golgi, endolysosomal, mito]
+sperm_terms: [principal piece, mid piece, end piece, acrosome, calyx, equatorial segment, connecting piece,
+              flagellar centriole, perinuclear theca, annulus]
+hpa_map:          # lower-case HPA term -> [comp, flag]
+  nucleoplasm: [nucleus, ""]
+  nuclear bodies: [nucleus, ""]
+  nuclear speckles: [nucleus, ""]
+  nucleoli: [nucleus, no_nucleolus]
+  nucleoli fibrillar center: [nucleus, no_nucleolus]
+  nucleoli rim: [nucleus, no_nucleolus]
+  mitotic chromosome: [nucleus, mitotic]
+  kinetochore: [nucleus, mitotic]
+  nuclear membrane: [NE, ""]
+  cytosol: [cytosol, ""]
+  cytoplasmic bodies: [cytosol, ""]
+  rods & rings: [cytosol, ""]
+  aggresome: [cytosol, ""]
+  actin filaments: [cytosol, ""]
+  microtubules: [cytosol, ""]
+  microtubule ends: [cytosol, ""]
+  intermediate filaments: [cytosol, ""]
+  centrosome: [cytosol, ""]
+  centriolar satellite: [cytosol, ""]
+  basal body: [cytosol, cilium]
+  primary cilium: [cytosol, cilium]
+  primary cilium tip: [cytosol, cilium]
+  primary cilium transition zone: [cytosol, cilium]
+  mitotic spindle: [cytosol, mitotic]
+  midbody: [cytosol, mitotic]
+  midbody ring: [cytosol, mitotic]
+  cytokinetic bridge: [cytosol, mitotic]
+  cleavage furrow: [cytosol, mitotic]
+  peroxisomes: [cytosol, no_peroxisome]
+  lipid droplets: [cytosol, no_lipid_droplet]
+  mitochondria: [mito, ""]
+  endoplasmic reticulum: [ER, ""]
+  golgi apparatus: [golgi, ""]
+  plasma membrane: [PM, ""]
+  cell junctions: [PM, ""]
+  vesicles: [endolysosomal, ""]
+  endosomes: [endolysosomal, ""]
+  lysosomes: [endolysosomal, ""]
+hpa_extra_support:          # lower-case HPA term -> [comp, weight factor] added next to the mapped term (cortex = PM)
+  actin filaments: [PM, 0.3]
+opencell_map:
+  cytoplasmic: cytosol
+  nucleoplasm: nucleus
+  nucleolus_gc: nucleus
+  nucleolus_fc_dfc: nucleus
+  chromatin: nucleus
+  nuclear_punctae: nucleus
+  nuclear_membrane: NE
+  membrane: PM
+  cell_contact: PM
+  focal_adhesions: PM
+  er: ER
+  golgi: golgi
+  mitochondria: mito
+  vesicles: endolysosomal
+  centrosome: cytosol
+  cytoskeleton: cytosol
+  big_aggregates: cytosol
+uniprot_rules:    # ordered [regex on the lower-cased location head (UniProt statement or GO-CC term), comp, flag]
+  - ['nucle(us|ar) (inner |outer )?membrane|nucle(us|ar) envelope|nuclear pore|nuclear lamina', NE, '']
+  - ['mitochondri', mito, '']
+  - ['endoplasmic reticulum|microsome|sarcoplasmic reticulum', ER, '']
+  - ['golgi', golgi, '']
+  - ['peroxisom', cytosol, no_peroxisome]
+  - ['lipid droplet', cytosol, no_lipid_droplet]
+  - ['stress granule|p-body', cytosol, '']
+  - ['endosom|lysosom|vesic|vacuol|phagosom|autophag|melanosom|granule|multivesicular|endomembrane|secretory', endolysosomal, '']
+  - ['cell membrane|plasma membrane|cell surface|membrane raft|cell junction|focal adhesion|synap|uropod|immunological|sarcolemma|apical|basolateral|projection.*membrane|ruffle membrane|lamellipodium membrane|microvillus membrane', PM, '']
+  - ['nucleol', nucleus, no_nucleolus]
+  - ['nucle|chromosom|kinetochore|centromere|telomere|pml body|cajal|speckle', nucleus, '']
+  - ['cell cortex|cortical actin', cytosol, cortex_not_modelled]
+  - ['cytoplasm|cytosol|cytoskeleton|centrosome|centriol|midbody|perikaryon|myofibril|spindle|cilium|flagell|sarcomere|cell projection|axon|dendrit|lamellipod|filopod|ruffle|microvill|growth cone|actin|microtubule|intermediate filament', cytosol, '']
+  - ['secreted|extracellular|cell wall', secretory, '']
+  - ['^membrane$|^membrane;|^membrane ', anymem, '']
+go_skip: 'extracellular exosome|extracellular vesicle|protein-containing complex|^intracellular|ribonucleoprotein complex$|^organelle|^cellular_component'
+reliability_weight: {Enhanced: 1.0, Supported: 0.8, Approved: 0.5, Uncertain: 0.0}
+w_uniprot: 0.6
+w_go: 0.3
+disagree: 0.25

@@ -1,0 +1,33 @@
+# Synthetic test cell (cellgeom_v1, engine sdf_sections_v1): toolkits/analytic/generate.py
+# Units nm, model frame = cell centre. Approximate volumes: cell ~5.8 um3, nucleus ~0.55 um3.
+cell_id: testcell
+geometry_id: analytic_v1
+seed: 1                      # wholecell.seeds master seed for pores / cristae
+grid_h_nm: 16.0
+brick: 8
+engine_params: {}            # defaults of sdf_sections_v1 (Jurkat v7 values) unless overridden here
+cell:                        # plasma membrane midsurface
+  ellipsoid: {centre: [0, 0, 0], semi_axes: [1250, 1100, 1000]}
+  band_nm: [160, 64]
+nucleus:                     # perinuclear midsurface (ne_mid)
+  ellipsoid: {centre: [-300, 0, 0], semi_axes: [560, 500, 470]}
+  band_nm: [120, 120]
+  pores: {n: 30, min_sep_nm: 150}
+nucleolus:
+  sphere: {centre: [-350, 60, 0], radius: 160}
+  band_nm: [64, 64]
+mito:                        # outer membrane = union of capsules
+  capsules:
+    - {a: [450, -650, -250], b: [800, -250, 50], r: 110}
+    - {a: [250, 650, -350], b: [650, 450, -150], r: 100}
+  band_nm: [64, 64]
+  cristae: {enabled: true, S_range: [70, 100], id_h_nm: 48, id_reach_nm: 96}
+er:                          # ER membrane = union of tubes (capsules) and flat sheets (discs)
+  tubes:
+    - {a: [400, -250, 450], b: [600, 50, 520], r: 30}
+    - {a: [600, 50, 520], b: [450, 400, 480], r: 30}
+    - {a: [450, 400, 480], b: [150, 600, 380], r: 30}
+  sheets:
+    - {centre: [750, 150, -450], normal: [0, 0, 1], radius: 260, half_thickness: 22}
+  band_nm: [48, 48]
+min_separation_nm: 40        # checked between organelle surfaces and to the PM / NE

@@ -1,0 +1,80 @@
+# Localisation preset legacy_v7: the Jurkat v7 localisation exactly (legacy jurkat/inventory/inventory_v0.py location part +
+# yc/pipeline/jinventory_v4..v7.py, 2026-11-08..15). Behaviour only: sources, term maps, curated lists and override
+# rows are cell data (inventory.params.localisation.{sources, data}); a cell changes single values with `overrides:`.
+# Unification plan §3 (A5). Every option is documented in wholecell/inventory/localisation/combiner.py.
+
+combiner:
+  # v0: HPA (imaging_other) and UniProt CC (annotation_curated) blended 50:50 where both exist, else the one present;
+  # Itzhak 2016 fractionation re-splits nucleus / cytoplasm of soluble proteins.
+  steps: [drop_unreliable, restrict_membrane, split, combine, round, nc_model, round]
+  within_source: max             # several terms of one source on one key: the largest term weight (HPA main 1 / add 0.3)
+  drop_unreliable: {}            # HPA 'Uncertain' (reliability 0): the gene's HPA evidence is ignored
+  restrict_membrane:
+    keys: data.membrane_keys     # transmembrane genes keep only these keys ...
+    if_none: {annotation_curated: keep, imaging_other: drop}   # ... UniProt keeps all when none is a membrane key,
+                                                                # HPA is dropped for that gene
+  split: score                   # score-proportional shares within a source (UniProt terms all 1 -> equal)
+  combine:
+    mode: blend
+    classes: [imaging_other, annotation_curated]          # = loc_source order (hpa+uniprot)
+    weights: {imaging_other: 0.5, annotation_curated: 0.5}  # 50:50 HPA:UniProt (legacy hpa_blend 0.5)
+    key_order: set_union         # legacy: set(hpa) | set(uniprot) order under PYTHONHASHSEED=0 (ties in the
+                                 # compartments string; first_seen is the readable default)
+    fallback: {compartment: unassigned, label: uniprot}  # no evidence: unassigned (legacy labelled it 'uniprot')
+  new_from_imaging: null         # not used in v7 (HPA is blended, not a new-key source)
+  round: {digits: 3, min_share: 0.01}   # shares < 0.01 dropped, values rounded to 3 decimals (legacy inventory_v0.tsv)
+  nc_model:
+    method: fraction             # nuclear share fn = max(obs - b, 0) / (1 - b) of the fractionation N/(N+C)
+    class: fractionation
+    background: 0.05             # b: legacy itzhak_nuclear_base
+    new_min: 0.5                 # a protein without a nucleus key gets one only if fn >= 0.5
+    pool: [nucleus, cytosol, cytoskeleton]
+    nucleus: nucleus
+    cytoplasm: [cytosol, cytoskeleton]   # cytoplasm share kept in proportion over these (cytosol when none)
+    default_cytoplasm: cytosol
+    skip_transmembrane: true
+  membrane_mechanism: null       # v6 checked mechanisms inside its rules (R2/R3/R5); not a combiner step in v7
+
+# The Jurkat revision rule sets (inventory.rule_sets), every step in code order: `overrides` = rows of data.overrides
+# (plugins/jurkat/data/localisation/overrides_legacy_v7.tsv, applied by overrides.apply); `frozen_overrides` = an
+# override table generated at build time from declared frozen pack tables (written to rules/<set>/overrides_<id>.tsv,
+# applied by the same function; ONLY in this preset, plan §3b); `legacy` = a rule function still in code (reason).
+rules:
+  jurkat.v4:
+    - {id: v4.a, kind: legacy, reason: "single-pass type I/II TM -> PM: per-protein selection from UniProt topology, signal peptide and CC/GO text"}
+    - {id: v4.b, kind: legacy, reason: "free CD3 chains: copies capped at 0.2 x the TCR-CD3 complex copies of this build (computed), then ER"}
+    - {id: v4.c, kind: overrides}
+    - {id: v4.d_e, kind: legacy, reason: "NPC stoichiometry / free pools from the 7R5K mmCIF and CPX-4747 cap: assembly arithmetic, not localisation"}
+    - {id: v4.f_curated, kind: overrides}
+    - {id: v4.f_drop_mito, kind: overrides}
+    - {id: v4.f_clic, kind: overrides}
+    - {id: v4.f_kdel, kind: legacy, reason: "ER-retrieval C-terminus + signal peptide: a sequence-motif rule over all proteins"}
+    - {id: v4.g, kind: legacy, reason: "obligate OXPHOS complexes absorb free subunits: copy-number arithmetic"}
+    - {id: v4.h, kind: legacy, reason: "cross-compartment AFDB heterodimers dissolved: reads both partners' current weights"}
+  jurkat.v5:
+    - {id: v5.T_tm_routing, kind: legacy, reason: "TM flag from the frozen list of membrane libraries built (tm_route_libs, structures stage)"}
+    - {id: v5.L_lamina, kind: legacy, reason: "per-gene lamina share of the nucleus+NE pool (a transform of the current weights, not fixed shares)"}
+    - {id: v5.A_lipid, kind: legacy, reason: "lipid anchors -> anchored shells: UniProt Lipidation rule over all proteins"}
+    - {id: v5.C_cortex, kind: legacy, reason: "candidates from the frozen v4-pack loc_compare (R6 cause classes) + HPA/UniProt PM support"}
+    - {id: v5.N_nucleolus, kind: legacy, reason: "HPA Nucleoli genes (frozen v4-pack table fields), share scaled by a nucleolus capacity cap"}
+    - {id: v5.P_nuclear_pool, kind: frozen_overrides, frozen: [v4pack_loc_compare],
+       reason: "selection gates on the v4 pack's placed shares; target = Vn/(Vn+Vc) of the current soluble pool"}
+  jurkat.v6:
+    - {id: v6.R4_tm_pool, kind: legacy, reason: "TM steady-state ER/Golgi pools: gene universe and HPA calls from the frozen v5-pack table"}
+    - {id: v6.R2_cortex, kind: legacy, reason: "actin binders -> cortex: share calibrated on the frozen Tier-2 v5 rim measurements (tier2_v5)"}
+    - {id: v6.R3_peripheral, kind: legacy, reason: "peripheral membrane binders: mechanism check + tier2_v5 rim calibration"}
+    - {id: v6.R5_golgi, kind: legacy, reason: "Golgi binders: GO mechanism + HPA or the frozen v5-pack inventory golgi share"}
+    - {id: v6.R6a_npc, kind: legacy, reason: "NPC-proximal shell from GO CC/MF over the frozen v5-pack gene universe"}
+    - {id: v6.R1_nc, kind: frozen_overrides, frozen: [v5pack_loc_compare],
+       reason: "HPA category -> target N/C; gates on the v5 pack's placed nucleus+cytosol share; Itzhak tie-breaker"}
+    - {id: v6.R6b_speckle, kind: legacy, reason: "HPA speckle genes, share scaled by the speckle capacity of the v6 geometry"}
+  jurkat.v7:
+    - {id: v7.R4b, kind: overrides}
+    - {id: v7.R6c, kind: legacy, reason: "PCM shell: HPA + GO CC selection, share capped by the PCM volume (geometry)"}
+    - {id: v7.R7, kind: legacy, reason: "MAP +TIPs / lattice MAPs: InterPro selection, shares capped by the MT band volumes (centerlines)"}
+    - {id: v7.R6d, kind: legacy, reason: "vimentin cage: InterPro IF rod + HPA selection, fixed share of the cytoplasmic pool"}
+    - {id: v7.R6e, kind: legacy, reason: "NPC FG receptors: npc share split by copies to 20 receptors x 1000 pores"}
+    - {id: v7.L3, kind: legacy, reason: "lamina share = lattice copies consumed by the lamina pre-pass (build input)"}
+    - {id: v7.F1, kind: overrides}
+    - {id: v7.N8, kind: legacy, reason: "nucleosome copies = placed v8 chromatin (copies, not localisation)"}
+    - {id: v7.history, kind: legacy, reason: "non-inventory history rows (pre-pass / geometry / packer), no table change"}

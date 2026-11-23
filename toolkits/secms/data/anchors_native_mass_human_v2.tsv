@@ -1,0 +1,29 @@
+# Human SEC calibration anchor set v2 (2026-11-17, DECISION Pedro): = anchor set v1 (anchors_native_mass_human.tsv, the
+# Jurkat v7 set, still used by preset legacy_v7) minus 4 consistent outliers that elute far larger than their native mass
+# in every human dataset (residual <= -0.31 log10, i.e. >= 2x too large, in lab 2026 JurkatNT, JurkatTCRAct24h and
+# Fossati 2021; the four largest residuals in Fossati): PFN1 (profilin, binds actin / poly-Pro partners), HSP90AB1 and
+# HSPA8 (chaperones bound to clients / co-chaperones), YWHAZ (14-3-3, bound to phospho-partners). Not removed (not
+# consistent): CFL1 (-0.50/-0.37/-0.30), NPM1 (lab -0.44/-0.46, Fossati +0.02). Rows otherwise identical to v1.
+# Species: human. Role in the toolkit: THE calibration (primary) of preset default (calibration.anchor_set: v2).
+gene	native_kda	state
+CFL1	18.5	monomer
+PPIA	18	monomer
+SOD1	32	dimer
+PRDX1	44	dimer
+TPI1	53	dimer
+PGK1	45	monomer
+PARK7	40	dimer
+ENO1	94	dimer
+GAPDH	144	tetramer
+LDHA	147	tetramer
+PKM	232	tetramer
+ALDOA	157	tetramer
+EEF2	95	monomer
+NPM1	190	oligomer (value as curated 2026-11-08)
+PSMA1	750	20S proteasome
+PSMB5	750	20S proteasome
+CCT2	960	TRiC 16-mer
+TCP1	960	TRiC 16-mer
+FASN	540	dimer
+ACLY	480	tetramer
+VCP	540	hexamer

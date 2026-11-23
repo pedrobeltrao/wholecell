@@ -1,0 +1,186 @@
+== overall
+types 5483 AF 5441 copies 25213823 AF mass share 48.8%
+
+== 1. oligomeric state (AF monomers)
+AF types UniProt says homo-oligomer: 360 types, 3750130 copies, 9.1% of cell protein mass
+            n   copies
+uni_olig              
+2         265  2801208
+3          12    55853
+4          47   581744
+5           2    17893
+6          23   177558
+8           9   109129
+12          2     6745
+homodimer models: 648; matching placed AF monomer types: 604, copies 4725384, mass 11.7%
+  of these, UniProt says monomer/unknown: 425  dimer: 150  higher: 29
+  ipTM range 0.37 - 0.97  top by copies:
+gene  copies  uni_olig  plddt_mean
+FBA1  809370         2        95.1
+EFB1  158051         1        86.8
+ALD6  152359         1        97.7
+PGI1  133027         2        97.2
+URA1   84564         2        97.4
+SAM1   62320         1        98.0
+TAL1   61505         2        97.1
+TEF4   61082         1        94.9
+RNR1   60651         1        94.3
+ARG1   53211         4        96.0
+SHM2   52226         4        97.3
+BMH2   52011         1        92.9
+PFK1   51712         1        90.4
+TRX2   50474         1        96.8
+SAM2   48291         1        97.6
+UniProt oligomers WITHOUT a homodimer model: 181 types, mass 3.6%
+
+== 2. heterodimers
+heterodimer models 1250; both partners placed as AF monomers: 1050; touching an existing PDB complex: 214
+  upper bound mass that could be paired: 11.6% (sum over pairs, overlaps not resolved)
+  ipTM>=0.8: 721, 0.6-0.8: 462
+  proteins in >1 pair (hubs / larger complexes): 510  top: [('SKP1', 17), ('CDC28', 15), ('PHO85', 15), ('LSM5', 12), ('LSM6', 12), ('LSM7', 12), ('LSM2', 11), ('SMX2', 11)]
+  g1   g2   ipTM  pDockQ2  pair_copies
+SSA1 SSA2 0.7635 0.230565       214637
+KAR2 SSE1 0.7586 0.257957        60011
+PFK1 PFK2 0.8796 0.451051        38892
+ZUO1 SSB2 0.7090 0.275120        46880
+SSB1 ZUO1 0.7035 0.281775        46880
+ASN2 ASN1 0.8746 0.683151        42125
+ZUO1 SSZ1 0.8617 0.342608        46880
+SAM2 SAM1 0.9356 0.654521        48291
+RPN1 OYE2 0.8535 0.427137        26518
+HXK1 HXK2 0.8384 0.256700        30070
+ACT1 COF1 0.7969 0.423900        54751
+TRX1 ASC1 0.8747 0.731818        52185
+BMH2 BMH1 0.8250 0.919409        40350
+ACT1 PFY1 0.8965 0.760192        41448
+FRS2 FRS1 0.9049 0.811125        18692
+
+== 3. Complex Portal coverage
+Complex Portal multi-subunit complexes: 623; fully modeled as assemblies: 18; partly: 27
+unmodeled: 578 (116 membrane); their subunit mass ~17.9% of cell protein (overlapping complexes double-count)
+     cpx                                          name  nsub       copies  mass_kda    tm  pdbs
+CPX-2854  Elongation Factor eEF1 complex, variant CAM1     3 79025.807366   239.496 False     6
+ CPX-425  Elongation Factor eEF1 complex, variant TEF4     3 79025.807366   238.360 False     6
+ CPX-554                 6-phosphofructokinase complex     2 12741.441066   850.352 False     1
+CPX-1103 Ribonucleoside-diphosphate reductase variant      4 35524.185666   283.278 False     2
+CPX-1102 Ribonucleoside-diphosphate reductase variant      3 30327.089268   285.324 False     3
+CPX-1947    Methionyl glutamyl tRNA synthetase complex     3 39566.371753   208.605 False     2
+CPX-1743                   Ribosome-associated complex     2 48912.590378   107.258 False     0
+CPX-1831 Eukaryotic translation initiation factor 3 co     5 13302.855800   360.934 False     0
+CPX-3207  Mitochondrial pyruvate dehydrogenase complex     5   716.472137  6375.072 False     0
+ CPX-430 Eukaryotic translation initiation factor 4F c     3 25408.026834   176.052 False     3
+CPX-1323                      CDC48-RAD23-UFD2 complex     3  6273.586873   704.259 False     1
+ CPX-431 Eukaryotic translation initiation factor 4F c     3 25408.026834   172.850 False     0
+CPX-3281 Mitochondrial proton-transporting ATP synthas    17  6245.070569   643.839  True     8
+CPX-1652                     COPI vesicle coat complex     7  7100.559688   565.047 False     2
+ CPX-579 Carbamoyl-phosphate synthase arginine-specifi     2 20424.802716   169.277 False     0
+CPX-8127                 CDC48-SHP1 AAA ATPase complex     2  5724.648021   598.963 False     1
+CPX-1268     Glycine decarboxylase multienzyme complex     4 12490.141137   231.723 False     0
+CPX-1616                              Clathrin complex     2  4391.510811   641.298 False     0
+CPX-1738          Phenylalanyl-tRNA synthetase complex     2 10533.209777   249.752 False     0
+CPX-1808                            GCN1-GCN20 complex     2  6651.427900   381.725 False     0
+CPX-1306 Nascent polypeptide-associated complex, EGD1-     2 66471.504545    35.729 False     0
+ CPX-435  ERF1-ERF3 translation release factor complex     2 18393.016058   125.557 False     1
+ CPX-583 Trehalose-6-phosphate synthase/phosphatase co     3  8169.921086   282.142 False     0
+ CPX-427 Eukaryotic translation initiation factor 2 co     3 18307.467146   124.158 False     0
+ CPX-582 Trehalose-6-phosphate synthase/phosphatase co     3  8169.921086   277.959 False     0
+CPX-1812 1,3-beta-D-glucan synthase complex, FKS1-RHO1     2  9517.316449   238.003  True     0
+ CPX-656                                  SAGA complex    20  1400.863432  1588.739 False    10
+ CPX-675                      SLIK (SAGA-like) complex    19  1394.447264  1522.549 False     0
+CPX-1712          Gin4 serine/threonine kinase complex     8  4273.168149   481.463 False     0
+CPX-1470          Myosin class I complex, MYO5 variant     2 13024.821837   153.034 False     0
+CPX-1500          Myosin class I complex, MYO3 variant     2 12494.418583   158.586 False     0
+ CPX-695                      Adenylyl cyclase complex     2  6805.415942   285.355 False     0
+CPX-1813 1,3-beta-D-glucan synthase complex, FKS2-RHO1     2  7596.743377   240.142  True     0
+CPX-1889 RSC chromatin remodelling complex, variant RS    16  1743.059080  1031.182 False     0
+CPX-1888 RSC chromatin remodelling complex, variant RS    16  1743.059080  1026.813 False     1
+CPX-3265              Ribosome quality control complex     6  1700.284624  1040.249 False     0
+CPX-2225          Myosin class V complex, MYO2 variant     3  2951.437460   556.216 False     3
+ CPX-607             Actin-related protein 2/3 complex     7  6972.236320   233.286 False     0
+ CPX-737           Box H/ACA ribonucleoprotein complex     4 15869.323157    99.943 False     1
+CPX-1501          Myosin class V complex, MYO4 variant     3  2951.437460   533.544 False     0
+CPX-1189    RAD26-DEF1 stalled RNAPII response complex     2  7385.009820   208.501 False     0
+CPX-3028 1,3-beta-D-glucan synthase complex, FKS3-RHO1     2  6648.262590   230.635  True     0
+CPX-1293 Mitochondrial 2-oxoglutarate dehydrogenase co     4  6480.330076   232.546 False     0
+ CPX-558 Mitochondrial isocitrate dehydrogenase comple     2  4603.600822   316.252 False     3
+ CPX-426    PAN1 actin cytoskeleton-regulatory complex     3  4196.174129   336.412 False     0
+
+== 4. membrane proteins
+placed membrane-embedded copies: {'MITO_IM': 310759, 'MITO_OM': 93115, 'ER': 581795, 'PM': 242331, 'VAC': 110591, 'PEROX': 25887, 'GOLGI': 130311, 'NE': 20452}
+TM proteins in inventory: 1229 genes, 1823228 copies
+TM copies by annotated compartment: {'ER': 569378, 'plasma_membrane': 449812, 'mitochondrion': 417854, 'golgi_endosome': 130373, 'vacuole': 129890, 'cytosol': 61591, 'peroxisome': 26672, 'nuclear_envelope': 20822, 'lipid_droplet': 12620, 'cell_wall': 2565, 'nucleoplasm': 1646}
+TM types by oligomer annotation: {1: 1204, 2: 21, 6: 1, 4: 1, 5: 1, 3: 1}
+unmodeled membrane complexes: 116; top by mass:
+                                         name  nsub      copies  mass_kda  pdbs
+Mitochondrial proton-transporting ATP synthas    17 6245.070569   643.839     8
+1,3-beta-D-glucan synthase complex, FKS1-RHO1     2 9517.316449   238.003     0
+1,3-beta-D-glucan synthase complex, FKS2-RHO1     2 7596.743377   240.142     0
+1,3-beta-D-glucan synthase complex, FKS3-RHO1     2 6648.262590   230.635     0
+Vacuolar transporter chaperone complex, VTC3      3 6116.747201   222.821     1
+TIM23 mitochondrial inner membrane pre-sequen     9 4491.317875   296.569     1
+  Mitochondrial respiratory chain complex III    10 5004.611346   250.648     3
+                           Translocon complex     7 4876.287978   223.122     2
+Vacuolar transporter chaperone complex, VTC2      3 4790.739066   221.709     0
+TOM40 mitochondrial outer membrane translocas     7 4020.798859   246.622     2
+                                SPOTS complex     6 3479.701991   256.122     0
+                                EMP24 complex     4 8169.921086    96.225     0
+PMT1-PMT2 dolichyl-phosphate-mannose-protein      2 4200.451574   179.545     2
+Mitochondrial respiratory chain complex IV, C    11 3075.483383   225.868     0
+ERG25-ERG26-ERG27 ergosterol biosynthesis com     3 5731.777097   114.910     0
+Mitochondrial respiratory chain complex IV, C    11 2750.397518   225.925     0
+       Vesicular SNARE complex SSO2-SEC9-SNC2     3 4662.415698   120.315     0
+Oligosaccharyltransferase complex, OST3 varia     8 1954.792637   284.329     2
+Oligosaccharyltransferase complex, OST6 varia     8 1954.792637   282.737     0
+alpha-1,6-mannosyltransferase complex, M-Pol      5 2143.000243   245.041     0
+
+== 5. pLDDT trimming (mass not drawn)
+AF residue mass trimmed: 3.1% of all protein mass; types with <50% kept: 437
+{'other': '10.0%', 'cytosol': '4.7%', 'nucleoplasm': '16.1%', 'mito_matrix': '6.8%', 'mito_IMS': '6.7%', 'peroxisome': '1.5%', 'ER_lumen': '8.5%', 'cell_wall': '10.9%', 'vacuole': '7.8%', 'golgi_endosome': '10.4%', 'nucleolus': '14.6%'}
+ gene  copies  plddt_frac_kept
+ YEF3  264556            0.955
+ SSA1  218277            0.949
+ PAB1   76940            0.825
+ SSA2  214637            0.951
+ RNR1   60651            0.887
+HSC82   90713            0.919
+ STM1  101416            0.810
+ RPN1   26518            0.822
+ KAR2   60011            0.906
+ NSR1   32796            0.522
+
+== 6. cytoskeleton & polymer genes (how they are placed now)
+  ACT1    copies(inv)=   111128  as: ACT1(AF)
+  TUB1    copies(inv)=    11506  as: CPX_1424_Tubulin_alpha_beta_heterodimeric(PDB)
+  TUB2    copies(inv)=    24510  as: CPX_1424_Tubulin_alpha_beta_heterodimeric(PDB), TUB2(AF)
+  TUB3    copies(inv)=     6331  as: TUB3(AF)
+  ABP1    copies(inv)=    14586  as: ABP1(AF)
+  CRN1    copies(inv)=     5005  as: CRN1(AF)
+  ARC40   copies(inv)=     4406  as: ARC40(AF)
+  ARP2    copies(inv)=     6972  as: ARP2(AF)
+  ARP3    copies(inv)=     8854  as: ARP3(AF)
+  CAP1    copies(inv)=     4320  as: CAP1(AF)
+  TPM1    copies(inv)=    35802  as: TPM1(AF)
+  TPM2    copies(inv)=    11806  as: TPM2(AF)
+  COF1    copies(inv)=    54751  as: COF1(AF)
+  PFY1    copies(inv)=    41448  as: PFY1(AF)
+  SAC6    copies(inv)=    15099  as: SAC6(AF)
+  MYO1    copies(inv)=      616  as: MYO1(AF)
+  MYO2    copies(inv)=     4320  as: MYO2(AF)
+  BNI1    copies(inv)=      403  as: BNI1(AF)
+  PIL1    copies(inv)=    40080  as: PIL1(AF)
+  LSP1    copies(inv)=    35973  as: LSP1(AF)
+  SUR7    copies(inv)=     7999  as: SUR7(AF)
+  CDC3    copies(inv)=     6416  as: CDC3(AF)
+  CDC10   copies(inv)=     4098  as: CDC10(AF)
+  CDC11   copies(inv)=     4449  as: CDC11(AF)
+  CDC12   copies(inv)=     4449  as: CDC12(AF)
+  SHS1    copies(inv)=     2258  as: SHS1(AF)
+  SPC42   copies(inv)=      441  as: SPC42(AF)
+  SPC110  copies(inv)=      898  as: SPC110(AF)
+
+== 7. nucleic acids
+          id  pdb  nnt  copies
+      PolIII 5FJ8   47    2266
+  nucleosome 1ID3  292   73150
+ribosome_80S 4V88 5209  167339
+        tRNA 1EHZ   73 3299968
