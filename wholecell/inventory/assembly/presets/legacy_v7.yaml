@@ -52,3 +52,6 @@ afdb_heterodimers:
   order: max_ipsae               # greedy, best interface first
   allocation: bound_fraction_of_min_free      # n = bound_fraction x min(free a, free b), running pools
   bound_fraction: 0.5
+  compartment_check: null        # v7: no check here (rule v4.h dissolved cross-compartment pairs afterwards); a dict
+                                 # {classes, min_share, signal_peptide, incompatible, keep} skips such pairs before the
+                                 # pools are consumed (steps.py _compartment_classes)

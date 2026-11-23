@@ -227,6 +227,17 @@ inventory:
         # SEC-MS run feeding the rules (Step 3, 2026-11-19): the combined final estimate (secms_toolkit.combine label;
         # condition = replicate = 'combined', the only ones under this label). v7 = inv_sec_fossati_features (jurkat_v7_port)
         secms: {source_id: jurkat_final}
+        # v9 (2026-11-23; review D-asm-5): the compartment check of AFDB heterodimers at assembly, as the yeast cell has
+        # one: the rule of v4.h (which dissolved such pairs only after the pools were consumed: 30 pairs in v8) applied
+        # before the greedy pairing, so the partners' copies stay free for compatible partners. v4.h stays as a check.
+        afdb_heterodimers:
+          compartment_check:
+            classes: {mito: [mitochondrion], cyto: [cytosol, nucleus, cytoskeleton, unassigned, plasma_membrane]}
+            min_share: 0.5               # class = the one holding > 0.5 of the compartment weights (v4.h)
+            signal_peptide: lumen        # soluble proteins with a signal peptide; transmembrane proteins are not checked
+            incompatible: [[lumen, cyto], [lumen, mito], [mito, cyto]]
+            keep: [SKP1-FBXL12, ASB9-ELOC, WSB1-ELOC, RTKN-RHOC, RTKN-CDC42, UQCC1-UQCC2, BCL2L2-BMF, BCL2A1-BCL2L11,
+                   BCL2A1-PMAIP1, PRELID3B-TRIAP1, CIBAR1-CBY1]     # = plugins/jurkat/data/rules_v4.yaml keep_het
         # complex_portal.copies stays stoichiometry_cap (NOT measured_free_pool: Pedro 2026-11-16, not enabled for Jurkat;
         # Step 3: the gates of docs/reference/history/secms_toolkit_report.md §4 (size/pelleting, subcomplex windows,
         # recovery correction) are not implemented, so they cannot pass -> stays OFF)
