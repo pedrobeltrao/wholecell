@@ -17,7 +17,7 @@ for Jurkat and testcell:
 **Outputs** (`geometry/`): `package.json` (path, id, manifest sha256, engine), `validation.json` (validator result),
 `measures.json` (region volumes by seeded Monte Carlo, stream `geometry.measures`; membrane areas; field volumes).
 
-**Config keys** (`geometry:`): `toolkit`, `package`, `manifest_sha256`, `engine`, `evaluator`, `rules`, `mc_points`
+**Config keys** (`geometry:`): `toolkit`, `package`, `manifest_sha256`, `on_mismatch` (error | warn; default error), `engine`, `evaluator`, `rules`, `mc_points`
 (every cell, yeast included since A9; the reproduction config `yeast_x5_port.yaml` keeps `generator`, `package_root`,
 `seeds`).
 
