@@ -20,7 +20,8 @@ Steps (inputs -> outputs, all in <build>/validate/):
                 Skipped without validate.chromatin.
   manifest      every result file in validate/ -> MANIFEST.tsv (file, bytes, md5, build stamp id, validation commit)
   compare_v7    reference (validate.compare_reference: legacy paths + its validate/ dir) vs this build
-                -> compare_v7/criteria_results.tsv, compare_v7/verdict.json  (wholecell/validate/compare_builds.py)
+                -> compare_v7/criteria_results.tsv, compare_v7/verdict.json  (wholecell/validate/compare_builds.py);
+                skipped (compare_v7.skipped.json) when the reference validate dir or one of its files is absent
   suite         common validation suite (plan s4, wholecell/validate/suite.py): checks C1-C17 from the outputs above,
                 the build's tiles and the cell's reference adapter (validate.suite.adapter) -> suite.json, no_regression.tsv,
                 legacy_check.tsv (in validate/, or --out DIR; runs after manifest, so the manifest does not list them)
@@ -122,6 +123,12 @@ def run(cfg, bdir, step=None, **kw):
     if step == "manifest":
         return write_manifest(cfg, bdir, overwrite=True)
     if step == "compare_v7":
+        cr = vc.get("compare_reference") or {}
+        need = [kw.get("ref_validate_dir") or cr.get("validate_dir")] + list((cr.get("files") or {}).values())
+        absent = [p for p in need if p and not os.path.exists(p)]
+        if absent:                      # the archived reference is not part of a rebuild from public inputs (docs/REBUILD.md)
+            return _skip(bdir, step, f"reference '{cr.get('name', 'ref')}' absent ({len(absent)} of {len(need)} paths), "
+                                     f"e.g. {absent[0]}")
         from . import compare_builds
         return compare_builds.run(cfg, bdir, **kw)
     if step == "code_check":

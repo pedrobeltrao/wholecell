@@ -91,7 +91,8 @@ def test_jurkat_plan():
     plan = stage.steps(cfg)
     assert [s for s in plan if s.startswith("rules:")] == ["rules:jurkat.v4", "rules:jurkat.v5", "rules:jurkat.v6", "rules:jurkat.v7"]
     v7 = plan["rules:jurkat.v7"]
-    assert "inv_lamina_consumption_v7" in v7["frozen"] and "inventory/rules/jurkat.v6/ingredients.tsv" in v7["inputs"]
+    assert "inv_lamina_consumption_v7" not in v7["frozen"] and "inventory/rules/jurkat.v6/ingredients.tsv" in v7["inputs"]
+    assert "preplaced/lamina/consumption.json" in v7["inputs"]      # v9: the build's own lamina (no legacy lattice)
     assert "inv_v4pack_loc_compare" in plan["rules:jurkat.v5"]["frozen"]
     assert {"inv_v5pack_loc_compare", "inv_tier2_v5"} <= set(plan["rules:jurkat.v6"]["frozen"])
     for s in plan.values():

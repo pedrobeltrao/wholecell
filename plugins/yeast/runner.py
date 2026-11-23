@@ -96,8 +96,19 @@ def read_manifest(path):
     return rows
 
 
-def verify_manifest(root, manifest, full_md5=False):
+def _md5(p):
     import hashlib
+    h = hashlib.md5()
+    with open(p, "rb") as f:
+        for b in iter(lambda: f.read(1 << 22), b""):
+            h.update(b)
+    return h.hexdigest()
+
+
+def verify_manifest(root, manifest, full_md5=False):
+    """(n files, [(relpath, problem)]) of `root` against a make_manifests.sh manifest. full_md5: md5 of every file;
+    else size + mtime, and a file whose mtime differs is accepted when its md5 matches the manifest (a downloaded or
+    copied tree has new mtimes); problems: missing | size | md5 | mtime (mtime differs and the manifest has no md5)"""
     bad = []
     rows = read_manifest(manifest)
     for md5, size, mtime, rel in rows:
@@ -107,12 +118,8 @@ def verify_manifest(root, manifest, full_md5=False):
         st = os.stat(p)
         if st.st_size != size:
             bad.append((rel, "size")); continue
-        if full_md5 and md5 is not None:
-            h = hashlib.md5()
-            with open(p, "rb") as f:
-                for b in iter(lambda: f.read(1 << 22), b""):
-                    h.update(b)
-            if h.hexdigest() != md5:
+        if (full_md5 or int(st.st_mtime) != mtime) and md5 is not None:
+            if _md5(p) != md5:
                 bad.append((rel, "md5"))
         elif int(st.st_mtime) != mtime:
             bad.append((rel, "mtime"))
@@ -135,7 +142,7 @@ def step_setup(cfg, bdir, kw):
         # files of the read-in-place yeast data changed after X5 started are listed (not read by the build) but not fatal
         changed_ok = [b for b in bad if name == "pipeline_data" and b[0].startswith("validation/literature/endocytosis/")]
         hard = [b for b in bad if b not in changed_ok]
-        checks[name] = dict(root=root, manifest=man, files=n, mismatches=bad, fatal=hard, level="md5" if full else "size+mtime")
+        checks[name] = dict(root=root, manifest=man, files=n, mismatches=bad, fatal=hard, level="md5" if full else "size+mtime (md5 when mtime differs)")
         log(f"frozen {name}: {n} files, {len(bad)} mismatches ({len(hard)} fatal)")
         if hard:
             raise SystemExit(f"frozen input {name} does not match its manifest: {hard[:10]}")

@@ -114,7 +114,7 @@ def engine_setup(cfg, bdir, p):
         n, bad = verify_manifest(spec["path"], spec["manifest"], full_md5=full)
         # files of the read-in-place yeast data changed after X5 started (not read by the build): listed, not fatal
         hard = [b for b in bad if not (name == p.get("data") and b[0].startswith("validation/literature/endocytosis/"))]
-        checks[name] = dict(files=n, mismatches=bad[:50], n_mismatches=len(bad), fatal=hard[:50], level="md5" if full else "size+mtime")
+        checks[name] = dict(files=n, mismatches=bad[:50], n_mismatches=len(bad), fatal=hard[:50], level="md5" if full else "size+mtime (md5 when mtime differs)")
         log(f"frozen {name}: {n} files, {len(bad)} mismatches ({len(hard)} fatal)")
         if hard:
             raise SystemExit(f"frozen input {name} does not match its manifest: {hard[:10]}")

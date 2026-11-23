@@ -344,9 +344,13 @@ inventory:
       hpa_subcellular: inv_hpa_subcellular
       hpa_celllines: inv_hpa_celllines
       holdout_genes: inv_holdout_genes
-      # lamina pre-pass consumption (rule L3 + L2 rows): a frozen input name (legacy jlamina output, default), or
-      # "build:preplaced/<...>/lamina_cell1.json" to consume the lamina rebuilt by the preplaced stage of the same build
-      lamina_consumption: inv_lamina_consumption_v7
+      # lamina pre-pass consumption (rule L3 + L2 rows): a frozen input name (legacy jlamina output), or
+      # "build:preplaced/<...>/consumption.json" = the lamina rebuilt by the preplaced stage of the same build (from the
+      # v6 table; the DAG orders rules:jurkat.v7 after it). v9 (2026-11-23): the build's own lamina, so the inventory no
+      # longer reads the legacy v7 lattice built on the v7 geometry (v8 used inv_lamina_consumption_v7: LMNB1/LMNB2/LMNA
+      # 816,134 / 139,203 / 23,570 vs 708,748 / 119,060 / 20,854 in the lattice; the 130,153 surplus copies were packed
+      # on the lamina key, pack_counts.log); the lamin copies the lattice does not hold now go to the nucleoplasm
+      lamina_consumption: "build:preplaced/lamina/consumption.json"
       chromatin_json: inv_chromatin_v8_json
       cytoskeleton_json: inv_cytoskeleton_v7_json     # history rows MT3b / FA_trim only (B4 MTs: preplaced/serial/modules/microtubules.json)
       cytoskeleton_prev_json: inv_cytoskeleton_v6_json
@@ -563,8 +567,8 @@ preplaced:
       # B4: mode build. The frozen v7 lamina excludes rods only around the 1,000 v7 pores; on em_cell1_v8p (2,696 pores)
       # it overlaps the new NPCs (pre-build check: 2,511 lamina-NPC overlap pairs on the 300 sampled tiles). The rebuilt
       # lattice (same builder and seed, pore exclusion on the package pores) is used; compare_frozen.json still written.
-      # Inventory rule L3 keeps the frozen v7 lamina consumption (inv_lamina_consumption_v7; the rebuilt lattice consumes
-      # ~2.6 % more lamins: the pack takes them from the lamina key, clipped at 0).
+      # Inventory rule L3 reads this build's lamina consumption (preplaced/lamina/consumption.json, v9); until v8 it read
+      # the frozen v7 consumption (inv_lamina_consumption_v7) and the pack took the lattice copies from the lamina key.
       mode: build                  # build | frozen; the rebuild is always run and compared (B5): see preplaced/lamina/compare_frozen.json
       rebuild_check: true
       builder: lamina_lattice
@@ -999,11 +1003,11 @@ export:
 
 # --- frozen inputs: name -> {path, md5|sha256, origin, why}. Prefix names by stage: geom_*, inv_*, lib_*, pre_*, val_* ---
 frozen_inputs:
-  geom_jgeom_v7:
-    path: "{data_root}/data/derived/jgeom_cell1_v7.npz"
-    md5: 0eea64ff4e8ea430a8027ae2f522baec
-    origin: "jgeom_build + jcristae + jface_cap + jspeckles + jgolgi + jgolgi_ribbon + jspeckles(v8), in place"
-    why: "source of geometry package jurkat/em_cell1_v7 (toolkits/em/convert_legacy.py) and reference of criterion B1"
+  # v9 (2026-11-23, rebuild from public inputs): declarations used only by the v7 reproduction preset moved to
+  # jurkat_v7_port.yaml (geom_jgeom_v7, pre_polysomes_v7(_json), pre_npc_v3(_json), pre_mrna_drop_v7,
+  # pre_cytoskeleton_v7_json); inv_lamina_consumption_v7 (rule L3 now reads this build's lamina; same file as
+  # pre_lamina_v7_json) and inv_sec_assembly_thresholds (regression reference read by no build step; read by path in
+  # scripts/dev/secms_regression_check.py) removed. Every input below is read by a step of this config.
   inv_legacy_complexes_v0:
     path: "{data_root}/data/derived/complexes_v0.tsv"
     md5: 0c95b67246b26e85407f5e6989d2317e
@@ -1210,15 +1214,6 @@ frozen_inputs:
     version: "lab 2026 (received 2026-11-17)"
     licence: "UNPUBLISHED, CONFIDENTIAL (Beltrao lab): local only, never upload / push"
     redistributable: no
-  inv_sec_assembly_thresholds:
-    path: "{data_root}/data/derived/sec_assembly_thresholds.tsv"
-    md5: 1786089f3333d6f470ac8358e0ab6d64
-    why: "REGRESSION REFERENCE ONLY since 2026-11-16 (criterion S8): legacy orphan per-protein SEC assembled fraction at k=2/3/4/6 x monomer; regenerated exactly by toolkits/secms (preset legacy_v7); its mass_pg column came from an 80 pg inventory"
-    kind: secms
-    url: ""
-    version: "derived 2026-11-08 06:16 (no generator)"
-    licence: "derived"
-    redistributable: yes
   inv_afdb_homodimer_table:
     path: "{data_root}/data/structures/afdb_complexes/homodimer_human.tsv.gz"
     md5: 35b88d873580811093833bfd5060a1cd
@@ -1371,15 +1366,6 @@ frozen_inputs:
     version: "seed 20261110"
     licence: "derived"
     redistributable: yes
-  inv_lamina_consumption_v7:
-    path: "{data_root}/data/derived/prepass_v7/lamina_cell1.json"
-    md5: 28e9baa7dde4a200ce7b71ec6734c56a
-    why: "PRE-PASS: legacy jlamina consumption (v7 rule L3; default lamina input)"
-    kind: prepass
-    url: ""
-    version: "jlamina 2026-11-10 21:25 (LAMINA_PRIORITY=chromatin)"
-    licence: "derived"
-    redistributable: yes
   inv_chromatin_v8_json:
     path: "{data_root}/data/derived/chromatin/v8/prepass/chromatin_cell1.json"
     md5: 13c529640b069ad0056134576f84e0f8
@@ -1440,16 +1426,14 @@ frozen_inputs:
   lib_structures_v7: {path: "{data_root}/jurkat/yc/pipeline/lib", manifest: "{repo}/plugins/jurkat/data/library_v7_manifest.tsv.gz", md5: e4ba6bb3fa2555f2f5323c2c01aa6bc6, origin: "legacy structure library, last write 2026-11-09 19:54 (= v7 library)", why: "frozen v7 library (16,246 files; built in place by 5 scripts, AFDB availability time-dependent)"}
   pre_chromatin_v8_rep5: {path: "{data_root}/data/derived/chromatin/v8/prepass/chromatin_cell1.npz", md5: cd4c3b4c88ba1348d3df12b30370cd24, origin: "chromatin v8 genome-mapped rep5 back-map (2026-11-10)", why: "GPU MD not bitwise reproducible; rep5 chosen post hoc"}
   pre_chromatin_v8_rep5_json: {path: "{data_root}/data/derived/chromatin/v8/prepass/chromatin_cell1.json", md5: 13c529640b069ad0056134576f84e0f8, origin: "chromatin v8 rep5", why: "pre-pass consumption"}
-  pre_polysomes_v7: {path: "{data_root}/data/derived/prepass_v7/polysomes_cell1.npz", md5: 0270d7abd132abaf91a032c398ee8a6c, origin: "jpolysome v3 + jcytoskel_v7 + jgolgi_ribbon trims", why: "v7 pre-pass (built on older geometry)"}
-  pre_polysomes_v7_json: {path: "{data_root}/data/derived/prepass_v7/polysomes_cell1.json", md5: c63dda3025a3d1232f1ecdb6c9592c3c, origin: "as pre_polysomes_v7", why: "pre-pass consumption"}
   pre_cytoskeleton_v7: {path: "{data_root}/data/derived/prepass_v7/cytoskeleton_cell1.npz", md5: 1523616f92a7ceb94aa37199fad24f57, origin: "jcytoskeleton + MT stage 3 + jcytoskel_v7 + jgolgi_ribbon", why: "traced MTs (U-Net inference not bitwise reproducible)"}
-  pre_cytoskeleton_v7_json: {path: "{data_root}/data/derived/prepass_v7/cytoskeleton_cell1.json", md5: c480b6e40d2f372f985c8d38192b22d5, origin: "as pre_cytoskeleton_v7", why: "pre-pass consumption"}
-  pre_npc_v3: {path: "{data_root}/data/derived/prepass/npc_cell1.npz", md5: 985f0601ae935105e0fddcffa2275e9f, origin: "jnpc.py v3 (2026-11-09)", why: "v7 pre-pass"}
-  pre_npc_v3_json: {path: "{data_root}/data/derived/prepass/npc_cell1.json", md5: efe82463d141b2ab371614b069b5afcf, origin: "jnpc.py v3", why: "pre-pass consumption"}
   pre_lamina_v7: {path: "{data_root}/data/derived/prepass_v7/lamina_cell1.npz", md5: f6a755243d9a368560c4af3edc0c10f2, origin: "jlamina.py, logs/v7_full2.sh (LAMINA_PRIORITY=chromatin, seed 20261112)", why: "B5 reference for the rebuilt lamina; used when prepass lamina mode is frozen"}
   pre_lamina_v7_json: {path: "{data_root}/data/derived/prepass_v7/lamina_cell1.json", md5: 28e9baa7dde4a200ce7b71ec6734c56a, origin: "as pre_lamina_v7", why: "lamina consumption (rule L3 input when frozen)"}
   pre_chromatin_drop_lamina_v7: {path: "{data_root}/data/derived/prepass_v7/chromatin_drop_lamina.json", md5: 03082c7c0e2d41c133e9b7c0a988ef9f, origin: "as pre_lamina_v7", why: "chromatin drop list (empty with chromatin priority)"}
   pre_chromatin_drop_lamina_v7_npy: {path: "{data_root}/data/derived/prepass_v7/chromatin_drop_lamina.npy", md5: fd54501d100600681e06df232da179c5, origin: "as pre_lamina_v7", why: "drop indices referenced by the drop json"}
   pre_mrna_v1: {path: "{data_root}/data/derived/prepass/mrna_cell1.npz", md5: 147c74910616ee6350cf0fe1b2ecbe62, origin: "jmrna.py v1 (2026-11-08)", why: "mRNA beads (obstacles)"}
-  pre_mrna_drop_v7: {path: "{data_root}/data/derived/prepass_v7/mrna_drop.npy", md5: cb42555de15bfa9ff97257e2ef779e4b, origin: "jcytoskel_v7 + jgolgi_ribbon clash lists", why: "mRNA beads dropped in v7"}
   pre_mrna_nascent_v8: {path: "{data_root}/data/derived/chromatin/v8/prepass/mrna_nascent_cell1.npz", md5: 08142fabc00b2af23227586ea35b47b8, origin: "chromatin v8 rep5 functional layer", why: "nascent RNA beads (v7 mrna_extra)"}
+  # read by wholecell/library/topology.py under {data_root} (library step pm_topology_fix, the tm_alternation rule, check
+  # E7): declared here (v9) so that the frozen check verifies them (they were hidden inputs of v8)
+  lib_uniprot_glyco_topo: {path: "{data_root}/data/reference/uniprot_glyco/uniprot_human_glyco_topo.tsv.gz", md5: a02124b0022256d6934ead32301797c2, origin: "UniProt REST, human reviewed topology / glycosylation features (2026-11-11)", why: "PM unit orientation (topology + glycosylation sides)", kind: annotation, licence: "UniProt CC BY 4.0"}
+  lib_afdb_plddt_summary: {path: "{data_root}/data/derived/afdb_plddt_summary.tsv.gz", md5: 65abaf588dcc7bc4a25902a335a0d502, origin: "per-residue pLDDT summary of the AlphaFold DB v6 human F1 models (2026-11-08)", why: "orientation(): pLDDT of AFDB F1 models", kind: structures, licence: "AlphaFold DB CC BY 4.0"}
