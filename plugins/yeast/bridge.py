@@ -124,6 +124,10 @@ def engine_setup(cfg, bdir, p):
         hard = [b for b in bad if not (name == p.get("data") and b[0].startswith("validation/literature/endocytosis/"))]
         if name == p.get("data") and read_set is not None:
             hard = [b for b in hard if read_set(b[0])]
+        opt = (p.get("optional") or {}).get(name) or []      # files no step of this config reads (may be withheld)
+        if opt:
+            import fnmatch
+            hard = [b for b in hard if not (b[1] == "missing" and any(fnmatch.fnmatch(b[0], q) for q in opt))]
         checks[name] = dict(files=n, mismatches=bad[:50], n_mismatches=len(bad), fatal=hard[:50], level="md5" if full else "size+mtime (md5 when mtime differs)")
         log(f"frozen {name}: {n} files, {len(bad)} mismatches ({len(hard)} fatal)")
         if hard:

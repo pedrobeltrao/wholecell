@@ -702,6 +702,9 @@ plugin_steps:
       pdb: yeast_pdb_cache
       work_seed: yeast_x5_work_seed
       check: [yeast_x5_work_seed, yeast_pipeline_data, yeast_pdb_cache, yeast_afdb_dimers]
+      optional:                    # may be absent (not read by this config): the cached AF3 pool pairs (in-house predictions,
+                                   # not redistributable) are read only with pack.organisation.pool_scores (off here)
+        yeast_x5_work_seed: [organisation/pool_pairs.parquet]
   - id: yeast_protein_table
     stage: inventory
     run: yeast.protein_table       # core copies + localisation -> the engine's stage-1 protein table layout
