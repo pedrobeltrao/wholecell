@@ -1,7 +1,7 @@
 # Release notes: 0.1.0-staging (2026-11-23)
 
 This repository is a clean public-release copy of the development repository `wholecell` (private, full history).
-It was staged (release commit ad93956f54ef48122afc1bcd7ee9e8ec33b49113, "0.1.0-staging") from development `main` at **e5dda5c** (`e5dda5cf36b2bd34647b71b6b6f068954cb54ecf`) with a fresh git
+It was staged (release commit 885f367319c4c9e8ebffdac23e8fbfa1d3545cf5, "0.1.0-staging") from development `main` at **e5dda5c** (`e5dda5cf36b2bd34647b71b6b6f068954cb54ecf`) with a fresh git (commit ids rewritten 2026-11-23 to drop a stray trailer; tree unchanged, tested tree = same content)
 history. The two paper builds were made from development commit **0a3ba79**; `git diff 0a3ba79 e5dda5c` outside
 `applications/` is docs-only (the two freeze acceptance addenda), so the pipeline code here is the paper-build code
 plus the release edits listed below. Pins: `config/paper_builds.yaml`.
@@ -128,7 +128,7 @@ resolution with development main's own loader gives no difference besides the ch
 No file is larger than 5 MB.
 
 ## Staging test record (2026-11-23, shared node; site file with the development machine's roots)
-- **Test suite** (`PYTHONHASHSEED=0 python tests/test_X.py`, each, from the release checkout at ad93956 + reference
+- **Test suite** (`PYTHONHASHSEED=0 python tests/test_X.py`, each, from the release checkout at 885f367 + reference
   edits; core env vcell): **23 / 23 pass (exit 0), no skips**: test_assembly_steps, test_copies, test_geometry,
   test_inventory, test_inventory_freeze_e2e (full Jurkat inventory, 695 s), test_library, test_localisation,
   test_numba_env, test_pack_numba_threads, test_pack_organisation, test_pack_regions, test_pack_smoke,
