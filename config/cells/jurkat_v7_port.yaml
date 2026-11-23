@@ -58,6 +58,10 @@ pack:
 inventory:
   copies:
     adjustments: []                  # v7: no copy fixes (jurkat.yaml: v8.copy_fixes PDGFRB, DECISION 2026-11-19)
+  # v7: rule L3 inside rules:jurkat.v7 (jurkat.yaml runs it as rule set jurkat.v7_lamina since v9); the frozen library
+  # does not read the inventory, so there is no library_table
+  rule_sets: [jurkat.v4, jurkat.v5, jurkat.v6, jurkat.v7]
+  library_table: null
   # B5 (jurkat.yaml: localisation preset common, term_map strings cleaned up): the v7 port keeps the legacy v7
   # localisation and the v7 table strings (lists are replaced whole)
   localisation_sources:
@@ -65,6 +69,9 @@ inventory:
     - {source_id: inv_uniprot_full, weight: 0.5, evidence_codes: "UniProt CC text (all statements, equal weight)", term_map: "plugins/jurkat/data/inventory_v0.yaml:uniprot_comp_rules"}
     - {source_id: inv_itzhak2016, weight: 1.0, evidence_codes: "fractionation N/C class N, C, N/C with >= 3 good profiles; soluble proteins only", term_map: "re-split of nucleus+cytosol+cytoskeleton share"}
   params:
+    jurkat.v7:
+      lamina_consumption: "build:preplaced/lamina/consumption.json"
+    jurkat.v7_lamina: null
     localisation:
       preset: legacy_v7                 # presets/legacy_v7.yaml (= legacy v0 location exactly)
       label: jurkat.hpa_uniprot_itzhak_v0

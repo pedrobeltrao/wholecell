@@ -132,7 +132,10 @@ inventory:
     assembly: assembly_steps            # core assembly step list (wholecell/inventory/assembly), preset in params below
     surface: surface_proteomics         # freeze v8 D7: canonical surface.tsv, presence evidence only; does NOT change copies or localisation
   ingredients: jurkat.ingredients_v0    # inventory_builder
-  rule_sets: [jurkat.v4, jurkat.v5, jurkat.v6, jurkat.v7]   # applied in order, each on the previous step's table
+  rule_sets: [jurkat.v4, jurkat.v5, jurkat.v6, jurkat.v7, jurkat.v7_lamina]   # applied in order, each on the previous step's table
+  # the library reads the v7 table (rules/jurkat.v7, before L3): jurkat.v7_lamina reads the lamina, which needs the library;
+  # pack_table checks that the two tables differ in comp_weights only (stage.py check_library_table; v9, 2026-11-23)
+  library_table: {after: jurkat.v7}
   proteome_sources:                     # -> canonical proteome_sources.tsv
     - {source_id: inv_geiger2012_pg, weight: 1.0, unit: "iBAQ ppb (linear, E-PROT-20)", normalisation: "median over detected Jurkat replicates; molar fraction x N with sum(copies x mass) = total_protein_pg", condition: "Jurkat, steady state", replicates: "Jurkat columns of the protein-group table"}
     - {source_id: rna_consensus, weight: 0.0, unit: "TPM (protein-coding renormalised)", normalisation: "imputation only: log10 ppb = a + b log10 TPM fitted on detected genes, capped at the 5th percentile of detected ppb; 'low' x0.25", condition: "E6-1, 5 bulk sources", replicates: "see inv_rna_*"}
@@ -359,18 +362,22 @@ inventory:
       hpa_subcellular: inv_hpa_subcellular
       hpa_celllines: inv_hpa_celllines
       holdout_genes: inv_holdout_genes
-      # lamina pre-pass consumption (rule L3 + L2 rows): a frozen input name (legacy jlamina output), or
-      # "build:preplaced/<...>/consumption.json" = the lamina rebuilt by the preplaced stage of the same build (from the
-      # v6 table; the DAG orders rules:jurkat.v7 after it). v9 (2026-11-23): the build's own lamina, so the inventory no
-      # longer reads the legacy v7 lattice built on the v7 geometry (v8 used inv_lamina_consumption_v7: LMNB1/LMNB2/LMNA
-      # 816,134 / 139,203 / 23,570 vs 708,748 / 119,060 / 20,854 in the lattice; the 130,153 surplus copies were packed
-      # on the lamina key, pack_counts.log); the lamin copies the lattice does not hold now go to the nucleoplasm
-      lamina_consumption: "build:preplaced/lamina/consumption.json"
+      # no lamina_consumption here: rule L3 (+ L2 rows) runs as the rule set jurkat.v7_lamina below (v9)
       chromatin_json: inv_chromatin_v8_json
       cytoskeleton_json: inv_cytoskeleton_v7_json     # history rows MT3b / FA_trim only (B4 MTs: preplaced/serial/modules/microtubules.json)
       cytoskeleton_prev_json: inv_cytoskeleton_v6_json
       mt_centerlines: inv_mt_centerlines
       pcm_volume_um3: 0.24511794968760817   # cytosolic part of the 400 nm PCM sphere: legacy pcm_volume() (MC, 400k points, rng 3) on jgeom_cell1_v7.npz
+    jurkat.v7_lamina:
+      # lamina pre-pass consumption (rule L3 + L2 rows): a frozen input name (legacy jlamina output), or
+      # "build:preplaced/<...>/consumption.json" = the lamina rebuilt by the preplaced stage of the same build (from the
+      # v6 table; the DAG orders rules:jurkat.v7_lamina after it). v9 (2026-11-23): the build's own lamina, so the inventory
+      # no longer reads the legacy v7 lattice built on the v7 geometry (v8 used inv_lamina_consumption_v7: LMNB1/LMNB2/LMNA
+      # 816,134 / 139,203 / 23,570 vs 708,748 / 119,060 / 20,854 in the lattice; the 130,153 surplus copies were packed
+      # on the lamina key, pack_counts.log); the lamin copies the lattice does not hold now go to the nucleoplasm.
+      # L3 is a rule set of its own since 2026-11-23 (inside jurkat.v7 it made the cycle pack_table -> library -> lamina
+      # -> rules:jurkat.v7); L3 touches only the lamin comp_weights, so the result equals L3 inside v7.
+      lamina_consumption: "build:preplaced/lamina/consumption.json"
   pack_table:
     # present the computed table in the legacy row order / JSON key order (content unchanged; differences reported)
     order_reference: inv_legacy_ingredients_v7
@@ -454,7 +461,9 @@ library:
   # pack will request, structure source = the inventory's struct_src, i.e. the current coverage rule) -> library/species.tsv.
   # Until v8 it was plugins/jurkat/data/library/species_v7.tsv.gz (the legacy table the v7 library was built from, with
   # the v7 npz source for 321 complexes): 117 pack-table species had no entry and were dropped silently by the pack.
-  species: {from: pack_table, pack_table: inventory/pack_table.tsv,
+  # The table is inventory/library_table.tsv (= the v7 table in pack-table order; inventory.library_table), which equals
+  # pack_table.tsv except the lamin comp_weights of rule L3 (checked at the pack_table step).
+  species: {from: pack_table, pack_table: inventory/library_table.tsv,
             accs: {table: inventory/assembly/inventory_v0_complexed.tsv, gene: gene, acc: uniprot}}
   ledger: {max_missing_mass_frac: 1.0e-4}   # library/species_ledger.tsv: the build fails above this share of the requested mass
   pdb_dir: lib_pdb_assemblies        # RCSB assembly cache, read in place; offline (a missing entry is an error)

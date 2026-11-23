@@ -1,7 +1,8 @@
 # origin: jurkat/yc/pipeline/jinventory_v7.py (legacy workspace, 2026-11-15) + jvirtual.load_context/_segs (MT band lengths)
 # changes: inventory_rule "jurkat.v7": reads the previous (v6) step's table and writes a new one (no snapshot copy);
 # the lamina pre-pass consumption is an explicit input (params lamina_consumption: a frozen input name, "build:<path
-# relative to the build dir>" for the rebuilt lamina of the preplaced stage, or a path); the PCM sphere volume (legacy:
+# relative to the build dir>" for the rebuilt lamina of the preplaced stage, or a path; without it, rule L3 runs as the
+# separate rule set jurkat.v7_lamina, v9); the PCM sphere volume (legacy:
 # Monte Carlo on jgeom_cell1_v7.npz with cell3d, rng 3) is a config value (params pcm_volume_um3; recompute with the
 # geometry engine for a new geometry); the MT band volumes are recomputed from the frozen centerlines (as legacy);
 # V7_CHROMATIN_JSON env -> params chromatin_json. Constants in plugins/jurkat/data/rules_v7.yaml. Numerics identical.
@@ -230,17 +231,15 @@ def apply_v7(ctx, src):
         setw(i, nw, "R6e", gs)
     grow += [dict(gene=g, rule="R6e", evidence=EV.get(("R6e", g), "")) for g in rec]
 
-    # L3 nucleoplasmic lamin pool: lamina share = lattice copies / copies (explicit lamina pre-pass input)
-    lam_path = resolve_input(ctx, p["lamina_consumption"])
-    lj0 = json.load(open(lam_path))
-    for g, P_ in lj0["consumed"].items():
-        k = I.index[I.ing_id == g]
-        if not len(k): continue
-        i = k[0]; w = Wt(i); C_ = float(I.at[i, "copies"]); wl = w.get("lamina", 0.0); s_ = min(wl, P_ / C_)
-        nw = dict(w); nw["lamina"] = s_; nw["nucleus"] = nw.get("nucleus", 0.0) + (wl - s_)
-        EV[("L3", g)] = f"lattice holds {P_:,} of {int(round(wl * C_)):,} lamina copies (jlamina.py); rest -> nucleoplasmic lamin pool"
-        setw(i, nw, "L3", {g})
-    say(f"L3 lamin pool ({lam_path}): {lj0['consumed']} in the lattice; rest -> nucleus")
+    # L3 nucleoplasmic lamin pool: lamina share = lattice copies / copies (explicit lamina pre-pass input). Without
+    # params lamina_consumption the rule is left to the rule set jurkat.v7_lamina (apply_v7_lamina, run after this one).
+    lam_path = resolve_input(ctx, p["lamina_consumption"]) if p.get("lamina_consumption") else None
+    lj0 = json.load(open(lam_path)) if lam_path else {}
+    if lam_path:
+        l3_apply(I, lj0, Wt, setw, EV)
+        say(f"L3 lamin pool ({lam_path}): {lj0['consumed']} in the lattice; rest -> nucleus")
+    else:
+        say("L3 lamin pool: deferred to rule set jurkat.v7_lamina (no params lamina_consumption)")
 
     # F1 CPX-2511 (SSU processome) compartment (override rows v7.F1: comp_weights, transmembrane, n_tm; v7 logged the
     # transmembrane change unconditionally and the n_tm change not at all - kept)
@@ -285,10 +284,8 @@ def apply_v7(ctx, src):
              "cytoskel/stage3 variant b (EM-scaffolded, 1.456 mm); DECISION stage 3 -> v7", "stage 3 report: old pre-pass radial, 2.3 mm; HPA aster ratio 3.14 vs 2.20")
         nrow("ACTB", "ACTB", "FA_trim", "prepass", f"consumed {c6['consumed']['ACTB']:,}", f"consumed {cj['consumed']['ACTB']:,}",
              "F-actin subunits clashing with the new MTs / centrioles or the v7 geometry removed", "stage 3 clash counts (16k subunits within 16 nm of the new axes)")
-    lj = lj0
-    for g in ["LMNB1", "LMNB2", "LMNA"]:
-        if lj: nrow(g, g, "L2_lattice", "prepass", "random lamina shell (v6 0.68 placed)", f"lattice pre-pass {lj['consumed'][g]:,} of {lj['target'][g]:,} (rest: L3 nucleoplasm)",
-                    "jlamina.py two-layer rod lattice under the INM (Turgay et al. 2017)", "v6 pack: lamina shell 0.683 placed")
+    if lj0:
+        nonint += l2_rows(lj0)
     nrow("(Golgi TM + Golgi shells)", "*", "R5b_cisternae", "geometry", "EM blob, area factor 4.5",
          "juxta-centrosomal procedural Golgi (jgolgi_ribbon.py) with cisternal layers (jgolgi.py); factor = 4.5 x EM blob area / measured",
          "Ladinsky et al. 1999 cisternal spacing; DECISION Pedro 2026-11-10 (Golgi around the centrosome)",
@@ -308,3 +305,66 @@ apply_v7.OUTPUTS = ["changes_legacy.tsv", "rule_genes.tsv", "geom_context.json"]
 apply_v7.PREV = ["rules/jurkat.v4/changes_legacy.tsv", "v0/inventory_v0.tsv"]
 apply_v7.PARAM_FILES = ["lamina_consumption", "chromatin_json", "cytoskeleton_json", "cytoskeleton_prev_json"]
 register("inventory_rule", "jurkat.v7")(apply_v7)
+
+
+# ---------------------------------------------------------------------------------------------- L3 as its own rule set
+def l3_apply(I, lj, Wt, setw, EV):
+    """rule L3 on table I: per lamin, lamina share = lattice copies / copies, the rest of the lamina share -> nucleus"""
+    for g, P_ in lj["consumed"].items():
+        k = I.index[I.ing_id == g]
+        if not len(k): continue
+        i = k[0]; w = Wt(i); C_ = float(I.at[i, "copies"]); wl = w.get("lamina", 0.0); s_ = min(wl, P_ / C_)
+        nw = dict(w); nw["lamina"] = s_; nw["nucleus"] = nw.get("nucleus", 0.0) + (wl - s_)
+        EV[("L3", g)] = f"lattice holds {P_:,} of {int(round(wl * C_)):,} lamina copies (jlamina.py); rest -> nucleoplasmic lamin pool"
+        setw(i, nw, "L3", {g})
+
+
+def l2_rows(lj, genes=("LMNB1", "LMNB2", "LMNA")):
+    """non-inventory history rows L2_lattice (one per lamin)"""
+    return [dict(version=VER, gene=g, ingredient=g, rule_id="L2_lattice", field="prepass", old_value="random lamina shell (v6 0.68 placed)",
+                 new_value=f"lattice pre-pass {lj['consumed'][g]:,} of {lj['target'][g]:,} (rest: L3 nucleoplasm)",
+                 evidence="jlamina.py two-layer rod lattice under the INM (Turgay et al. 2017)",
+                 motivating_check="v6 pack: lamina shell 0.683 placed", mass_moved_pg=0.0) for g in genes]
+
+
+def apply_v7_lamina(ctx, src):
+    """Rule set jurkat.v7_lamina: rule L3 of v7 (+ the L2_lattice history rows) on the v7 table, as a step of its own.
+
+    Why a separate step (v9, 2026-11-23): L3 reads the consumption of the lamina this build makes; the lamina builder
+    needs the library (lamin and chromatin structures) and the library is built from this build's species table, so L3
+    inside rules:jurkat.v7 made a cycle (pack_table -> library -> lamina -> rules:jurkat.v7 -> pack_table). L3 only
+    changes the comp_weights of the lamins (lamina -> nucleus), which the library does not read: the library reads the
+    v7 table (inventory.library_table, after: jurkat.v7) and the pack_table step checks that the two tables differ in
+    comp_weights only. No other v7 rule reads or writes the lamin weights after L3, so the result equals L3 in place."""
+    p = ctx.params("jurkat.v7_lamina")
+    K = data("rules_v7.yaml"); CHECK = dict(K["check"])
+    I = pd.read_csv(src, sep="\t"); I0 = I.copy()
+    lam_path = resolve_input(ctx, p["lamina_consumption"])
+    lj = json.load(open(lam_path))
+    log, EV = [], {}
+
+    def Wt(i): return json.loads(I.at[i, "comp_weights"]) if isinstance(I.at[i, "comp_weights"], str) else {}
+    def wjson(w): return json.dumps({k: round(float(v), 4) for k, v in sorted(w.items(), key=lambda kv: -kv[1]) if v >= 1e-4})
+
+    def setw(i, nw, rule, gs):
+        ow = Wt(i); d = 0.5 * sum(abs(nw.get(k, 0) - ow.get(k, 0)) for k in set(nw) | set(ow))
+        if d < 1e-4: return False
+        log.append(dict(version=VER, gene=I.at[i, "genes"], ingredient=I.at[i, "ing_id"], rule_id=rule, field="comp_weights",
+                        old_value=I.at[i, "comp_weights"], new_value=wjson(nw),
+                        evidence=" | ".join(f"{g}: {EV.get((rule, g), '')}" for g in sorted(gs)),
+                        motivating_check=CHECK[rule.split("_")[0]], mass_moved_pg=round(d * I.at[i, "mass_pg"], 6)))
+        I.at[i, "comp_weights"] = wjson(nw); return True
+
+    l3_apply(I, lj, Wt, setw, EV)
+    ctx.say(f"L3 lamin pool ({lam_path}): {lj['consumed']} in the lattice; rest -> nucleus")
+    L = pd.DataFrame(log + l2_rows(lj))
+    ctx.say(f"mass check: {I0.mass_pg.sum():.4f} -> {I.mass_pg.sum():.4f} pg; field changes {len(log)}")
+    return {"ingredients": I, "changes": normalise_changes(L, VER),
+            "extra": {"changes_legacy.tsv": L,
+                      "lamina_context.json": json.dumps(dict(lamina_consumption=lam_path, consumed=lj["consumed"],
+                                                             target=lj.get("target")), indent=1)}}
+
+
+apply_v7_lamina.OUTPUTS = ["changes_legacy.tsv", "lamina_context.json"]
+apply_v7_lamina.PARAM_FILES = ["lamina_consumption"]
+register("inventory_rule", "jurkat.v7_lamina")(apply_v7_lamina)
