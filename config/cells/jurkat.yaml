@@ -693,11 +693,12 @@ pack:
     # B6 (criteria C3): frozen pre-placed instances whose centre lies in the NE lumen of em_cell1_v8 (cytosolic items
     # within ~25 nm outside the NE midsurface, where the v7 ne_mid defect put cytosol)
     - {name: ne_lumen_b6, lib_prefixes: [""], mode: inside_labels, labels: [perinuclear_space]}
-  # organisation layer (B2, accepted; criteria docs/unification_criteria/B2_organisation.md): STRING v12 human,
-  # combined score >= 400, AlphaFold 3 pool OFF (published setting). Other constants: switches.DEFAULTS (the yeast X5
-  # values); field seed: stream pack.organisation.field of the master seed. Off in jurkat_v7_port.yaml.
+  # organisation layer (B2; criteria docs/unification_criteria/B2_organisation.md): STRING v12 human, combined score
+  # >= 400, AlphaFold 3 pool OFF. OFF since the v9 rebuild (decision 2026-11-23, Pedro): copies are placed uniformly at
+  # random within their compartments; the settings below are kept so the layer can be switched on for comparison.
+  # Other constants: switches.DEFAULTS; field seed: stream pack.organisation.field of the master seed.
   organisation:
-    enabled: true
+    enabled: false
     string:
       taxon: 9606
       version: "12.0"
