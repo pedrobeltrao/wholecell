@@ -147,9 +147,9 @@ def test_preset_and_providers():
 # config, `_preset` removed), recorded at B1 (2026-11-17) = the values before the B1 mechanism and the yeast split.
 # A change here changes a reproduction preset: only on purpose (and then update the number with the reason).
 REPRO_PACK_MD5 = {("jurkat_v7_port", None): "cead23259b5d46793144ae7e856256ee",
-                  ("jurkat", "legacy_v7"): "533b53b6a799a35beeb84e196122976e",   # freeze fix 2026-11-19: + organisation.field_cap_regions (was b2cdc84e...; B2: + organisation, was 0296332c...)
+                  ("jurkat", "legacy_v7"): "5946890e58cc630024d4d2e939689677",   # v9 2026-11-23: organisation off (was 533b53b6...); freeze fix 2026-11-19: + organisation.field_cap_regions (was b2cdc84e...; B2: + organisation, was 0296332c...)
                   ("testcell", "legacy_v7"): "f89bbca208dcbeb9e5172c6d5b96fef5",
-                  ("yeast", None): "200dec5d081a0810c275fbef95fcab47",   # freeze fix 2026-11-19: + organisation.field_cap_regions (was 7edc6905...); B1 2026-11-18: C3 pin (was ac4fdfb1... B2: AF3 pool off; 0e58bf80... = yeast_x5_core)
+                  ("yeast", None): "1fa4390edf952330d7531ae341aa090c",   # u2 2026-11-23: organisation off (was 200dec5d...); freeze fix 2026-11-19: + organisation.field_cap_regions (was 7edc6905...); B1 2026-11-18: C3 pin (was ac4fdfb1... B2: AF3 pool off; 0e58bf80... = yeast_x5_core)
                   ("yeast_x5_core", None): "fdb7204589bf29880f22b422cab8b894",   # freeze fix 2026-11-19: field_cap_regions [] spelled out (= the default; was 0e58bf80...)
                   ("yeast_x5_port", None): "d53e76b814e6a6421a4eee5110cd73b8"}
 
@@ -218,7 +218,7 @@ def test_common_defaults_mechanism():
     _, e = _eff_md5("yeast", ["legacy_x5", "b1_s1"])
     sw = switches.load(e)
     assert sw.legacy is False and sw.rounds["n"] == 1 and sw.squeeze["scope"] == "none" and sw.budgets["per_region"] == {}
-    assert e["max_tries"] == 200 and sw.organisation["enabled"] and sw.shapes["source"] == "pack_shapes" and sw.exclusion
+    assert e["max_tries"] == 200 and not sw.organisation["enabled"] and sw.shapes["source"] == "pack_shapes" and sw.exclusion
     assert sw.thinning["resplit"] and not sw.thinning["enabled"]
     _, e = _eff_md5("yeast_x5_core")  # pinned legacy_x5: X5 values
     sw = switches.load(e)

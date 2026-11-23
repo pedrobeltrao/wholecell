@@ -520,8 +520,8 @@ pack:
     - name: ribosomes_endocytic_sites
       lib_prefixes: [ribosome_80S, preribo_40S, preribo_60S_cytoplasm]   # wc3d.EXCL_TYPES (startswith)
       around: {provider: yeast.endocytic_sites, params: {r_nm: 90.5, beyond_nm: 100.0, step_nm: 30.0}}   # EXCL_R, EXCL_BEYOND, EXCL_STEP
-  organisation:                # yeast pipeline/organisation.py; published setting (B2, accepted): STRING only, AF3 pool OFF
-    enabled: true
+  organisation:                # yeast pipeline/organisation.py (B2): STRING only, AF3 pool OFF. OFF since the u2 rebuild
+    enabled: false             # (decision 2026-11-23, Pedro): uniform random placement within compartments
     string: {taxon: 4932, version: "12.0", links: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/string/4932.protein.links.v12.0.txt.gz",
              min_score: 400, ids: {table: inv_yeast_uniprot, columns: ["Gene Names (ordered locus)"]}}   # organisation.STRING_MIN 400
     genes: {table: inv_yeast_uniprot, columns: ["Gene Names (primary)", "Gene Names (ordered locus)"]}
