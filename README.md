@@ -48,6 +48,7 @@ export WHOLECELL_SITE=~/wholecell_site.yaml
 | `geom_root` | `WHOLECELL_GEOM_ROOT` | immutable geometry packages `<geom_root>/<cell>/<geometry_id>/` |
 | `yeast_root` | `WHOLECELL_YEAST_ROOT` | optional; yeast model input tree (yeast only) |
 | `afdb_root` | `WHOLECELL_AFDB_ROOT` | optional; folder with `UP000005640_9606_HUMAN_v6.tar` (Jurkat library) |
+| `yeast_python` | `WHOLECELL_YEAST_PYTHON` | optional; yeast engine interpreter (default `<data_root>/conda_envs/yeast_x5/bin/python`) |
 
 ## Build the testcell (about 5 min on 8 cores)
 ```
@@ -58,6 +59,7 @@ scripts/ci_testcell.sh                          # optional CI: builds with 8 and
 Walk-through and what to read in the outputs: `docs/getting_started.md`.
 
 ## Build the two paper cells
+Step-by-step guide for outside users (inputs, environments, site file, commands, resources, checks): `docs/REBUILD.md`.
 Inputs first (see "Data"); every declared input is checksum-verified by the first stage (`frozen_inputs.tsv` in the
 build). Pins of the published builds (build ids, tags, manifests, config hashes): `config/paper_builds.yaml`.
 

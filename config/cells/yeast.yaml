@@ -14,15 +14,10 @@ organism: {name: Saccharomyces cerevisiae, taxon: 559292, strain: BY4741}
 status: core_legacy_x5    # X5 behaviour through the core stages (A9); output changes start with B1
 plugins: [yeast]          # plugins/yeast: plugin steps, assembly steps + hooks, pre-placed builders, suite adapter, steps.yaml
 seeds:
-  master: 0
-  legacy:              # yeast X5 streams (cell3d config.seed(k) = k + 1000003 x master; master 0 -> k)
-    pack.counts: 3                  # wc3d.distribute(seed=3): the tile request split (pack.requests legacy_x5)
-    pack.organisation.field: 11     # organisation.SEED: the random fields of the organisation log weights
-    # core packer with pack.preset legacy_x5 (A7 yeast side; master seed 0 only: the expressions ignore the master)
-    pack.thinning: 4242             # wc3d.pilot_capacity rng(seed(4242)): choice of the pilot tiles
-    pack.thinning.pilot: "k+500000" # wc3d.pilot_capacity: pilot tile k packed with seed(500000 + k)
-    pack.tile: "k+1000"             # wc3d.run_phase(seed0=1000): tile k, round 0 (rounds r > 0: + 7919 r in X5; core: stream pack.round)
-    pack.squeeze: "k+1007"          # wc3d.squeeze_tile: default_rng(tile seed + 7)
+  master: 0            # every stream is derived from the master seed (wholecell/seeds.py; the vendored engine's own
+                       # streams are config.seed(k) = k + 1000003 x master). u2 (review B2): the X5 legacy pack seeds
+                       # (pack.counts 3, pack.organisation.field 11, pack.thinning 4242, pack.thinning.pilot k+500000,
+                       # pack.tile k+1000, pack.squeeze k+1007) moved to yeast_x5_core.yaml / yeast_x5_port.yaml
 geometry:
   # ONE immutable cellgeom_v1 package, written by the analytic toolkit (toolkits/analytic/yeast.py: the vendored
   # cellshape.build + cell3d.build calls, cellshape rng 11, cell3d stream 11, master seed 0) in the X5 port build s0
@@ -694,7 +689,7 @@ export:
   cell_type: haploid yeast (BY4741), G1
   state: log phase, YPD
   status: preview
-  licence: {data: "CC BY-NC 4.0 (intended; yeast code has no licence yet: local only)"}
+  licence: {data: CC-BY-NC-4.0}             # LICENSE-DATA (decision 2026-11-23)
 # --- plugin steps (wholecell/plugin_steps.py): yeast steps of the normal stage list, each in plugins/yeast/steps.yaml
 # with where: plugin. yeast_engine_* make the vendored engine's file layout inside this build (<build>/engine/: links,
 # copies and format views of core outputs, never the other way round); the others run vendored yeast code there.
@@ -708,9 +703,14 @@ plugin_steps:
     params:
       engine: *yeast_engine
       data: yeast_pipeline_data    # frozen inputs (read in place); their manifests are re-checked file by file
+      read_set: plugins/yeast/data/pipeline_data_read_set.txt   # files of yeast_pipeline_data the build reads: only these
+                                   # must be present (v9: a deposit holds this subset, not the 15 GB tree)
       pdb: yeast_pdb_cache
       work_seed: yeast_x5_work_seed
       check: [yeast_x5_work_seed, yeast_pipeline_data, yeast_pdb_cache, yeast_afdb_dimers]
+      optional:                    # may be absent (not read by this config): the cached AF3 pool pairs (in-house predictions,
+                                   # not redistributable) are read only with pack.organisation.pool_scores (off here)
+        yeast_x5_work_seed: [organisation/pool_pairs.parquet]
   - id: yeast_protein_table
     stage: inventory
     run: yeast.protein_table       # core copies + localisation -> the engine's stage-1 protein table layout
@@ -776,7 +776,7 @@ plugin_steps:
     after: [yeast_s4_validate, yeast_features, yeast_s5_encode]
     before: [validate_suite]
     # the yeast engine env (as the X5 port): the validation scripts need cupy (GPU contacts), pyBigWig, playwright, markdown
-    params: {engine: *yeast_engine, gpus: 1, python: "{data_root}/conda_envs/yeast_x5/bin/python"}
+    params: {engine: *yeast_engine, gpus: 1, python: "{yeast_python}"}
   # export (YCT1, the legacy viewer encoding: input of some yeast validation scripts and of the X5 comparison; the
   # export stage writes YCT2)
   - id: yeast_s5_encode
@@ -785,8 +785,11 @@ plugin_steps:
     threads: max
     after: [yeast_s4_validate]
     params: {engine: *yeast_engine, cwd: scripts, script: s5_encode.py, log: s5_encode.log,
-             python: "{data_root}/conda_envs/yeast_x5/bin/python"}   # yeast engine env: fast_simplification, openmm (not in the core env)
+             python: "{yeast_python}"}   # yeast engine env: fast_simplification, openmm (not in the core env)
 frozen_inputs:
+  # v9 (2026-11-23): the build-W / X5 reference files under {yeast_root}/runs and the in-house AF3 pool summary
+  # (not redistributable) are no longer declared here: no step of this config reads them (the organisation layer read
+  # only the cached pool pairs in yeast_x5_work_seed). They stay declared in yeast_x5_port.yaml.
   inv_yeast_uniprot:
     path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/uniprot_yeast.tsv"
     md5: 2fb50d8fad91b67fe2b8193083372bd3
@@ -807,16 +810,16 @@ frozen_inputs:
     why: "Beltrao lab SEC-MS 2026, yeast NaCl: wide protein x 60 fractions; Step 3 final SEC-MS (primary)"
     kind: secms
     version: "lab 2026 (received 2026-11-17)"
-    licence: "UNPUBLISHED, CONFIDENTIAL (Beltrao lab): local only, never upload / push"
-    redistributable: no
+    licence: "CC BY-NC 4.0 (Beltrao lab 2026; processed table deposited with the inputs, raw files to PRIDE)"
+    redistributable: yes
   inv_sec_lab2026_yeast_ypd:
     path: "{data_root}/data/proteomics/umpublished_datasets/ypd.tsv"
     md5: deff2d735f947f67df8c498a01728c06
     why: "Beltrao lab SEC-MS 2026, yeast YPD: wide protein x 60 fractions; Step 3 final SEC-MS (fill only)"
     kind: secms
     version: "lab 2026 (received 2026-11-17)"
-    licence: "UNPUBLISHED, CONFIDENTIAL (Beltrao lab): local only, never upload / push"
-    redistributable: no
+    licence: "CC BY-NC 4.0 (Beltrao lab 2026; processed table deposited with the inputs, raw files to PRIDE)"
+    redistributable: yes
   inv_sec_pang2020_yeast:
     path: "{data_root}/data/proteomics/pang2020_yeast_SEC_PXD019513/profiles_log_intensity.tsv"
     md5: 0d89c4ce9256e3c1cff0317302eec37d
@@ -847,18 +850,6 @@ frozen_inputs:
     why: "Lanz et al. 2024 Table S3: per-protein size-scaling slopes (G1 arrest, glucose)"
     kind: literature
     origin: "yeast_cell_viewer pipeline/data/validation/literature (main 34d123f)"
-  val_yeast_buildW_protein_features:
-    path: "{yeast_root}/runs/P2_seed0/work/features/protein_features.parquet"
-    md5: 339b70dd4852fbe7b0e206ff704c5873
-    why: "REFERENCE: build W per-protein copies_per_cell (criteria Y1-Y3)"
-    kind: reference
-    origin: "yeast build W (20261115-151321-8f84387-s0, run P2_seed0)"
-  val_yeast_buildW_anchors:
-    path: "{yeast_root}/runs/P2_seed0/work/validation/anchors.json"
-    md5: e81123ca818418304ee5fb12e5f3c0cb
-    why: "REFERENCE: build W anchors.json (criterion Y4)"
-    kind: reference
-    origin: "yeast build W"
   # ---- yeast X5 port (2026-11-16): read-in-place trees are checked against md5 manifests made 2026-11-16 17:57
   # (data/derived/wholecell_frozen/yeast_x5/make_manifests.sh); the engine setup step re-checks every file (size +
   # mtime; md5 for the copied lib_start / work_seed)
@@ -900,22 +891,6 @@ frozen_inputs:
     why: "AlphaFold DB v6 yeast proteome (stage 0 monomers, stage 5 pLDDT)"
     kind: structures
     licence: "AlphaFold DB CC BY 4.0"
-  yeast_af3_pool_summary:
-    path: "{yeast_root}/inputs/summary_models.parquet"
-    md5: 8d4c6d6de2414b8fab2c9e04efd06447
-    why: "in-house AlphaFold 3 pool pair scores (YC_POOL_SCORES; NOT public); the organisation layer reads the cached pool_pairs.parquet"
-    kind: structures
-    licence: "unpublished; not redistributable"
-  val_yeast_x5_build_json:
-    path: "{yeast_root}/runs/X5_seed0/work/build.json"
-    md5: e35ae972aad963b6dca1c39a93a1fde8
-    why: "REFERENCE identity: X5 build.json (build_id 20261116-141711-e3b7448-s0); compare_x5 reads X5_seed0 read-only"
-    kind: reference
-  val_yeast_x5_build_log:
-    path: "{yeast_root}/runs/X5_seed0/build.log"
-    md5: 61d255d186404c91fd9a4ba2438117b0
-    why: "REFERENCE: X5 build.log (finished 16:33:03, validate exit 0)"
-    kind: reference
   # ---- localisation sources (A5; read in place)
   loc_yeast_vogtle2017:
     path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/vogtle2017_submito.xlsx"

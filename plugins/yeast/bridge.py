@@ -108,13 +108,27 @@ def engine_setup(cfg, bdir, p):
     for k in ("root", "work", "pdb"):
         os.makedirs(E[k], exist_ok=True)
     checks = {}
+    # read_set (params; repo file of fnmatch patterns): the files of the yeast data tree the build reads. A manifest file
+    # outside it may be missing (a deposit holds only the read subset), but a file present must still match
+    read_set = None
+    if p.get("read_set"):
+        import fnmatch
+        rs = os.path.join(cfg["_site"]["repo"], p["read_set"]) if not os.path.isabs(p["read_set"]) else p["read_set"]
+        pats = [ln.strip() for ln in open(rs) if ln.strip() and not ln.startswith("#")]
+        read_set = lambda rel: any(fnmatch.fnmatch(rel, q) for q in pats)
     for name in p.get("check") or []:
         spec = fi[name]
         full = name == p.get("work_seed")
         n, bad = verify_manifest(spec["path"], spec["manifest"], full_md5=full)
         # files of the read-in-place yeast data changed after X5 started (not read by the build): listed, not fatal
         hard = [b for b in bad if not (name == p.get("data") and b[0].startswith("validation/literature/endocytosis/"))]
-        checks[name] = dict(files=n, mismatches=bad[:50], n_mismatches=len(bad), fatal=hard[:50], level="md5" if full else "size+mtime")
+        if name == p.get("data") and read_set is not None:
+            hard = [b for b in hard if read_set(b[0])]
+        opt = (p.get("optional") or {}).get(name) or []      # files no step of this config reads (may be withheld)
+        if opt:
+            import fnmatch
+            hard = [b for b in hard if not (b[1] == "missing" and any(fnmatch.fnmatch(b[0], q) for q in opt))]
+        checks[name] = dict(files=n, mismatches=bad[:50], n_mismatches=len(bad), fatal=hard[:50], level="md5" if full else "size+mtime (md5 when mtime differs)")
         log(f"frozen {name}: {n} files, {len(bad)} mismatches ({len(hard)} fatal)")
         if hard:
             raise SystemExit(f"frozen input {name} does not match its manifest: {hard[:10]}")
@@ -379,7 +393,7 @@ def engine_pack_view(cfg, bdir, p):
 
 # ------------------------------------------------------------------ vendored scripts
 def _python(p):
-    """interpreter of a vendored script: params.python (e.g. the yeast engine env "{data_root}/conda_envs/yeast_x5/bin/python"
+    """interpreter of a vendored script: params.python (e.g. the yeast engine env "{yeast_python}"
     for s5_encode / validate_all: cupy, fast_simplification, pyBigWig, playwright, markdown, openmm are not in the core
     env), else the core interpreter"""
     py = p.get("python") or sys.executable

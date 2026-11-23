@@ -11,6 +11,7 @@ Read in this order. Each layer assumes the one before it.
    reproduction criteria, reports and the unification plan (never edited).
 
 Also: [ARCHITECTURE.md](ARCHITECTURE.md) (module boundaries and contracts), `PORTING_STATUS.md` (what runs today),
+[REBUILD.md](REBUILD.md) (rebuild the two paper cells: inputs, environments, commands, checks),
 [data_inputs.md](data_inputs.md) (input data, sources, licences, deposits; machine-readable `data_manifest.tsv`),
 [release_notes.md](release_notes.md) (what the public release contains and how it was staged from the development
 repository), `config/paper_builds.yaml` (pins of the two paper builds).

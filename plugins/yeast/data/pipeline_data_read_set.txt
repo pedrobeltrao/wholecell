@@ -1,0 +1,87 @@
+# Files of the yeast pipeline/data tree (frozen input yeast_pipeline_data) that a yeast.yaml build reads: fnmatch
+# patterns relative to the tree. Static analysis of the steps yeast.yaml runs (plugin steps, vendored engine scripts,
+# validate_all.sh), 2026-11-23 (rebuild round v9). The yeast_engine_setup check (plugins/yeast/bridge.py) requires these
+# files; files of the manifest outside this list may be absent (an outside user downloads only this subset; the rest
+# of the tree is ~13 GB of literature PDFs, raw microscopy and genome tracks the build does not read).
+# Not listed (read only when a cache in the work seed is missing): validation/genome/nucleosomes_chereji2018/*.bw,
+# validation/genome/chipexo_rossi2021/41586_2021_3314_MOESM3_ESM.xlsx, validation/biogrid/*,
+# validation/literature/sharifpoor2011_kid/*.
+# validation/microscopy/yeastrgb_dubreuil2019/raw/RAW-C_SWAT_GFP-ORF.zip (9.7 GB) is only tested for existence by the
+# image_nc validation (its result is cached in the work seed); without it image_nc is skipped without a message. Not
+# listed (optional); a rebuild that should report the image_nc validation needs it (docs/REBUILD.md).
+uniprot_yeast.tsv
+complexportal_559292.tsv
+paxdb_integrated.txt
+vogtle2017_submito.xlsx
+morgenstern2017/TableS1_mmc2.xlsx
+cyclops/WT[123]_LOCscore.xls
+validation/uniprot_features.tsv
+validation/literature/g1_cell/lanz2024/41594_2024_1353_MOESM5_ESM.xlsx
+intact_pairs.tsv
+alliance_yeast_paralog_pairs.csv
+uniprot/UP000002311.fasta
+uniprot_topology.tsv
+string/4932.protein.links.v12.0.txt.gz
+validation/membrane_binding_domains_yeast.tsv
+validation/gallego2010_lipid.tsv
+sgd/SGD_features.tab
+pelechano2010/files/pone.0015442.s002.xls
+mrna/utr_per_gene.tsv
+mrna/polya_per_gene.tsv
+mrna/te_per_gene.tsv
+genome/nucleosome_dyads.tsv.gz
+validation/genome/histone_marks_weiner2015/GSE61888_nucs_normed.csv.gz
+validation/genome/origins_oridb/oridb_all_origins.tsv
+validation/genome/chipexo_rossi2021/github_repo/04_ChExMix_Peaks/*.bed
+validation/mrna/williams2014_mito_prox/GSE61011_TableS1.txt.gz
+validation/mrna/jan2014_er_prox/GSE61012_TableS5.txt.gz
+validation/genome/sir3_chipseq_brothers2022/GSM58235[3-4]?_220115-JRY1367?-I[PN]_median_normalized.bedGraph.gz
+trna/sacCer3-mature-tRNAs.fa
+trna/models/*.cif
+validation/membrane_diffusion_measurements.tsv
+validation/diffusion_measurements.tsv
+validation/beckmann2015_rbp.tsv
+validation/mitchell2013_rbp.tsv
+validation/matia2015_rbp.tsv
+validation/cdcode_yeast_condensate_members.tsv
+validation/weill2018_S1.tsv
+validation/hyperlopit2018_fData.tsv
+validation/literature/das2026_peroxisome/418_2026_2458_MOESM2_ESM.xlsx
+validation/literature/ho2018/mmc5.xlsx
+validation/microscopy/cyclops_images/Table1_GFPIntensityMatrix.xls
+validation/literature/boeke2014_fccs/boeke2014_pairs.tsv
+validation/literature/chen2025_sxt/chen2025_wt_summary.tsv
+validation/literature/dibartolomeo2020/dibartolomeo2020_mito.tsv
+validation/literature/wu2026_er/wu2026_er_ribosomes.tsv
+validation/literature/prouteau2017/prouteau2017.tsv
+validation/literature/chen2025_sxt/mbc-36-ar132-s008.xlsx
+validation/literature/metabolism/kinetics.tsv
+validation/literature/metabolism/fluxes.tsv
+validation/literature/metabolism/metabolites.tsv
+validation/membrane_proteomics/villers_2017/villers2017_plasma_membrane.tsv
+validation/membrane_proteomics/wiederhold_2010_review/*.tsv
+validation/membrane_proteomics/wang_2017/wang2017_tubular_er.tsv
+validation/membrane_proteomics/currie_2014/currie2014_lipid_droplet.tsv
+validation/mrna/arava2003/arava2003_suppTable3_per_gene_occupancy_density.xls
+validation/mrna/riba2019_density/pnas.1817299116.sd01.tsv
+validation/mrna/saintgeorges2008_mito_mlr/pone.0002293.s008.xls
+validation/mrna/chartron2016_srp/41586_2016_BFnature19309_MOESM417_ESM.xlsx
+validation/genome/dnase_zhong2016/GSM170533[78]_*.csv.gz
+validation/genome/dnase_zelin2012/GSM989336_BY4741_wild_type_DHS_peak.bed.gz
+validation/genome/liftover_ucsc/sacCer2ToSacCer3.over.chain.gz
+validation/genome/hic_lazarstefanita2017/*G1_*
+validation/genome/hic_swygert2019_log/GSE120605_sacCer3.5000.bins.annot.bed.gz
+validation/genome/hic_swygert2019_log/GSM3405625_Log.merged.5000.ice.matrix.txt.gz
+validation/genome/nucleosome_occupancy_oberbeckmann2019/GSE141056_ORE-seq_map.tsv.gz
+validation/genome/atac_schep2015/GSE66386_all_nucleosome_calling.tar.gz
+validation/genome/sir4_chipseq_goodnight2020/GSM4675918_JRY12171_0_500_median_normalized.bedgraph.gz
+validation/genome/sir4_chipseq_goodnight2020/GSM4675922_JRY12171-in_0_500_median_normalized.bedgraph.gz
+validation/genome/sir4_chipseq_goodnight2020/GSM4675919_JRY12172_0_500_median_normalized.bedgraph.gz
+validation/genome/sir4_chipseq_goodnight2020/GSM4675923_JRY12172-in_0_500_median_normalized.bedgraph.gz
+validation/genome/sir4_chipseq_goodnight2020/GSM4675940_JRY12269_0_500_median_normalized.bedgraph.gz
+validation/genome/sir4_chipseq_goodnight2020/GSM4675941_JRY12269-in_0_500_median_normalized.bedgraph.gz
+validation/proximity/liu2020_ppiseq/raw/TableS4_PPI_called_mean_fitness_pvalue_in_each_environment.csv.zip
+validation/proximity/singh2020_mito_bioid/mmc3.xlsx
+validation/microscopy/czii_cryoet_10007_yeast_ribosomes/ribosome_points/*.ndjson
+validation/microscopy/idr0078_mattiazziusaj2020/wt_his3_control_cells_features.csv
+validation/microscopy/yeastrgb_dubreuil2019/C_SWAT_GFP-by-ORF.JSON

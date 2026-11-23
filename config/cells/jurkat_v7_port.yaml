@@ -5,6 +5,12 @@
 # Only the keys that differ from jurkat.yaml are listed (lists are replaced whole by `extends`).
 extends: jurkat.yaml
 
+seeds:
+  legacy:              # exact reproduction of the published v7 seeds (jurkat.yaml uses named streams of the master seed)
+    pack.counts: 3
+    pack.tile: "k*7919+11"
+    prepass.lamina: 20261112
+
 geometry:
   package: "{geom_root}/jurkat/em_cell1_v7"
   manifest_sha256: eb16248b7505f17f135c8c822bcba6e8dc02cff8ad67b7723eeef6e5419762c7
@@ -63,6 +69,7 @@ inventory:
         secms: {source_id: inv_sec_fossati_features}   # Step 3 (jurkat.yaml: combined final SEC-MS): the v7 SEC-MS run
         pdb_homo_oligomers: {share: {source: secms}}   # v7: a_k shares (jurkat.yaml: midpoint shares since 2026-11-23)
         afdb_homodimers: {share: {source: secms}}
+        afdb_heterodimers: {compartment_check: null}     # v7: no check at assembly (rule v4.h dissolves afterwards)
       data:
         complex_copy_caps: plugins/jurkat/data/assembly/complex_copy_caps.tsv   # NPC = 1000 (v7)
         apex_check_exclude: []          # v7: no exclusions (jurkat.yaml: HSPD1 share from Fossati, Step 3 2026-11-19)
@@ -91,3 +98,19 @@ validate:
 
 export:
   tiles: {enabled: false}            # v7 port: no YCT2 tiles (jurkat.yaml: ON for the paper build, DECISION 2026-11-19)
+
+# v7-only inputs (moved here from jurkat.yaml in v9: the paper cell no longer declares them; merged into its
+# frozen_inputs by `extends`). Rule L3 reads preplaced/lamina/consumption.json, which in this preset (lamina mode frozen)
+# is a byte copy of pre_lamina_v7_json = the legacy consumption the v7 build used.
+frozen_inputs:
+  geom_jgeom_v7:
+    path: "{data_root}/data/derived/jgeom_cell1_v7.npz"
+    md5: 0eea64ff4e8ea430a8027ae2f522baec
+    origin: "jgeom_build + jcristae + jface_cap + jspeckles + jgolgi + jgolgi_ribbon + jspeckles(v8), in place"
+    why: "source of geometry package jurkat/em_cell1_v7 (toolkits/em/convert_legacy.py) and reference of criterion B1"
+  pre_polysomes_v7: {path: "{data_root}/data/derived/prepass_v7/polysomes_cell1.npz", md5: 0270d7abd132abaf91a032c398ee8a6c, origin: "jpolysome v3 + jcytoskel_v7 + jgolgi_ribbon trims", why: "v7 pre-pass (built on older geometry)"}
+  pre_polysomes_v7_json: {path: "{data_root}/data/derived/prepass_v7/polysomes_cell1.json", md5: c63dda3025a3d1232f1ecdb6c9592c3c, origin: "as pre_polysomes_v7", why: "pre-pass consumption"}
+  pre_cytoskeleton_v7_json: {path: "{data_root}/data/derived/prepass_v7/cytoskeleton_cell1.json", md5: c480b6e40d2f372f985c8d38192b22d5, origin: "as pre_cytoskeleton_v7", why: "pre-pass consumption"}
+  pre_npc_v3: {path: "{data_root}/data/derived/prepass/npc_cell1.npz", md5: 985f0601ae935105e0fddcffa2275e9f, origin: "jnpc.py v3 (2026-11-09)", why: "v7 pre-pass"}
+  pre_npc_v3_json: {path: "{data_root}/data/derived/prepass/npc_cell1.json", md5: efe82463d141b2ab371614b069b5afcf, origin: "jnpc.py v3", why: "pre-pass consumption"}
+  pre_mrna_drop_v7: {path: "{data_root}/data/derived/prepass_v7/mrna_drop.npy", md5: cb42555de15bfa9ff97257e2ef779e4b, origin: "jcytoskel_v7 + jgolgi_ribbon clash lists", why: "mRNA beads dropped in v7"}

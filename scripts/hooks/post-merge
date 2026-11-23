@@ -1,0 +1,6 @@
+#!/bin/bash
+# After a merge INTO main (git runs post-merge, not post-commit, for `git merge` and fast-forwards): start the testcell
+# CI in the background, as scripts/hooks/post-commit does after a plain commit (skip with WHOLECELL_CI=0).
+# Without this hook merges to main were never tested (review B3: 0 of 15 merges had a CI run).
+[ "$(git symbolic-ref --short -q HEAD)" = "main" ] || exit 0
+exec "$(git rev-parse --show-toplevel)/scripts/ci_testcell.sh" --detach

@@ -2,7 +2,9 @@
 
 Loads the cellgeom_v1 package named in config `geometry.package` (checksums verified) with the evaluator
 `geometry.evaluator` (cellgeom_eval_v1) and rule table `geometry.rules`, checks the manifest sha256 against
-`geometry.manifest_sha256` and the package layout against `geometry.engine`, reuses the package's validation.json when
+`geometry.manifest_sha256` (a mismatch stops the build, or with `geometry.on_mismatch: warn` is recorded in
+package.json and the log: for a package regenerated locally, e.g. the testcell's, whose manifest records the generating
+commit and time) and the package layout against `geometry.engine`, reuses the package's validation.json when
 it is fresh (same manifest sha256, passed) or re-runs the validator, and writes (write-once) into <bdir>/geometry/:
   package.json     package_dir / path, package_id, manifest_sha256, engine (layout), spec_version, evaluator,
                    rules (path) + rules_sha256
@@ -59,13 +61,21 @@ def run(cfg, bdir, step=None, **kw):
     cell = cellgeom.load_cfg(cfg, verify=True)
     man = cell.manifest
     exp = g.get("manifest_sha256")
+    on_mismatch = g.get("on_mismatch", "error")
+    if on_mismatch not in ("error", "warn"):
+        raise ValueError(f"geometry.on_mismatch must be error | warn, not {on_mismatch!r}")
     if exp and exp != cell.manifest_sha256:
-        raise RuntimeError(f"{pkg}: manifest sha256 {cell.manifest_sha256} != config geometry.manifest_sha256 {exp}")
+        msg = f"{pkg}: manifest sha256 {cell.manifest_sha256} != config geometry.manifest_sha256 {exp}"
+        if on_mismatch == "error":
+            raise RuntimeError(msg)
+        print(f"WARNING (geometry.on_mismatch: warn): {msg}; the build uses this package and records the mismatch "
+              "in geometry/package.json", flush=True)
     if g.get("engine") and g["engine"] != man["engine"]["name"]:
         raise RuntimeError(f"config geometry.engine {g['engine']} != package engine {man['engine']['name']}")
     pj = {"package_dir": cell.package_dir, "path": cell.package_dir, "package_id": cell.package_id,
           "manifest_sha256": cell.manifest_sha256, "engine": man["engine"]["name"], "spec_version": man["spec_version"],
-          "expected_sha256_ok": (exp == cell.manifest_sha256) if exp else None,
+          "expected_sha256": exp, "expected_sha256_ok": (exp == cell.manifest_sha256) if exp else None,
+          "on_mismatch": on_mismatch,
           "evaluator": cell.evaluator, "rules": cell.rules_path, "rules_sha256": cell.rules_sha256}
     vpath = os.path.join(cell.package_dir, "validation.json")
     val = json.load(open(vpath)) if os.path.exists(vpath) else None

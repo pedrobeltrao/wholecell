@@ -2,7 +2,7 @@
 # (validate_all: cupy GPU contacts / diffusion sweeps, pyBigWig, playwright, markdown; s5_encode: fast_simplification;
 # openmm). Exported 2026-11-23 from the installed package metadata (pip freeze format). Recreate, e.g.:
 #   uv venv --python 3.11.16 <data_root>/conda_envs/yeast_x5 && uv pip install --python <data_root>/conda_envs/yeast_x5/bin/python -r envs/yeast_x5.pip.txt
-# yeast.yaml expects this interpreter at {data_root}/conda_envs/yeast_x5/bin/python (plugin step params.python).
+# yeast.yaml runs it as {yeast_python} (site key yeast_python; default {data_root}/conda_envs/yeast_x5/bin/python).
 # Needs an NVIDIA GPU with CUDA 12 for cupy / openmm-cuda (the validate_all step).
 certifi==2026.10.23
 charset-normalizer==3.5.2

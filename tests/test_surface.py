@@ -199,7 +199,7 @@ def test_registered_and_presence_only():
     sp = frag["inventory"]["params"]["surface_proteomics"]
     assert sp["mode"] == "presence" and surface.options(sp)["mode"] == "presence"
     fi = frag["frozen_inputs"]["inv_surface_jurkat_glyco2026"]
-    assert fi["redistributable"] in (False, "no")
+    assert fi["redistributable"] in (True, "yes") and "CC BY-NC" in fi["licence"]   # lab data public since 2026-11-23
 
 
 if __name__ == "__main__":

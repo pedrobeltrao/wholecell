@@ -13,5 +13,5 @@ Environments per step family (exports of the environments that ran the phase-1 b
 The interpreter paths of this site are in config/site.yaml (python, snakemake).
   yeast engine (`yeast_x5`, uv venv, CPython 3.11.16; release export 2026-11-23): the vendored yeast scripts that the
                yeast config runs with their own interpreter (validate_all with GPU sweeps, s5_encode, ...). Package list:
-               yeast_x5.pip.txt (recreate commands in its header). yeast.yaml expects it at
-               {data_root}/conda_envs/yeast_x5/bin/python. Needs an NVIDIA GPU (CUDA 12) for the validate_all step.
+               yeast_x5.pip.txt (recreate commands in its header). yeast.yaml runs it as
+               {yeast_python} (site key yeast_python; default {data_root}/conda_envs/yeast_x5/bin/python). Needs an NVIDIA GPU (CUDA 12) for the validate_all step.

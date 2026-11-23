@@ -8,8 +8,10 @@
 #   geom_root     WHOLECELL_GEOM_ROOT       immutable cellgeom_v1 geometry packages: <geom_root>/<cell_id>/<geometry_id>/
 #   yeast_root    WHOLECELL_YEAST_ROOT      OPTIONAL: yeast model input tree (yeast cell only; layout in docs/data_inputs.md)
 #   afdb_root     WHOLECELL_AFDB_ROOT       OPTIONAL: folder with AlphaFold DB proteome tars (Jurkat library build only)
+#   yeast_python  WHOLECELL_YEAST_PYTHON    OPTIONAL: yeast engine env interpreter (yeast cell only; envs/yeast_x5.pip.txt;
+#                                           default <data_root>/conda_envs/yeast_x5/bin/python)
 #
-# Placeholders {data_root}, {results_root}, {geom_root}, {yeast_root}, {afdb_root} and {repo} in cell configs are
+# Placeholders {data_root}, {results_root}, {geom_root}, {yeast_root}, {afdb_root}, {yeast_python} and {repo} in cell configs are
 # resolved from these values (wholecell/config.py). A key that is not set leaves its placeholder unresolved, so a
 # frozen input under it is reported MISSING by the check_frozen stage.
 data_root: <data_root>
@@ -17,6 +19,7 @@ results_root: <results_root>
 geom_root: <geom_root>
 # yeast_root: <yeast_root>
 # afdb_root: <afdb_root>
+# yeast_python: <path to the yeast engine env>/bin/python
 python: <path to the core env>/bin/python            # the vcell (core-cpu) interpreter, envs/README
 snakemake: <path to the orchestration env>/bin/snakemake
 max_workers: 16

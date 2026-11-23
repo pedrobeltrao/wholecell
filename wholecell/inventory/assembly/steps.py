@@ -425,7 +425,9 @@ def afdb_homodimers(st):
 
 def afdb_heterodimers(st):
     """AFDB heterodimer models passing the AFDB quality flag, supported by SEC-MS co-elution (r >= sec_r_min) or STRING
-    (>= string_min), not already together in a built complex; greedy by ipSAE, n = bound_fraction x min(free a, free b)"""
+    (>= string_min), not already together in a built complex, partners not in incompatible compartment classes (option
+    compartment_check; off in legacy_v7, where rule v4.h dissolved such pairs afterwards); greedy by ipSAE,
+    n = bound_fraction x min(free a, free b)"""
     ctx, hx = st.ctx, st.o["afdb_heterodimers"]
     free = _free_pool(st)
     inv = st.dimer_inv
@@ -464,6 +466,16 @@ def afdb_heterodimers(st):
             gs = [x.split(":")[0] for x in sub.split(";")]
             same |= {(a, b) for a in gs for b in gs if a != b}
         X = X[[(acc2g[a], acc2g[b]) not in same for a, b in zip(X.uniprot_ac_1, X.uniprot_ac_2)]]
+    cc = hx.get("compartment_check")
+    if cc:                              # partners in incompatible compartment classes are not paired (before the pools
+        cls = _compartment_classes(st, inv, cc)         # are consumed, so their copies stay free for other partners)
+        bad = {frozenset(p) for p in cc["incompatible"]}
+        keep_ids = set(cc.get("keep") or [])
+        ok = [not (cls.get(g1) and cls.get(g2) and frozenset((cls[g1], cls[g2])) in bad
+                   and f"{g1}-{g2}" not in keep_ids and f"{g2}-{g1}" not in keep_ids)
+              for g1, g2 in ((acc2g[a], acc2g[b]) for a, b in zip(X.uniprot_ac_1, X.uniprot_ac_2))]
+        ctx.say(f"AFDB heterodimers: {len(ok) - sum(ok)} supported pairs skipped (partners in incompatible compartments)")
+        X = X[ok]
     rows = []
     for r in X.itertuples():
         g1, g2 = acc2g[r.uniprot_ac_1], acc2g[r.uniprot_ac_2]
@@ -478,6 +490,26 @@ def afdb_heterodimers(st):
         .sort_values("mass_pg", ascending=False)
     ctx.write_tsv(XD, "assembly/afdb_heterodimers_v0.tsv")
     ctx.say(f"AFDB heterodimers: {len(XD)} pairs (of {len(X)} supported)")
+
+
+def _compartment_classes(st, inv, cc):
+    """gene -> compartment class for the heterodimer compartment check (the rule of Jurkat v4.h, applied at assembly):
+    transmembrane -> None (no check); signal peptide -> cc.signal_peptide; else the class whose keys hold more than
+    cc.min_share of the inventory compartment weights; None when no class does"""
+    up = pd.read_csv(st.frozen("uniprot_full"), sep="\t", usecols=["Entry", "Signal peptide"]).set_index("Entry")
+    sig = up["Signal peptide"].notna()
+    out = {}
+    for g, acc, tm, comp in zip(inv.index, inv.uniprot, inv.transmembrane, inv.compartments):
+        if str(tm) == "True":
+            continue
+        if bool(sig.get(acc, False)):
+            out[g] = cc["signal_peptide"]; continue
+        w = {k: float(v) for k, v in (t.split(":") for t in str(comp if comp == comp else "cytosol:1").split(";"))}
+        tot = sum(w.values()) or 1.0
+        for c, keys in cc["classes"].items():
+            if sum(v for k, v in w.items() if k in keys) / tot > cc["min_share"]:
+                out[g] = c; break
+    return out
 
 
 STEPS = {"curated_machines": curated_machines, "complex_portal": complex_portal, "secms_fractions": secms_fractions,

@@ -48,6 +48,8 @@ geometry:
   toolkit: em                      # em | analytic | <plugin toolkit>  (who made the package; informational)
   package: "{geom_root}/jurkat/cg1-20261115-v7conv"   # immutable cellgeom_v1 directory
   manifest_sha256: "..."           # checked by the geometry stage (the package is itself a frozen input)
+  on_mismatch: error               # error (default) | warn: record a manifest mismatch in geometry/package.json and go on
+                                   # (locally generated packages, e.g. the testcell's; the paper cells use error)
   engine: sdf_sections_v1          # package layout: must equal the manifest's engine.name
   evaluator: cellgeom_eval_v1      # default and only core value (legacy evaluators: reproduction tests only)
   rules: "{repo}/config/geometry/rules/sdf_sections_v1.yaml"   # rule table of the layout (default when absent)

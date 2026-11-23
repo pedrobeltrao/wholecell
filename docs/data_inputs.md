@@ -1,7 +1,7 @@
 # Data inputs of the paper builds
 
 This page lists the input data that the two paper builds read: Jurkat `paper-jurkat-v8` and yeast
-`paper-yeast-u1`. It also says where to get each input. The machine-readable list is
+`paper-yeast-u1`, with the changes of the v9 / u2 configs noted (step-by-step rebuild: [REBUILD.md](REBUILD.md)). It also says where to get each input. The machine-readable list is
 [`data_manifest.tsv`](../data_manifest.tsv), with one row per file or directory. That file gives the root, the relative
 path, the size, the checksum, the role, the original source, the URL, the licence, whether it may be redistributed, and
 where it will be deposited.
@@ -44,8 +44,8 @@ Every input path in a cell config is written relative to a configurable root, as
 |---|---|---|---|
 | Proteomics | `inv_geiger2012_pg` | Geiger 2012, PXD002395 / Expression Atlas E-PROT-20 | fetch from source |
 | SEC-MS | `inv_sec_fossati_features`, `inv_sec_fossati_fractions` | Fossati 2021, PXD018033 | fetch from source |
-| SEC-MS (lab) | `inv_sec_lab2026_jurkat_nt`, `inv_sec_lab2026_jurkat_tcract24h` | Beltrao lab 2026, unpublished | processed tables to Zenodo; raw to PRIDE (TODO) |
-| Surface proteomics (lab) | `inv_surface_jurkat_glyco2026` (presence evidence + PM topology fix only) | Beltrao lab 2026, unpublished | processed table to Zenodo; raw to PRIDE (TODO) |
+| SEC-MS (lab) | `inv_sec_lab2026_jurkat_nt`, `inv_sec_lab2026_jurkat_tcract24h` | Beltrao lab 2026 (CC BY-NC 4.0) | processed tables to Zenodo; raw to PRIDE (TODO) |
+| Surface proteomics (lab) | `inv_surface_jurkat_glyco2026` (presence evidence + PM topology fix only) | Beltrao lab 2026 (CC BY-NC 4.0) | processed table to Zenodo; raw to PRIDE (TODO) |
 | Transcriptomics | `inv_rna_emtab2706`, `inv_rna_gse145453_a1/a2`, `inv_rna_gse276689_rep1/2`, `inv_rna_gse301789`, `inv_rna_hpa` | Expression Atlas, GEO, HPA v25 | fetch from source (HPA: CC BY-SA 4.0) |
 | Structures | `lib_afdb_human_tar` (`{afdb_root}`), `lib_afdb_human_tar_index`, `lib_afdb_complex_models`, `inv_afdb_*`, `inv_pdb_assemblies` / `lib_pdb_assemblies`, `inv_npc_7r5k`, `inv_sifts` | AlphaFold DB (CC BY 4.0), wwPDB (CC0), SIFTS | AFDB complexes: dated fetch to Zenodo; the rest from the source |
 | Structure library | `inv_struct_library` / `lib_structures_v7` (`jurkat/yc/pipeline/lib`, 16,246 npz), `inv_tm_route_libs`, `lib_afdb_fragment_index_tmroute`, `inv_membrane_lib_ids` | this work (v7 library) | Zenodo |
@@ -53,10 +53,10 @@ Every input path in a cell config is written relative to a configurable root, as
 | Interactions | `inv_string_links` (organisation layer; off in the published builds since v9/u2, so not read) | STRING v12.0 (CC BY 4.0) | fetch from source |
 | Annotation | `inv_uniprot_full`, `inv_uniprot_reviewed`, `inv_uniprot_domains`, `inv_uniprot_topology`, `lib_tm_route_uniprot`, `lib_uniprot_human_table` | UniProt (CC BY 4.0) | dated snapshots to Zenodo (the REST answers change over time) |
 | Localisation | `inv_hpa_subcellular`, `inv_hpa_celllines`, `inv_hpa_jurkat_manifest`, `inv_itzhak2016` | HPA v25 (CC BY-SA 4.0; tables only, no images), Itzhak 2016 eLife (CC BY) | fetch from source / journal |
-| Pre-placed structures (derived) | `pre_chromatin_v8_rep5(_json)`, `pre_cytoskeleton_v7(_json)`, `pre_lamina_v7(_json)`, `pre_chromatin_drop_lamina_v7(_npy)`, `pre_mrna_v1`, `pre_mrna_drop_v7`, `pre_mrna_nascent_v8`, `pre_npc_v3(_json)`, `pre_polysomes_v7(_json)`, `inv_*_json` summaries, `inv_mt_centerlines` | this work. Chromatin GPU MD and U-Net microtubule tracing are not bitwise reproducible, so these files are frozen. | Zenodo |
-| Order / regression references (derived) | `inv_legacy_ingredients_v7`, `inv_legacy_complexes_v0`, `inv_v4pack_loc_compare`, `inv_v5pack_loc_compare`, `inv_tier2_v5`, `inv_tier2_transfer` | this work (legacy v4–v7 models) | Zenodo |
+| Pre-placed structures (derived) | `pre_chromatin_v8_rep5(_json)`, `pre_cytoskeleton_v7(_json)`, `pre_lamina_v7(_json)`, `pre_chromatin_drop_lamina_v7(_npy)`, `pre_mrna_v1`, `pre_mrna_drop_v7`, `pre_mrna_nascent_v8`, `pre_npc_v3(_json)`, `pre_polysomes_v7(_json)`, `inv_*_json` summaries, `inv_mt_centerlines` | this work. Chromatin GPU MD and U-Net microtubule tracing are not bitwise reproducible, so these files are frozen. Since v9 `jurkat.yaml` no longer declares `pre_npc_v3(_json)`, `pre_polysomes_v7(_json)`, `pre_mrna_drop_v7`, `pre_cytoskeleton_v7_json` (v7 preset only) and rule L3 reads the build's own lamina (`pre_lamina_v7*` are compare references). | Zenodo |
+| Order / regression references (derived) | `inv_legacy_ingredients_v7`, `inv_legacy_complexes_v0`, `inv_v4pack_loc_compare`, `inv_v5pack_loc_compare`, `inv_tier2_v5`, `inv_tier2_transfer` | this work (legacy v4–v7 models; derived from earlier packs, so fixed inputs: docs/REBUILD.md §2) | Zenodo |
 | Hold-out split | `inv_fit_genes`, `inv_holdout_genes` | this work (seed 20261110) | Zenodo |
-| Geometry | `geom_jgeom_v7` (source of the package), `geometry_jurkat` = `{geom_root}/jurkat/em_cell1_v8r` (manifest sha256 `6c86b168…`) | this work, from OpenOrganelle jrc_jurkat-1 FIB-SEM | Zenodo |
+| Geometry | `geom_jgeom_v7` (source of the v7 package; declared by `jurkat_v7_port.yaml` only since v9), `geometry_jurkat` = `{geom_root}/jurkat/em_cell1_v8r` (manifest sha256 `6c86b168…`) | this work, from OpenOrganelle jrc_jurkat-1 FIB-SEM | Zenodo |
 | Validation references | `val_chromatin_*`, `val_opencell`, `val_ribo_em`, `val_hpa_*`, `val_loc_*`, `val_uniprot_human`; also `ref_jurkat_v7_reference_validate`, `ref_jurkat_step2_build`, `hidden_v7_reference_tables` | OpenCell, OpenOrganelle, HPA, UniProt; this work | from the source / Zenodo / HF |
 
 ## 4. Yeast (`config/cells/yeast.yaml`)
@@ -65,20 +65,20 @@ Every input path in a cell config is written relative to a configurable root, as
 |---|---|---|---|
 | Proteome | `inv_yeast_paxdb` | PaxDb integrated (id 4098344127) | fetch from source |
 | SEC-MS | `inv_sec_swamy2022_yeast` (PXD028358 + Data S5), `inv_sec_pang2020_yeast` (PXD019513) | PRIDE | our re-exports to Zenodo, or fetch from the source |
-| SEC-MS (lab) | `inv_sec_lab2026_yeast_nacl`, `inv_sec_lab2026_yeast_ypd` | Beltrao lab 2026, unpublished | processed tables to Zenodo; raw to PRIDE (TODO) |
+| SEC-MS (lab) | `inv_sec_lab2026_yeast_nacl`, `inv_sec_lab2026_yeast_ypd` | Beltrao lab 2026 (CC BY-NC 4.0) | processed tables to Zenodo; raw to PRIDE (TODO) |
 | Localisation | `loc_yeast_cyclops_wt1..3` (CYCLoPs, Koh 2015), `loc_yeast_morgenstern2017`, `loc_yeast_vogtle2017`, `loc_yeast_uniprot_features` | CYCLoPs DB; journal supplements; UniProt | fetch from the source / journal |
 | Structures | `yeast_afdb_tar`, `yeast_afdb_dimers`, `yeast_pdb_cache` | AlphaFold DB, wwPDB | from the source; dimers / PDB cache to Zenodo |
-| In-house AF3 pool | `yeast_af3_pool_summary` | G. Magnusson, unpublished | **not redistributable**. The build reads only the cached `organisation/pool_pairs.parquet` inside `yeast_x5_work_seed`; whether that may be deposited is to be confirmed with Magnusson. |
+| In-house AF3 pool | `yeast_af3_pool_summary` | G. Magnusson, unpublished | **not redistributable**; not declared by `yeast.yaml` since v9 (the AF3 pool is off). The cached `organisation/pool_pairs.parquet` inside `yeast_x5_work_seed` is optional for `yeast.yaml` (deposit the work seed without it). |
 | Annotation / complexes | `inv_yeast_uniprot`, `inv_yeast_complex_portal`, `hidden_yeast_uniprot_topology`, `hidden_yeast_string_links` | UniProt, Complex Portal, STRING v12 | fetch from source |
-| Yeast model data folder | `yeast_pipeline_data` (whole `pipeline/data`, manifest checksum) | yeast model | **needs curation**: it holds ~15 GB of literature PDFs and supplements the build does not read; deposit only the files the build reads |
+| Yeast model data folder | `yeast_pipeline_data` (whole `pipeline/data`, manifest checksum) | yeast model | deposit only the read subset: `plugins/yeast/data/pipeline_data_read_set.txt` (782 of 2,631 files, ~1.1 GB of 14.5 GB; since v9 the engine setup check requires only these). Journal supplements in it: check terms |
 | Frozen yeast model state | `yeast_x5_lib_start` (342 library entries: tRNA Boltz-2 models, builder templates), `yeast_x5_work_seed` (rcsb cache, organisation pool pairs, interaction pair summary, sweeps, validation tables) | yeast model (X5 run) | Zenodo (pool pairs: ask Magnusson) |
 | Size scaling | `inv_yeast_lanz2024_s3` | Lanz 2024 NSMB supplement | fetch from journal |
-| Geometry | `geometry_yeast` = `{geom_root}/yeast/analytic_x5_s0_f5f3a5c723b2_memhalf1` (manifest sha256 `230b96d9…`) | this work; deterministic, from the vendored engine | Zenodo (or regenerate) |
-| Validation references | `val_yeast_buildW_*`, `val_yeast_x5_build_*`, `ref_yeast_x5repro_build` | yeast model runs; this work | HF |
+| Geometry | `geometry_yeast` = `{geom_root}/yeast/analytic_x5_s0_f5f3a5c723b2_memhalf1` (manifest sha256 `230b96d9…`) | this work; deterministic, from the vendored engine, but a regenerated package records its own commit and time in the manifest, so it does not match the pin | Zenodo |
+| Validation references | `ref_yeast_x5repro_build` (suite no-regression reference, optional); `val_yeast_buildW_*`, `val_yeast_x5_build_*` are declared only by `yeast_x5_port.yaml` since v9 | yeast model runs; this work | HF |
 | Donor pack | `donor_yeast_pack_bedcea9` = `{results_root}/yeast/20261119-bedcea9-s0-paper` | this work | HF. The paper yeast build is a downstream-only reuse of this pack (`scripts/build_downstream_reuse.py`; record in `DOWNSTREAM_REUSE.json`), so reproducing it exactly needs the donor pack. |
 
-Not data, but required: two vendored yeast steps run with a separate interpreter,
-`{data_root}/conda_envs/yeast_x5/bin/python` (config `plugin_steps[].params.python`). Recreate that environment from
+Not data, but required: two vendored yeast steps run with a separate interpreter, `{yeast_python}` (site key
+`yeast_python`, default `{data_root}/conda_envs/yeast_x5/bin/python`; config `plugin_steps[].params.python`). Recreate that environment from
 `envs/yeast_x5.pip.txt` (see `envs/README`).
 
 ## 5. Testcell
@@ -91,9 +91,9 @@ library), and its geometry package `{geom_root}/testcell/analytic_v1` is generat
 
 These inputs are read by code or through config keys but are not checksum-verified by `check_frozen`:
 
-- `{data_root}/data/reference/uniprot_glyco/uniprot_human_glyco_topo.tsv.gz` and
-  `{data_root}/data/derived/afdb_plddt_summary.tsv.gz`: read by `wholecell/library/topology.py` (library step
-  `pm_topology_fix`, the `tm_alternation` rule, and the E7 check).
+- (v8 only) `{data_root}/data/reference/uniprot_glyco/uniprot_human_glyco_topo.tsv.gz` and
+  `{data_root}/data/derived/afdb_plddt_summary.tsv.gz`, read by `wholecell/library/topology.py`: declared as frozen
+  inputs `lib_uniprot_glyco_topo` and `lib_afdb_plddt_summary` since v9.
 - Yeast: `{yeast_root}/inputs/` is passed whole to the vendored engine. The STRING links and `uniprot_topology.tsv` are
   read from `pipeline/data` (covered only by the `yeast_pipeline_data` manifest checksum).
 - Jurkat regression and validation references: the `inventory.verify` tables and `validate.compare_reference` files
@@ -105,8 +105,8 @@ These inputs are read by code or through config keys but are not checksum-verifi
   `inventory_v0_complexed.tsv`, but only when the library is rebuilt from scratch. The paper builds use the frozen v7
   library, so they do not read these files (confidence medium).
 
-TODO: declare these files as frozen inputs in a future config revision. That change alters the config hash, so it is
-not done for the paper builds.
+The remaining items are comparison references: the build runs without them (the inventory compare reports them
+missing, `validate compare_v7` is skipped with a reason, the suite marks no-regression rows n/a).
 
 ## 7. Redistribution limits (summary)
 
@@ -119,8 +119,7 @@ not done for the paper builds.
 - **CYCLoPs**: database terms to be checked; fetch from the source.
 - **Yeast `pipeline/data`**: contains third-party literature PDFs; deposit only the curated subset the build reads.
 - **Lab SEC-MS and surface glyco-capture**: no longer confidential (P. Beltrao, 2026-11-23). Processed tables go to
-  Zenodo (CC BY-NC 4.0) and raw files to PRIDE (TODO). The `licence` field in the configs still reads "CONFIDENTIAL";
-  update it in a later config revision, because editing it changes the config hash of the paper builds.
+  Zenodo (CC BY-NC 4.0) and raw files to PRIDE (TODO). The config `licence` fields say so since v9.
 - **Public databases** (AlphaFold DB CC BY 4.0, PDB CC0, UniProt CC BY 4.0, STRING CC BY 4.0, Complex Portal, SIFTS,
   GEO, Expression Atlas, PRIDE): attribute the source; dated snapshots of time-dependent exports go to Zenodo.
 - **Our derived files** (pre-placed structures, libraries, geometry, references): CC BY-NC 4.0 (see `LICENSE-DATA`).

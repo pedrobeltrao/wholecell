@@ -27,7 +27,9 @@ not be seen). Single keys can also be set with `WHOLECELL_DATA_ROOT`, `WHOLECELL
 interpreters.
 
 The testcell geometry package must exist under `{geom_root}/testcell/analytic_v1`. If it does not, generate it
-(deterministic; the manifest sha256 must match `geometry.manifest_sha256` in the config):
+(about 2 min). Generation is deterministic for one code version and machine, but the manifest records the generating
+commit and time, so a package you generate does not match the pinned `geometry.manifest_sha256`; the testcell config
+sets `geometry.on_mismatch: warn`, so the build goes on and records the mismatch in `geometry/package.json`:
 
 ```
 PYTHONHASHSEED=0 <vcell python> -m toolkits.analytic.generate toolkits/analytic/specs/testcell.yaml
@@ -58,7 +60,8 @@ tag.
 (last Snakemake job), 25 jobs.
 
 **CI.** `scripts/ci_testcell.sh` is the testcell CI check (full build with 8 and 4 workers, outputs must be
-identical).
+identical). With `git config core.hooksPath scripts/hooks` it starts in the background after each commit and each merge
+on `main` (hooks `post-commit`, `post-merge`), one run at a time; a commit that already has a CI result is skipped.
 
 ## 3. Where outputs land
 
