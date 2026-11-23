@@ -702,6 +702,8 @@ plugin_steps:
     params:
       engine: *yeast_engine
       data: yeast_pipeline_data    # frozen inputs (read in place); their manifests are re-checked file by file
+      read_set: plugins/yeast/data/pipeline_data_read_set.txt   # files of yeast_pipeline_data the build reads: only these
+                                   # must be present (v9: a deposit holds this subset, not the 15 GB tree)
       pdb: yeast_pdb_cache
       work_seed: yeast_x5_work_seed
       check: [yeast_x5_work_seed, yeast_pipeline_data, yeast_pdb_cache, yeast_afdb_dimers]
@@ -781,6 +783,9 @@ plugin_steps:
     params: {engine: *yeast_engine, cwd: scripts, script: s5_encode.py, log: s5_encode.log,
              python: "{data_root}/conda_envs/yeast_x5/bin/python"}   # yeast engine env: fast_simplification, openmm (not in the core env)
 frozen_inputs:
+  # v9 (2026-11-23): the build-W / X5 reference files under {yeast_root}/runs and the in-house AF3 pool summary
+  # (not redistributable) are no longer declared here: no step of this config reads them (the organisation layer read
+  # only the cached pool pairs in yeast_x5_work_seed). They stay declared in yeast_x5_port.yaml.
   inv_yeast_uniprot:
     path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/uniprot_yeast.tsv"
     md5: 2fb50d8fad91b67fe2b8193083372bd3
@@ -841,18 +846,6 @@ frozen_inputs:
     why: "Lanz et al. 2024 Table S3: per-protein size-scaling slopes (G1 arrest, glucose)"
     kind: literature
     origin: "yeast_cell_viewer pipeline/data/validation/literature (main 34d123f)"
-  val_yeast_buildW_protein_features:
-    path: "{yeast_root}/runs/P2_seed0/work/features/protein_features.parquet"
-    md5: 339b70dd4852fbe7b0e206ff704c5873
-    why: "REFERENCE: build W per-protein copies_per_cell (criteria Y1-Y3)"
-    kind: reference
-    origin: "yeast build W (20261115-151321-8f84387-s0, run P2_seed0)"
-  val_yeast_buildW_anchors:
-    path: "{yeast_root}/runs/P2_seed0/work/validation/anchors.json"
-    md5: e81123ca818418304ee5fb12e5f3c0cb
-    why: "REFERENCE: build W anchors.json (criterion Y4)"
-    kind: reference
-    origin: "yeast build W"
   # ---- yeast X5 port (2026-11-16): read-in-place trees are checked against md5 manifests made 2026-11-16 17:57
   # (data/derived/wholecell_frozen/yeast_x5/make_manifests.sh); the engine setup step re-checks every file (size +
   # mtime; md5 for the copied lib_start / work_seed)
@@ -894,22 +887,6 @@ frozen_inputs:
     why: "AlphaFold DB v6 yeast proteome (stage 0 monomers, stage 5 pLDDT)"
     kind: structures
     licence: "AlphaFold DB CC BY 4.0"
-  yeast_af3_pool_summary:
-    path: "{yeast_root}/inputs/summary_models.parquet"
-    md5: 8d4c6d6de2414b8fab2c9e04efd06447
-    why: "in-house AlphaFold 3 pool pair scores (YC_POOL_SCORES; NOT public); the organisation layer reads the cached pool_pairs.parquet"
-    kind: structures
-    licence: "unpublished; not redistributable"
-  val_yeast_x5_build_json:
-    path: "{yeast_root}/runs/X5_seed0/work/build.json"
-    md5: e35ae972aad963b6dca1c39a93a1fde8
-    why: "REFERENCE identity: X5 build.json (build_id 20261116-141711-e3b7448-s0); compare_x5 reads X5_seed0 read-only"
-    kind: reference
-  val_yeast_x5_build_log:
-    path: "{yeast_root}/runs/X5_seed0/build.log"
-    md5: 61d255d186404c91fd9a4ba2438117b0
-    why: "REFERENCE: X5 build.log (finished 16:33:03, validate exit 0)"
-    kind: reference
   # ---- localisation sources (A5; read in place)
   loc_yeast_vogtle2017:
     path: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/vogtle2017_submito.xlsx"
