@@ -275,9 +275,13 @@ secms, assembly, surface}`, `ingredients`, `rule_sets`, `proteome_sources`, `loc
 A rule receives the previous table, returns the new one and one `changes.tsv` row per changed field (old, new, evidence,
 the validation check that motivated it). Pack-dependent rules read only declared frozen tables (Jurkat: v5 P/C/N =
 `inv_v4pack_loc_compare`, v5 T = `inv_tm_route_libs`, v6 = `inv_v5pack_loc_compare` + `inv_tier2_v5`, hold-out lists).
-Rules needing a pre-pass result take it as an explicit input: Jurkat v7 `params."jurkat.v7".lamina_consumption` =
-`inv_lamina_consumption_v7` (legacy jlamina output) or `build:preplaced/.../lamina_cell1.json` (lamina rebuilt in the same
-build). Geometry-derived constants are config values with their origin (v6 speckle volume 1.963 um3, v7 PCM sphere
+Rules needing a pre-pass result take it as an explicit input: Jurkat rule L3 `lamina_consumption` =
+`inv_lamina_consumption_v7` (legacy jlamina output) or `build:preplaced/lamina/consumption.json` (lamina rebuilt in the
+same build). Since v9 the paper cell runs L3 as the rule set `jurkat.v7_lamina` (params `"jurkat.v7_lamina"`), after
+`jurkat.v7`: the lamina builder needs the library, which is built from this build's species table, so a rule reading the
+lamina cannot come before that table. The library reads `inventory/library_table.tsv` (`inventory.library_table: {after:
+jurkat.v7}`: the v7 table in pack-table order), and the `pack_table` step fails if the pack table differs from it outside
+`comp_weights` (`may_differ`). The v7 port keeps L3 inside `jurkat.v7` (`params."jurkat.v7".lamina_consumption`). Geometry-derived constants are config values with their origin (v6 speckle volume 1.963 um3, v7 PCM sphere
 cytosolic volume 0.2451 um3) until the geometry stage exports them.
 
 ## 8. Exact reproduction of a legacy build

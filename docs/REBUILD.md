@@ -136,7 +136,7 @@ scripts/build_isolated.sh testcell mytest 8
 PYTHONHASHSEED=0 $PY -m wholecell frozen --cell jurkat --build /tmp/check_jurkat
 PYTHONHASHSEED=0 $PY -m wholecell frozen --cell yeast --build /tmp/check_yeast
 
-# 3. dry run of the workflow (Jurkat 37 jobs, yeast 41)
+# 3. dry run of the workflow (Jurkat 38 jobs, yeast 40); check that the exit code is 0
 <envs>/wholecell_smk/bin/snakemake -n --cores 24 --config cell=jurkat build_tag=dry
 <envs>/wholecell_smk/bin/snakemake -n --cores 24 --config cell=yeast build_tag=dry
 

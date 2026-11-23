@@ -20,6 +20,11 @@ Steps (in order; the list is built from the config, see `steps(cfg)`):
                                                                                 -> inventory/ingredients/ingredients.tsv
   rules:<name>  one step per entry of inventory.rule_sets (registered `inventory_rule`), each reading the previous
                 step's ingredients.tsv -> inventory/rules/<name>/{ingredients.tsv, changes.tsv[, changes_legacy.tsv], report.txt}
+  library_table optional (inventory.library_table: {after: <rule set>[, may_differ: [columns]]}): that rule set's table in
+                the pack-table order -> inventory/library_table.tsv, the species table of the library when later rule
+                sets read pre-pass outputs that need the library (Jurkat: jurkat.v7_lamina reads the lamina, which
+                needs the library). pack_table checks that both tables have the same rows in the same order and equal
+                cells outside `may_differ` (default [comp_weights]); a later rule set changing anything else fails.
   pack_table    the last step's ingredients.tsv (byte copy; with inventory.pack_table.order_reference = a frozen legacy
                 table, rows / equal-content comp_weights key order follow the reference, see legacy_order.py)
                                                                                 -> inventory/pack_table.tsv [, pack_table_order.json]
@@ -56,6 +61,7 @@ STEPS = OrderedDict([
     ("ingredients", {"inputs": ["inventory/assembly/*"], "outputs": ["inventory/ingredients/ingredients.tsv"]}),
     ("rules:<name>", {"inputs": ["previous step ingredients.tsv"],
                       "outputs": ["inventory/rules/<name>/ingredients.tsv", "inventory/rules/<name>/changes.tsv"]}),
+    ("library_table", {"inputs": ["rules/<after>/ingredients.tsv"], "outputs": ["inventory/library_table.tsv"]}),
     ("pack_table", {"inputs": ["last ingredients.tsv"], "outputs": ["inventory/pack_table.tsv"]}),
     ("canonical", {"inputs": ["inventory/pack_table.tsv", "all changes.tsv"], "outputs": ["inventory/species.tsv", "..."]}),
     ("compare", {"inputs": ["all outputs"], "outputs": ["inventory/compare_legacy.json"]}),
@@ -160,7 +166,12 @@ def steps(cfg) -> "OrderedDict[str, dict]":
         add(f"rules:{name}", r, name, [prev_tab], outs)
         prev_tab = f"{d}/ingredients.tsv"
     ptref = (inv.get("pack_table", {}) or {}).get("order_reference")
-    out["pack_table"] = {"inputs": [prev_tab], "frozen": [ptref] if ptref else [],
+    lt = _library_table(cfg)
+    if lt:
+        out["library_table"] = {"inputs": [f"inventory/{lt['src']}"], "frozen": [ptref] if ptref else [],
+                                "outputs": ["inventory/library_table.tsv"]}
+    out["pack_table"] = {"inputs": [prev_tab] + (["inventory/library_table.tsv"] if lt else []),
+                         "frozen": [ptref] if ptref else [],
                          "outputs": ["inventory/pack_table.tsv"] + (["inventory/pack_table_order.json"] if ptref else [])}
     rule_changes = [f"inventory/{rule_dir(n)}/changes.tsv" for n in inv.get("rule_sets", []) or []]
     out["canonical"] = {"inputs": ["inventory/pack_table.tsv", "inventory/v0/inventory_v0.tsv",
@@ -171,6 +182,18 @@ def steps(cfg) -> "OrderedDict[str, dict]":
         out["compare"] = {"inputs": out["canonical"]["outputs"], "frozen": [],
                           "outputs": ["inventory/compare_legacy.json"]}
     return out
+
+
+def _library_table(cfg):
+    """inventory.library_table: {after: <rule set>, may_differ: [columns]} -> {src, may_differ} (None when unset)"""
+    lt = _inv(cfg).get("library_table")
+    if not lt:
+        return None
+    rs = _inv(cfg).get("rule_sets", []) or []
+    a = lt.get("after")
+    if a not in rs or a == rs[-1]:
+        raise ValueError(f"inventory.library_table.after: {a!r} must be a rule set before the last one ({rs})")
+    return {"src": f"{rule_dir(a)}/ingredients.tsv", "may_differ": list(lt.get("may_differ", ["comp_weights"]))}
 
 
 def _last_table(cfg) -> str:
@@ -256,25 +279,60 @@ def step_rule(ctx, name: str, src_rel: str):
     ctx.write_report(f"{d}/report.txt", res.get("report", ctx.report))
 
 
-def step_pack_table(ctx):
-    """pack_table.tsv = the last step's table; with inventory.pack_table.order_reference (a frozen input) the rows and
-    the key order of equal comp_weights dicts follow the reference (legacy_order.py); report: pack_table_order.json"""
+def _ordered(ctx, src, out_name):
+    """src in the pack-table order: byte copy, or rows / equal-content dict key order of the order reference;
+    returns the reorder report (None without a reference)"""
     import json
-    src = ctx.need(_last_table(ctx.cfg))
     ref = (ctx.inv.get("pack_table", {}) or {}).get("order_reference")
     if not ref:
-        ctx.copy(src, "pack_table.tsv")
-        return
+        ctx.copy(src, out_name)
+        return None
     from . import legacy_order
     P, rep = legacy_order.reorder(src, ctx.frozen(ref))
     rep["reference"] = ref
-    ctx.say(f"pack_table order reference {ref}: {json.dumps({k: v for k, v in rep.items() if k != 'examples'})}")
+    ctx.say(f"{out_name} order reference {ref}: {json.dumps({k: v for k, v in rep.items() if k != 'examples'})}")
     if not rep.get("applied"):
-        ctx.copy(src, "pack_table.tsv")
+        ctx.copy(src, out_name)
     else:
-        ctx.write_tsv(P, "pack_table.tsv")
-    p = ctx.out("pack_table_order.json")
-    build.atomic_save(p, lambda t: json.dump(rep, open(t, "w"), indent=1))
+        ctx.write_tsv(P, out_name)
+    return rep
+
+
+def step_library_table(ctx):
+    """library_table.tsv = the table of rule set inventory.library_table.after, in the pack-table order"""
+    _ordered(ctx, ctx.need(_library_table(ctx.cfg)["src"]), "library_table.tsv")
+
+
+def check_library_table(ctx):
+    """pack_table.tsv vs library_table.tsv: same columns, rows and order; equal cells outside may_differ"""
+    import pandas as pd
+    lt = _library_table(ctx.cfg)
+    P = pd.read_csv(ctx.need("pack_table.tsv"), sep="\t", dtype=str, keep_default_na=False)
+    L = pd.read_csv(ctx.need("library_table.tsv"), sep="\t", dtype=str, keep_default_na=False)
+    if list(P.columns) != list(L.columns) or list(P.ing_id) != list(L.ing_id):
+        raise RuntimeError("pack_table.tsv and library_table.tsv differ in columns or rows (the library was built for "
+                           "another species list); inventory.library_table.after must name a rule set whose successors "
+                           "change only " + ", ".join(lt["may_differ"]))
+    bad = {c: int((P[c] != L[c]).sum()) for c in P.columns if c not in lt["may_differ"] and (P[c] != L[c]).any()}
+    if bad:
+        raise RuntimeError(f"pack_table.tsv differs from library_table.tsv outside {lt['may_differ']}: {bad} cells "
+                           f"(a rule set after {ctx.inv['library_table']['after']} changed fields the library reads)")
+    n = {c: int((P[c] != L[c]).sum()) for c in lt["may_differ"] if c in P.columns}
+    ctx.say(f"library_table check: {len(P)} rows equal outside {lt['may_differ']} (cells differing there: {n})")
+
+
+def step_pack_table(ctx):
+    """pack_table.tsv = the last step's table; with inventory.pack_table.order_reference (a frozen input) the rows and
+    the key order of equal comp_weights dicts follow the reference (legacy_order.py); report: pack_table_order.json.
+    With inventory.library_table the result is checked against library_table.tsv (check_library_table)."""
+    import json
+    src = ctx.need(_last_table(ctx.cfg))
+    rep = _ordered(ctx, src, "pack_table.tsv")
+    if rep is not None:
+        p = ctx.out("pack_table_order.json")
+        build.atomic_save(p, lambda t: json.dump(rep, open(t, "w"), indent=1))
+    if _library_table(ctx.cfg):
+        check_library_table(ctx)
 
 
 def step_canonical(ctx):
@@ -317,6 +375,8 @@ def run(cfg, bdir, step=None, **kw):
             i = rs.index(name)
             src = "ingredients/ingredients.tsv" if i == 0 else f"{rule_dir(rs[i - 1])}/ingredients.tsv"
             step_rule(ctx, name, src)
+        elif s == "library_table":
+            step_library_table(ctx)
         elif s == "pack_table":
             step_pack_table(ctx)
         elif s == "canonical":
