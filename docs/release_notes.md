@@ -74,7 +74,7 @@ Nothing else was removed: all tests, docs, plugins, toolkits and configs of deve
 ### Scripts kept in `scripts/`
 `build_isolated.sh`, `ci_testcell.sh`, `ci_compare_builds.py`, `build_downstream_reuse.py`, `freeze_check.py`,
 `step2_combined_check.py` (imported by `freeze_check.py`), `inventory_e2e.py`, `secms_dataset_dryrun.py`,
-`secms_freepool_dryrun.py`, `hooks/post-commit` (testcell CI; enable with `git config core.hooksPath scripts/hooks`).
+`secms_freepool_dryrun.py`, `hooks/post-commit` and `hooks/post-merge` (testcell CI after a commit or a merge on main; enable with `git config core.hooksPath scripts/hooks`).
 Note: `freeze_check.py` checks that a build's commit is on `main`; the paper builds' commit 0a3ba79 exists only in the
 development repository, so re-scoring the paper builds needs that repository; new builds from this repository work.
 

@@ -60,7 +60,8 @@ tag.
 (last Snakemake job), 25 jobs.
 
 **CI.** `scripts/ci_testcell.sh` is the testcell CI check (full build with 8 and 4 workers, outputs must be
-identical).
+identical). With `git config core.hooksPath scripts/hooks` it starts in the background after each commit and each merge
+on `main` (hooks `post-commit`, `post-merge`), one run at a time; a commit that already has a CI result is skipped.
 
 ## 3. Where outputs land
 
