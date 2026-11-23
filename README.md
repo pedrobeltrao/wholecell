@@ -90,7 +90,8 @@ config spec: `docs/reference/cell_config.md`.
 ## Data
 `docs/data_inputs.md` lists every input of the two paper builds (relative to `data_root`, `yeast_root`, `afdb_root`,
 `geom_root`), with size, checksum, original source, licence and where to get it; machine-readable: `data_manifest.tsv`.
-- Redistributable inputs and our derived intermediate files: Zenodo (https://zenodo.org/records/TODO-wholecell-inputs).
+- Inputs (our derived files, lab tables, redistributable third-party snapshots): Hugging Face dataset
+  `pbeltrao/wholecell-inputs` (placeholder id, not uploaded yet); download with `scripts/fetch_inputs.py` (`docs/REBUILD.md`).
 - Build outputs of the two paper builds: https://huggingface.co/datasets/TODO/wholecell-builds.
 - Lab SEC-MS 2026 and Jurkat surface glyco-capture: processed tables with the inputs; raw MS files at PRIDE (TODO).
 - Not redistributable (fetch from the source): CORUM, journal supplementary tables, HPA images, the unpublished yeast

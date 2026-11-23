@@ -5,7 +5,9 @@ This page lists the steps an outside user follows to rebuild the Jurkat T cell a
 Background: the input list is in [data_inputs.md](data_inputs.md) and `data_manifest.tsv`; the build stages are in
 [stages/](stages/); the published builds are pinned in `config/paper_builds.yaml`.
 
-Deposit locations are still placeholders (`TODO`); they are filled in when the deposits exist.
+**Inputs dataset.** The inputs are deposited on Hugging Face as the dataset `pbeltrao/wholecell-inputs`
+(**placeholder id**: the dataset is not uploaded yet). `scripts/fetch_inputs.py` downloads it into the roots of your site
+file. The build outputs go to a separate builds dataset (placeholder `TODO/wholecell-builds`).
 
 ## 1. What you need
 
@@ -26,16 +28,19 @@ recorded; the paper builds ran on nodes with 512 GB of RAM, and we have not test
 Every input of a cell is declared in its config under `frozen_inputs` (path relative to a site root, md5 or sha256).
 `data_manifest.tsv` has one row per input with its source, licence and where to get it. There are four kinds:
 
-1. **Public downloads** (RNA-seq tables, Geiger 2012, UniProt, HPA tables, Complex Portal, SIFTS, PDB, STRING, AlphaFold
-   DB, PaxDb, PRIDE SEC-MS, journal supplements). Download from the URL in the manifest. Exports that change over time
-   (UniProt REST answers, AFDB dimer fetches, the RCSB cache) must be the dated snapshots in our deposit, or the
-   checksums will not match.
+1. **Third-party public data** (RNA-seq tables, Geiger 2012, UniProt, HPA tables, Complex Portal, SIFTS, PDB, STRING,
+   AlphaFold DB, PaxDb, PRIDE SEC-MS, journal supplements). Where the licence allows it, the exact files the paper
+   builds read are in the inputs dataset (their own licence, in its `cc_by/`, `cc0/`, `open/`, `cc_by_sa/` folders):
+   exports change over time (UniProt REST answers, AFDB dimer fetches, the RCSB cache), so a new download would not
+   match the checksums. Not in the dataset (its `EXCLUDED.tsv`): the AlphaFold DB v6 proteome tars (download from EBI)
+   and the third-party tables whose terms do not clearly allow redistribution (fetch them from the journal or database,
+   into the same path).
 2. **Curated tables in this repository** (`plugins/*/data/`, `config/geometry/`, `tests/data/`): nothing to download.
 3. **Deposited derived data and lab data**: the geometry packages (Jurkat from the jrc_jurkat-1 FIB-SEM segmentations,
    yeast analytic), the chromatin model (GPU molecular dynamics, not bitwise reproducible), the U-Net microtubule traces,
    the hold-out gene split, the lab SEC-MS and surface glyco-capture tables (raw files at PRIDE), the yeast start library
-   (Boltz-2 tRNA models, builder templates) and work seed. Get them from the deposit.
-4. **Inputs derived from earlier builds** (fixed inputs, deposited with their provenance). The pipeline cannot
+   (Boltz-2 tRNA models, builder templates) and work seed. In the inputs dataset (`ours/`, CC BY-NC 4.0).
+4. **Inputs derived from earlier builds** (fixed inputs, in the inputs dataset `ours/` with their provenance). The pipeline cannot
    regenerate these from public data in one build, because they were made from the packs of earlier model versions:
    - `inv_v4pack_loc_compare`, `inv_v5pack_loc_compare`: per-gene placed compartment shares of the legacy v4 and v5
      Jurkat packs, read by the localisation rules v5 (C, N, P) and v6 (R2-R6a);
@@ -57,18 +62,33 @@ Every input of a cell is declared in its config under `frozen_inputs` (path rela
 Optional inputs (a build runs without them): the archived v7 reference for `validate compare_v7` (skipped with a reason
 when absent), the suite's no-regression reference builds (rows marked n/a), the legacy inventory tables of
 `inventory.verify` (reported missing), and for yeast the 9.7 GB YeastRGB raw image archive
-`validation/microscopy/yeastrgb_dubreuil2019/raw/RAW-C_SWAT_GFP-ORF.zip`. The yeast `image_nc` validation only checks
-that this file exists (its result is cached in the work seed) and is skipped without a message when it is missing.
+`validation/microscopy/yeastrgb_dubreuil2019/raw/RAW-C_SWAT_GFP-ORF.zip` (download it from YeastRGB,
+Dubreuil et al. 2019 Nucleic Acids Res 47:D1245, into `{yeast_root}/yeast_cell_dev_bundle/pipeline/data/` at that path). The
+yeast image N/C validation (`image_nc`, suite check C3) uses the per-ORF measurements cached in the work seed, so it runs
+without the archive; `image_nc.json` then records `status: ok_from_cache_raw_archive_absent` and the log a WARNING. If
+neither the archive nor the cache exists, the test does not run, `status: not_run_raw_archive_absent` is recorded and
+the suite's C3 row carries the warning.
 
 **Yeast data tree.** The yeast cell reads the yeast model's `pipeline/data` folder (`yeast_pipeline_data`). Only the
 782 files matched by `plugins/yeast/data/pipeline_data_read_set.txt` (about 1.1 GB) are read; the rest of the 14.5 GB
 tree (literature PDFs, raw microscopy, genome tracks) is not needed. The setup step checks the files against
-the md5 manifest `{data_root}/data/derived/wholecell_frozen/yeast_x5/manifest_pipeline_data.tsv` (deposited). Files
-outside the read set may be absent. A file whose modification time differs from the manifest (as in any download) is
+the md5 manifest `{data_root}/data/derived/wholecell_frozen/yeast_x5/manifest_pipeline_data.tsv` (in the inputs
+dataset). Files outside the read set may be absent. A file whose modification time differs from the manifest (as in any download) is
 accepted when its md5 matches.
 
-**Layout.** Unpack the deposits so that every manifest `relpath` sits under its root (`data_root`, `yeast_root`,
-`afdb_root`, `geom_root`).
+**Layout and download.** Every input sits under its root (`data_root`, `yeast_root`, `afdb_root`, `geom_root`) at the
+path of `data_manifest.tsv`. With the site file in place:
+
+```
+python scripts/fetch_inputs.py --cell jurkat --list        # what comes from the dataset, what from elsewhere
+python scripts/fetch_inputs.py --cell jurkat --source      # download (+ the AlphaFold DB tar from EBI)
+python scripts/fetch_inputs.py --cell yeast --source
+python scripts/fetch_inputs.py --cell yeast --group reference   # also the reference presets' inputs (optional)
+```
+
+The script checks every file against its md5 and unpacks the tar shards of large folders (the PDB assembly set, the
+v7 structure library, the AFDB dimer models). It ends with the list of inputs to fetch by hand (third-party tables
+whose terms do not allow redistribution), each with its source.
 
 ## 3. Software
 
@@ -149,12 +169,16 @@ paths and timings differ). The paper cells keep the strict check, so use the dep
 
 ## 7. Known limits
 
-- The inputs of item 4 in section 2 come from earlier models; rebuilding them needs the legacy pipeline (deposited with the
-  inputs as `jurkat/yc/pipeline`) and the earlier packs. They are fixed inputs of this pipeline, not outputs.
+- The inputs of item 4 in section 2 come from earlier models; rebuilding them needs the legacy pipeline (in the inputs
+  dataset, group `reference`, as `jurkat/yc/pipeline`) and the earlier packs. They are fixed inputs of this pipeline, not outputs.
 - The yeast code falls back to downloading from RCSB when an entry is missing from the deposited PDB cache or
   `rcsb_cache.json`. With the deposited cache no download happens. Without it, the result depends on the RCSB state on
   the day of the build.
 - If `genome/nucleosome_dyads.tsv.gz` is missing from the yeast data tree, the yeast engine rebuilds it and writes it
   into that tree. It is in the read set, so keep it.
 - `inputs/yeast_organelle_meshes.zip` (yeast) is read by one non-fatal geometry report script. It is not a declared
-  input.
+  input (it is in the inputs dataset, group `optional`).
+- The reference preset `yeast_x5_core.yaml` reads the per-pair PAE table of the lab's pooled AlphaFold 3 screen
+  (`yeast_af3_pool_pairs`; source https://github.com/jurgjn/pooled-ppi-yeast). The public release v26.1 gives the same
+  value for 7,082,835 of its 7,631,089 pairs but covers fewer pairs (10,264,748 in the table the build read), so the
+  table itself is in the inputs dataset (`af3_pool/`, AlphaFold 3 output terms). `yeast.yaml` does not read it.
