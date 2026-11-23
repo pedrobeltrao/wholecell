@@ -11,8 +11,8 @@ Commercial use (of the code or the data) needs a separate licence: see `COMMERCI
 Decision: Pedro Beltrao, 2026-11-23 (supersedes the CC BY-NC 4.0-for-everything decision of 2026-11-16). G. Magnusson
 agrees.
 
-The `Required Notice` line at the end of `LICENSE` ("the wholecell authors (P. Beltrao lab, ETH Zurich; G. Magnusson)")
-is a placeholder wording to be confirmed (the yeast code states no rights holder of its own).
+The `Required Notice` line at the end of `LICENSE` states that commercial use needs a separate agreement with the
+Beltrao lab and ETH Zurich (`COMMERCIAL.md`).
 
 ## Provenance of copied code
 - **Yeast engine** (`plugins/yeast/engine/`, plus yeast-derived modules elsewhere): written by Gudmundur Magnusson

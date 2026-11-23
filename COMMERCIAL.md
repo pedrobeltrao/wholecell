@@ -5,5 +5,5 @@ configurations, documentation and model outputs under CC BY-NC 4.0 (`LICENSE-DAT
 only (research, teaching, personal study, and use by non-profit and public research organisations as the licences
 define it).
 
-Any commercial use needs a separate licence. Please contact Pedro Beltrao (pbeltrao@ethz.ch), ETH Zurich; commercial
-licences are arranged through ETH Zurich technology transfer (ETH transfer).
+Any commercial use needs a separate agreement with the Beltrao lab and ETH Zurich. Please contact Pedro Beltrao
+(pbeltrao@ethz.ch), ETH Zurich; agreements are arranged through ETH Zurich technology transfer (ETH transfer).

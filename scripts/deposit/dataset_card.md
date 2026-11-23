@@ -16,7 +16,7 @@ budding yeast cell, as read by the pipeline https://github.com/TODO/wholecell (`
 `config/cells/yeast.yaml`). With this dataset, the AlphaFold DB proteome tars and the few third-party tables listed
 in `EXCLUDED.tsv`, the two cells can be rebuilt (`docs/REBUILD.md` in the pipeline repository).
 
-The repository id `pbeltrao/wholecell-inputs` is a placeholder until the deposit exists.
+The repository id `pedrobeltrao/wholecell-inputs` is a placeholder until the deposit exists.
 
 ## Get the data
 Use the pipeline's fetch script, which places every file where the cell configs expect it (under the roots of your

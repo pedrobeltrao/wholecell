@@ -1,6 +1,6 @@
 """Build and upload the Hugging Face inputs dataset staged by scripts/deposit/stage_hf.py.
 
-    HF_TOKEN=<write token> python upload_hf.py --staged <dir> --build <scratch dir> [--repo-id pbeltrao/wholecell-inputs]
+    HF_TOKEN=<write token> python upload_hf.py --staged <dir> --build <scratch dir> [--repo-id pedrobeltrao/wholecell-inputs]
     python upload_hf.py --staged <dir> --build <scratch dir> --dry-run      # build tars + final manifest, no upload
 
 The token is read from the environment variable HF_TOKEN only (never from a file or the command line). Steps:
@@ -31,7 +31,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--staged", required=True)
     ap.add_argument("--build", required=True)
-    ap.add_argument("--repo-id", default="pbeltrao/wholecell-inputs")      # PLACEHOLDER repo id until the deposit exists
+    ap.add_argument("--repo-id", default="pedrobeltrao/wholecell-inputs")      # PLACEHOLDER repo id until the deposit exists
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--skip-member-md5", action="store_true", help="do not re-check tar members against their md5")
     a = ap.parse_args()

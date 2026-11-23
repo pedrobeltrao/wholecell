@@ -5,7 +5,7 @@ This page lists the steps an outside user follows to rebuild the Jurkat T cell a
 Background: the input list is in [data_inputs.md](data_inputs.md) and `data_manifest.tsv`; the build stages are in
 [stages/](stages/); the published builds are pinned in `config/paper_builds.yaml`.
 
-**Inputs dataset.** The inputs are deposited on Hugging Face as the dataset `pbeltrao/wholecell-inputs`
+**Inputs dataset.** The inputs are deposited on Hugging Face as the dataset `pedrobeltrao/wholecell-inputs`
 (**placeholder id**: the dataset is not uploaded yet). `scripts/fetch_inputs.py` downloads it into the roots of your site
 file. The build outputs go to a separate builds dataset (placeholder `TODO/wholecell-builds`).
 

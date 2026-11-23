@@ -23,7 +23,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 from wholecell.config import load_site  # noqa: E402
 
-DATASET = "pbeltrao/wholecell-inputs"      # PLACEHOLDER
+DATASET = "pedrobeltrao/wholecell-inputs"      # PLACEHOLDER
 
 
 def md5_file(p):
