@@ -277,21 +277,21 @@ def test_shapes():
 
 # ------------------------------------------------------------------ B2 in the cell configs (criteria docs/unification_criteria/B2_organisation.md)
 def test_b2_cell_configs():
-    """B2 accepted: jurkat / yeast have the organisation layer on in its published setting (STRING v12 >= 400, AF3 pool
-    and paralogs off); the reference configs keep theirs (jurkat_v7_port off, yeast_x5_core / yeast_x5_port pool on)"""
+    """B2 settings kept in jurkat / yeast (STRING v12 >= 400, AF3 pool and paralogs off) but the layer is OFF since the
+    v9/u2 rebuild (2026-11-23); the reference configs keep theirs (jurkat_v7_port off, yeast_x5_core on with the pool)"""
     from wholecell.config import load_raw
     for c in ("jurkat", "yeast"):
         p = switches.effective(load_raw(c)["pack"])
         o = switches.load(p, [r["name"] for r in p["regions"]]).organisation
-        assert o["enabled"] and o["pool_scores"] is None and o["paralogs"] is None and o["string"]["min_score"] == 400, c
+        assert not o["enabled"] and o["pool_scores"] is None and o["paralogs"] is None and o["string"]["min_score"] == 400, c
         assert str(o["string"]["version"]) == "12.0" and o["string"]["taxon"] == (9606 if c == "jurkat" else 4932), c
     j = load_raw("jurkat")
     assert j["pack"]["organisation"]["string"]["links"] in j["frozen_inputs"]
     assert j["pack"]["organisation"]["string"]["ids"]["table"] in j["frozen_inputs"]
     assert not (load_raw("jurkat_v7_port")["pack"].get("organisation") or {}).get("enabled")      # v7 port: off
-    yo = load_raw("yeast_x5_core")["pack"]["organisation"]                                       # X5 setting: pool on
-    assert yo["pool_scores"] and yo["paralogs"]
-    print("  B2: organisation on in jurkat / yeast (STRING, pool off); reference configs keep their settings")
+    yo = load_raw("yeast_x5_core")["pack"]["organisation"]                                       # X5 setting: on, pool on
+    assert yo["enabled"] and yo["pool_scores"] and yo["paralogs"]
+    print("  B2: organisation off in jurkat / yeast (settings kept); reference configs keep their settings")
 
 
 # ------------------------------------------------------------------ freeze fix: field cap in crowded regions

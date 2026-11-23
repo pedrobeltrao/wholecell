@@ -24,6 +24,7 @@ inventory:
 pack:
   preset: legacy_x5           # the A9 reference keeps the X5 packer settings (yeast.yaml pins C3 since B1, 2026-11-18)
   organisation:
+    enabled: true              # the X5 reference keeps the layer on (yeast.yaml: off since u2, 2026-11-23)
     pool_scores: "{data_root}/data/derived/wholecell_frozen/yeast_x5/work_seed/organisation/pool_pairs.parquet"   # YC_POOL_SCORES (cached pool table X5 read)
     paralogs: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/alliance_yeast_paralog_pairs.csv"
     field_cap_regions: []      # X5 split (no field cap: yeast.yaml's freeze fix 2026-11-19 is not part of the reference)
