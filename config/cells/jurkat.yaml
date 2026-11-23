@@ -8,11 +8,8 @@ aliases: {v7: "legacy pack v7 (2026-11-11)"}
 plugins: [jurkat]
 
 seeds:
-  master: 20261115
-  legacy:              # exact reproduction of the published v7 seeds (remove this block for a master-seed build)
-    pack.counts: 3
-    pack.tile: "k*7919+11"
-    prepass.lamina: 20261112
+  master: 20261115     # every stream is derived from the master seed (wholecell/seeds.py). v9 (review B2): the legacy
+                       # v7 seeds (pack.counts 3, pack.tile k*7919+11, prepass.lamina 20261112) moved to jurkat_v7_port.yaml
 
 build:
   allow_dirty: false
@@ -495,7 +492,7 @@ preplaced:
       - name: microtubules         # the EM-traced polylines (package layer mt_traces), 13_3 lattice as v7
         builder: core.microtubules
         params: {tracks: traced, layer: mt_traces, lib: MT_TUBA1B-TUBB4B, ingredient: TUBA1B-TUBB4B,
-                 seed: 20261111,         # the v7 stage-3 lattice frame seed: same lattice (dimer phase) as v7
+                 seed: preplaced.microtubules,   # named stream (v9; until v8 the v7 stage-3 lattice frame seed 20261111)
                  obstacles: [npc, centrioles], labels: [cytosol], obstacle_shape: bounding}   # mt_all: one sphere per dimer
       - name: atp_synthase         # dimer rows on the rims of the lamellar cristae (human monomer CPX-6151, 8H9T)
         builder: core.atp_synthase_dimers
@@ -583,7 +580,7 @@ preplaced:
       mode: build                  # build | frozen; the rebuild is always run and compared (B5): see preplaced/lamina/compare_frozen.json
       rebuild_check: true
       builder: lamina_lattice
-      seed_stream: prepass.lamina  # legacy seed 20261112 (seeds.legacy); stream name kept at A0c
+      seed_stream: prepass.lamina  # named stream (v9; the v7 legacy seed 20261112 is in jurkat_v7_port.yaml seeds.legacy)
       params: {genes: [LMNB1, LMNB2, LMNA], inventory_key: lamina, patch_nm: 500.0, pore_x_nm: 80.0, pore_z_nm: 150.0,
                lat_f: 1.0, priority: chromatin}      # logs/v7_full2.sh: LAMINA_PRIORITY=chromatin
       inputs: {chromatin: "module:chromatin", table: "build:inventory/rules/jurkat.v6/ingredients.tsv", ne_mesh: "layer:ne_mesh"}

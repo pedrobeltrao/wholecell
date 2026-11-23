@@ -5,6 +5,12 @@
 # Only the keys that differ from jurkat.yaml are listed (lists are replaced whole by `extends`).
 extends: jurkat.yaml
 
+seeds:
+  legacy:              # exact reproduction of the published v7 seeds (jurkat.yaml uses named streams of the master seed)
+    pack.counts: 3
+    pack.tile: "k*7919+11"
+    prepass.lamina: 20261112
+
 geometry:
   package: "{geom_root}/jurkat/em_cell1_v7"
   manifest_sha256: eb16248b7505f17f135c8c822bcba6e8dc02cff8ad67b7723eeef6e5419762c7

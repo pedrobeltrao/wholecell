@@ -6,6 +6,16 @@
 # config/cells/yeast_x5_port.yaml.
 extends: yeast.yaml
 
+seeds:                 # the X5 legacy pack seeds (yeast.yaml: named streams of the master seed since u2)
+  legacy:              # yeast X5 streams (cell3d config.seed(k) = k + 1000003 x master; master 0 -> k)
+    pack.counts: 3                  # wc3d.distribute(seed=3): the tile request split (pack.requests legacy_x5)
+    pack.organisation.field: 11     # organisation.SEED: the random fields of the organisation log weights
+    # core packer with pack.preset legacy_x5 (A7 yeast side; master seed 0 only: the expressions ignore the master)
+    pack.thinning: 4242             # wc3d.pilot_capacity rng(seed(4242)): choice of the pilot tiles
+    pack.thinning.pilot: "k+500000" # wc3d.pilot_capacity: pilot tile k packed with seed(500000 + k)
+    pack.tile: "k+1000"             # wc3d.run_phase(seed0=1000): tile k, round 0 (rounds r > 0: + 7919 r in X5; core: stream pack.round)
+    pack.squeeze: "k+1007"          # wc3d.squeeze_tile: default_rng(tile seed + 7)
+
 geometry:
   package: "{geom_root}/yeast/analytic_x5_s0_f5f3a5c723b2"
   manifest_sha256: 8ee3c1bc813f0051de8d08955f38e7b6866aef98eb04317315f1c159b3675302
