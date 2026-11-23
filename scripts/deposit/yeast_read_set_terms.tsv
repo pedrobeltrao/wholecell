@@ -1,0 +1,46 @@
+# Terms of the files in plugins/yeast/data/pipeline_data_read_set.txt (yeast pipeline/data read set). First matching
+# fnmatch pattern wins. route: hf = in the Hugging Face inputs dataset under folder `licence_folder`; source = not
+# deposited (third-party terms unclear or not redistributable): fetch from `source` into yeast_root at the same path.
+pattern	licence_folder	licence	route	source
+uniprot*	cc_by	UniProt CC BY 4.0	hf	https://www.uniprot.org
+validation/uniprot_features.tsv	cc_by	UniProt CC BY 4.0	hf	https://www.uniprot.org
+complexportal_559292.tsv	cc0	Complex Portal CC0	hf	https://www.ebi.ac.uk/complexportal
+intact_pairs.tsv	cc_by	derived from IntAct (CC BY 4.0)	hf	https://www.ebi.ac.uk/intact
+alliance_yeast_paralog_pairs.csv	cc_by	Alliance of Genome Resources CC BY 4.0	hf	https://www.alliancegenome.org
+string/*	cc_by	STRING CC BY 4.0	hf	https://string-db.org
+sgd/*	cc_by	SGD CC BY 4.0	hf	https://www.yeastgenome.org
+paxdb_integrated.txt	cc_by	PaxDb CC BY 4.0	hf	https://pax-db.org
+genome/nucleosome_dyads.tsv.gz	ours	CC BY-NC 4.0 (yeast model, derived from the Chereji 2018 GEO tracks)	hf	
+mrna/*_per_gene.tsv	ours	CC BY-NC 4.0 (yeast model, derived tables)	hf	
+trna/models/*	ours	CC BY-NC 4.0 (Boltz-2 predictions, yeast model)	hf	
+trna/sacCer3-mature-tRNAs.fa	-	GtRNAdb (terms not stated)	source	http://gtrnadb.ucsc.edu/genomes/eukaryota/Scere3/sacCer3-mature-tRNAs.fa
+cyclops/*	-	CYCLoPs database (terms not stated)	source	http://cyclops.ccbr.utoronto.ca
+validation/microscopy/cyclops_images/*	-	CYCLoPs database (terms not stated)	source	http://cyclops.ccbr.utoronto.ca
+morgenstern2017/*	-	Cell Rep supplementary table (licence to check)	source	Morgenstern et al. 2017 Cell Rep 19:2836, Table S1
+vogtle2017_submito.xlsx	-	Nat Commun supplementary data (licence to check)	source	Vogtle et al. 2017 Nat Commun 8:290, Supplementary Data 5
+pelechano2010/*	cc_by	PLoS One supplementary (CC BY 4.0)	hf	https://doi.org/10.1371/journal.pone.0015442
+validation/literature/g1_cell/*	-	NSMB supplementary table (licence to check)	source	Lanz et al. 2024 Nat Struct Mol Biol, Table S3 (41594_2024_1353_MOESM5_ESM.xlsx)
+validation/literature/das2026_peroxisome/*	-	journal supplementary table (licence to check)	source	journal supplement (Das et al. 2026)
+validation/literature/ho2018/*	-	journal supplementary table (licence to check)	source	Ho et al. 2018 supplementary table (mmc5.xlsx)
+validation/literature/chen2025_sxt/*.xlsx	-	MBoC supplementary table (licence to check)	source	journal supplement (Chen et al. 2025 MBoC)
+validation/literature/*	ours	CC BY-NC 4.0 (numbers compiled from the literature, yeast model)	hf	
+validation/membrane_proteomics/*	ours	CC BY-NC 4.0 (protein lists compiled from papers, yeast model)	hf	
+validation/*_rbp.tsv	ours	CC BY-NC 4.0 (gene lists compiled from papers, yeast model)	hf	
+validation/weill2018_S1.tsv	ours	CC BY-NC 4.0 (table compiled from Weill 2018, yeast model)	hf	
+validation/hyperlopit2018_fData.tsv	ours	CC BY-NC 4.0 (from pRolocdata hyperLOPITyeast2018, yeast model)	hf	
+validation/cdcode_yeast_condensate_members.tsv	ours	CC BY-NC 4.0 (CD-CODE export, yeast model)	hf	
+validation/gallego2010_lipid.tsv	ours	CC BY-NC 4.0 (compiled, yeast model)	hf	
+validation/membrane_binding_domains_yeast.tsv	ours	CC BY-NC 4.0 (compiled, yeast model)	hf	
+validation/*diffusion_measurements.tsv	ours	CC BY-NC 4.0 (compiled literature values, yeast model)	hf	
+validation/genome/chipexo_rossi2021/*	-	Rossi et al. 2021 data repository / supplement (licence to check)	source	Rossi et al. 2021 (ChExMix peaks repository and MOESM3 table)
+validation/genome/*	cc0	GEO / UCSC public data	hf	https://www.ncbi.nlm.nih.gov/geo
+validation/mrna/arava2003/*	-	PNAS supplementary table (licence to check)	source	Arava et al. 2003 PNAS, supplementary Table 3
+validation/mrna/riba2019_density/*	-	PNAS supplementary data (licence to check)	source	Riba et al. 2019 PNAS, Dataset S1 (pnas.1817299116.sd01)
+validation/mrna/chartron2016_srp/*	-	Nature supplementary table (licence to check)	source	Chartron et al. 2016 Nature, supplementary table (MOESM417)
+validation/mrna/saintgeorges2008_mito_mlr/*	cc_by	PLoS One supplementary (CC BY 4.0)	hf	https://doi.org/10.1371/journal.pone.0002293
+validation/mrna/*	cc0	GEO public data	hf	https://www.ncbi.nlm.nih.gov/geo
+validation/proximity/liu2020_ppiseq/*	-	supplementary table (licence to check)	source	Liu et al. 2020 PPiSeq, Table S4
+validation/proximity/singh2020_mito_bioid/*	-	Cell Press supplementary table (licence to check)	source	journal supplement (Singh et al. 2020)
+validation/microscopy/czii_cryoet_10007_yeast_ribosomes/*	cc_by	CZ cryoET Data Portal 10007 (CC BY 4.0)	hf	https://cryoetdataportal.czscience.com/datasets/10007
+validation/microscopy/idr0078_mattiazziusaj2020/*	cc_by	IDR idr0078 (CC BY 4.0)	hf	https://idr.openmicroscopy.org
+validation/microscopy/yeastrgb_dubreuil2019/*	-	YeastRGB (terms not stated)	source	YeastRGB (Dubreuil et al. 2019 Nucleic Acids Res 47:D1245)

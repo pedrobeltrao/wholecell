@@ -366,6 +366,9 @@ def c3(ctx):
         T = _image_nc_from_config(ctx)
     if T is None:
         return [na("C3", "image_nc.spearman", "n/a (no data): no per-gene image N/C table for this cell (validate.suite.image_nc)")]
+    if T.get("missing"):            # the cell's image test did not run (e.g. yeast: raw image archive and cache absent)
+        print(f"suite C3: {T['missing']}")
+        return [na("C3", "image_nc.spearman", f"n/a (not run): {T['missing']}")]
     rows = []
     for sp in T["splits"]:
         d = T["df"] if sp == "all" else T["df"][T["df"].split == sp]

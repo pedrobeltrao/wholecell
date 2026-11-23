@@ -49,3 +49,17 @@ library:
     - {step: pdb_oligomers, table: plugins/yeast/data/library/pdb_oligomers.tsv, per: 30}
     - {step: pdb_rna, entries: [{id: tRNA, pdb: 1EHZ, per: 15}]}
   ledger: {max_missing_mass_frac: 0.01}   # X5: 11 of about 5,600 proteins have no AlphaFold DB model
+
+# AF3 pool pairs (restored 2026-11-23, rebuild round v9): this reference keeps the organisation layer with the pool on, so
+# it declares the cached table it reads. Best chain-pair PAE (min-min) per protein pair of the Beltrao lab pooled AF3
+# co-folding screen of the yeast proteome (https://github.com/jurgjn/pooled-ppi-yeast). The public release v26.1 (Docker
+# image jurgjn/pooled-ppi-yeast:v26.1, summary_confidences.parquet) gives the same value for 7,082,835 of the 7,631,089
+# pairs it covers; the cache has 10,264,748 pairs (in-house predictions not in v26.1), so the cache is deposited.
+frozen_inputs:
+  yeast_af3_pool_pairs:
+    path: "{data_root}/data/derived/wholecell_frozen/yeast_x5/work_seed/organisation/pool_pairs.parquet"
+    md5: 5f8eb5ad6913a261b44804c9bdacd448
+    why: "pack.organisation.pool_scores of this reference (cached per-pair PAE min-min of the pooled AF3 screen)"
+    kind: structures
+    origin: "yeast X5 run cache (organisation.pool_pairs from inputs/summary_models.parquet); public source https://github.com/jurgjn/pooled-ppi-yeast"
+    licence: "AlphaFold 3 output terms; see https://github.com/jurgjn/pooled-ppi-yeast (no licence file; usage request in its README)"
