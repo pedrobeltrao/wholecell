@@ -1,6 +1,6 @@
 ---
 license: other
-license_name: mixed (per folder, see below)
+license_name: mixed-per-folder
 pretty_name: wholecell inputs (Jurkat T cell and budding yeast structural cell models)
 tags:
 - biology
@@ -12,11 +12,10 @@ tags:
 # wholecell inputs
 
 Input data of the two whole-cell structural models of Magnusson, Beltrao et al. (in preparation), a Jurkat T cell and a
-budding yeast cell, as read by the pipeline https://github.com/TODO/wholecell (`config/cells/jurkat.yaml`,
+budding yeast cell, as read by the pipeline https://github.com/pedrobeltrao/wholecell (`config/cells/jurkat.yaml`,
 `config/cells/yeast.yaml`). With this dataset, the AlphaFold DB proteome tars and the few third-party tables listed
 in `EXCLUDED.tsv`, the two cells can be rebuilt (`docs/REBUILD.md` in the pipeline repository).
 
-The repository id `pedrobeltrao/wholecell-inputs` is a placeholder until the deposit exists.
 
 ## Get the data
 Use the pipeline's fetch script, which places every file where the cell configs expect it (under the roots of your

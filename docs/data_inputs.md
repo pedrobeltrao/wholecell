@@ -10,7 +10,7 @@ Deposit locations (placeholders until the deposits exist; nothing is uploaded ye
 
 | Location | What goes there |
 |---|---|
-| Hugging Face dataset `pedrobeltrao/wholecell-inputs` (**placeholder id**) | the inputs of both cells: our derived data and lab tables (`ours/`, CC BY-NC 4.0), dated snapshots and copies of redistributable third-party data in their own licence folders (`cc_by/`, `cc0/`, `open/`, `cc_by_sa/`), the AF3 pool pairs of the yeast reference preset (`af3_pool/`). `scripts/fetch_inputs.py` downloads it into the site roots; staging: `scripts/deposit/stage_hf.py`, upload: `scripts/deposit/upload_hf.py` |
+| Hugging Face dataset `pedrobeltrao/wholecell-inputs` | the inputs of both cells: our derived data and lab tables (`ours/`, CC BY-NC 4.0), dated snapshots and copies of redistributable third-party data in their own licence folders (`cc_by/`, `cc0/`, `open/`, `cc_by_sa/`), the AF3 pool pairs of the yeast reference preset (`af3_pool/`). `scripts/fetch_inputs.py` downloads it into the site roots; staging: `scripts/deposit/stage_hf.py`, upload: `scripts/deposit/upload_hf.py` |
 | `https://huggingface.co/datasets/TODO/wholecell-builds` | build outputs: the paper builds, the yeast donor pack, validation reference builds |
 | `PRIDE TODO` | raw mass-spectrometry files of the lab SEC-MS 2026 runs (Jurkat NT / TCR-activated 24 h, yeast NaCl / YPD) and of the Jurkat surface glyco-capture time course |
 | `fetch from source` | inputs not in the dataset (its `EXCLUDED.tsv`): the AlphaFold DB proteome tars and third-party tables whose terms do not clearly allow redistribution; `scripts/fetch_inputs.py` lists them with their source |

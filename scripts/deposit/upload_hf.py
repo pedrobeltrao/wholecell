@@ -31,7 +31,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--staged", required=True)
     ap.add_argument("--build", required=True)
-    ap.add_argument("--repo-id", default="pedrobeltrao/wholecell-inputs")      # PLACEHOLDER repo id until the deposit exists
+    ap.add_argument("--repo-id", default="pedrobeltrao/wholecell-inputs")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--skip-member-md5", action="store_true", help="do not re-check tar members against their md5")
     a = ap.parse_args()
@@ -72,7 +72,10 @@ def main():
     from huggingface_hub import HfApi
     api = HfApi(token=token)
     api.create_repo(a.repo_id, repo_type="dataset", private=True, exist_ok=True)
-    api.upload_large_folder(repo_id=a.repo_id, repo_type="dataset", folder_path=a.build)
+    if hasattr(api, "upload_large_folder"):                       # huggingface_hub < 2
+        api.upload_large_folder(repo_id=a.repo_id, repo_type="dataset", folder_path=a.build)
+    else:                                                          # >= 2: upload_folder splits and resumes large folders
+        api.upload_folder(repo_id=a.repo_id, repo_type="dataset", folder_path=a.build, commit_message="wholecell inputs deposit")
     print(f"uploaded to https://huggingface.co/datasets/{a.repo_id} (private; make public after review)")
 
 

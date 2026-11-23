@@ -9,7 +9,6 @@ docs/data_inputs.md); files are checked against their md5 and tar shards are unp
 that are not in the dataset (EXCLUDED.tsv: AlphaFold DB proteome tars, third-party tables whose terms do not allow
 redistribution) are listed at the end with their source; --source downloads those that have a direct URL.
 Needs huggingface_hub (pip install huggingface_hub). Set HF_TOKEN only if the dataset is private.
-The repository id below is a PLACEHOLDER until the deposit exists.
 """
 import argparse
 import hashlib
@@ -23,7 +22,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 from wholecell.config import load_site  # noqa: E402
 
-DATASET = "pedrobeltrao/wholecell-inputs"      # PLACEHOLDER
+DATASET = "pedrobeltrao/wholecell-inputs"
 
 
 def md5_file(p):
