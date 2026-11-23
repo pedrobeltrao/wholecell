@@ -11,10 +11,16 @@ exported per protein for simulations to use.
 **Assembly state: structural model vs size-exclusion chromatography.** The structural model places a protein in an
 assembly only when a structure of that assembly is available or can be built: Complex Portal complexes with a PDB
 template, homo-oligomers from PDB biological assemblies, and AlphaFold homo- and heterodimers that pass interface-
-confidence gates; the share of each protein's copies put into an oligomer or dimer is taken from SEC-MS. All other copies
+confidence gates; the share of each protein's copies put into an oligomer or dimer is taken from SEC-MS (the share of
+its elution profile at apparent mass closer, on the log scale, to the oligomer than to the next smaller state:
+>= sqrt(k (k - 1)) x monomer mass). All other copies
 are packed as monomers. SEC-MS reports a different quantity: for each protein, the fraction of its elution profile at
 apparent molecular mass at least k times its monomer mass (a_k; k = 2 for monomers, complex subunits and dimers, k = 3
-or 4 for proteins modelled in larger homo-oligomers, as in the assembly rules), from calibrated SEC-MS runs combined
+or 4 for proteins modelled in larger homo-oligomers, as in the assembly rules). Apparent masses come from a robust
+(Theil-Sen) line of log10 native mass against apex fraction through 20-21 curated anchor proteins per species, with the
+intercept set so that the median anchor residual is zero; a_k is reported only where the column resolves it (monomer
+mass at least one calibration residual SD above the apparent mass of the last fraction, k x monomer below the first
+non-void fraction), and is otherwise "unmeasured" (NA). a_k is computed from calibrated SEC-MS runs combined
 across datasets with equal weight (Jurkat: two unpublished lab runs, resting and 24 h TCR-activated, and Fossati et al.
 2021; yeast: an unpublished lab run under NaCl stress and Swamy et al. 2022, with a lab YPD run and Pang et al. 2020 as
 fill). SEC-MS sees every assembly that survives lysis and dilution, including those for which no structure exists
@@ -26,9 +32,10 @@ complex from lysis or column artefacts protein by protein. Instead, for every pr
 fraction a_k with its uncertainty (dataset standard deviation and a calibration band obtained by shifting the
 apparent-mass scale by one calibration residual standard deviation), the modelled assembled fraction m = 1 - (copies
 packed as monomers) / (copies in the cell), whether the protein's assembly is represented by a structure, and the
-unrepresented bound fraction u = max(0, a_k - m). In the yeast model 33 % of the protein mass is packed only as
-monomers although SEC-MS measures 75 % of it as assembled; overall 28 % of the yeast and 35 % of
-the Jurkat protein mass is measured bound but not represented (Table S?). This attribute is exported with every
+unrepresented bound fraction u = max(0, a_k - m). [Numbers to be re-taken from the v9 / u2 builds' summary files: on
+the v8 / u1 model states the 2026-11-23 estimator gives a mass-weighted a_k of 0.67 of the SEC-covered mass in both
+cells (0.785 Jurkat / 0.809 yeast before), and 29 % (Jurkat) / 22 % (yeast) of the protein mass measured bound but not
+represented (35 % / 28 % before); §5.] This attribute is exported with every
 simulation box: each monomer molecule carries u / (1 - m), the probability that a free copy of that protein is, in the
 cell, part of an assembly the model does not resolve.
 
@@ -56,6 +63,11 @@ pre-registered by each application:
   conditions (§4c caveats).
 
 ## 3. Per-cell summary (inventory-only dry runs)
+
+**Superseded numbers (2026-11-23).** The tables below are from the v8 / u1 estimator (calibration intercept
+median(y) - slope x median(x), no measurable-range rule; toolkit preset `v8_u1`). The default since 2026-11-23 lowers the
+measured a_k of the SEC-covered mass to 0.666 (Jurkat) and 0.673 (yeast) and leaves 104 Jurkat / 171 yeast proteins
+unmeasured; analysis and new numbers in §5. Re-take this section from the v9 / u2 builds.
 
 Inventory-only dry runs (CPU <= 6) of the branch code (commit a65b42d) into new folders
 `wholecell_builds/{jurkat,yeast}/_dev_unify/secms_bound_fraction/new_a65b42d_<config>/` (Jurkat: full inventory chain,
@@ -165,3 +177,37 @@ Same configs, same inputs, inventory-only, every file under `inventory/` md5-com
 yeast_x5_port: the core inventory stage does not run for it (only the copies step is ported; `adapters.localisation:
 null`); its vendored path never calls `canonical`, so it cannot change. Tests (scripts): test_secms_bound (new),
 test_secms, test_assembly_steps, test_inventory, test_localisation, test_pack_switches, test_validate_suite: all pass.
+
+## 5. Estimator revision (2026-11-23, rebuild v9)
+
+Three changes to the SEC-MS assembled fraction (toolkits/secms; old rules: preset `v8_u1`, which reproduces
+`inventory/secms/*` of the v8 / u1 builds exactly):
+
+1. **Calibration intercept.** The Theil-Sen intercept was median(y) - slope x median(x) (scipy's default), which does
+   not pass through the bulk of an unevenly spaced anchor set: in the v8 / u1 fits the median anchor residual was
+   -0.05 to -0.26 log10, i.e. every apparent mass was 1.1-1.8x too high, by a different factor per dataset. The intercept
+   is now median(y - slope x) (median anchor residual 0; `calibration.intercept: median_residual`). The slope is
+   unchanged.
+2. **Measurable range.** a_k is computed only when the monomer mass is at least 10^(1 calibration SD) x the apparent mass
+   of the last fraction and k x monomer at most the first non-void fraction's apparent mass / 10^(1 SD)
+   (`assembled.range_margin_sd: 1.0`); otherwise a_k is NA ("unmeasured"), not 1 by construction (before: every protein
+   with 2 x monomer below the last fraction scored 1, e.g. yeast lab NaCl with 36.9 kDa at the last fraction).
+3. **Midpoint share for oligomer shares.** a_k puts the boundary on the k-mer itself, so a pure dimer reads ~0.5 at
+   k = 2 on an unbiased calibration. The assembly rules of `jurkat.yaml` and `yeast.yaml` take homo-oligomer and AF
+   homodimer shares from `assembled_frac_mid` (intensity at >= sqrt(k (k - 1)) x monomer, share source
+   `secms_midpoint`). The bound fraction attribute stays a_k.
+
+Effect on the v8 / u1 SEC-MS inputs (stand-alone toolkit runs of the final dataset configs, combined with the build
+specs; masses, copies and rule k from the builds' `secms_bound_fraction.tsv`):
+
+| | Jurkat old | Jurkat new | yeast old | yeast new |
+|---|---|---|---|---|
+| proteins measured / unmeasured | 5,285 / 0 | 5,181 / 104 | 4,355 / 0 | 4,184 / 171 |
+| a_k, mass-weighted (SEC-covered mass) | 0.785 | 0.666 | 0.809 | 0.673 |
+| a_k, protein mean (median) | 0.830 (0.961) | 0.706 (0.873) | 0.876 (0.977) | 0.775 (0.924) |
+| curated monomeric anchors, mean a_2 | 0.35 | 0.15 | 0.45 | 0.14 |
+| cytosolic ribosomal proteins, mean a_k | 0.97 | 0.97 | 0.98 | 0.96 |
+
+Apex-based (share of mass whose profile apex is >= k x monomer) and peak-based estimators on the new calibration give
+0.66-0.69 in both cells; correcting the old or new values for what monomeric anchors read gives 0.61-0.67.
+

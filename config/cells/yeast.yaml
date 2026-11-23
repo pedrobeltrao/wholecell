@@ -264,6 +264,9 @@ inventory:
     # rho <= -0.7, residual <= x2.5 (fail = stop). The combined yeast_final rows feed the assembly rules of preset x5_secms
     # (Step 3 branch yeast-anchors-v3, criteria docs/unification_criteria/step3_yeast_secms_assembly.md); pair_candidates
     # = the AFDB heterodimer candidates (SEC co-elution r per pair, heterodimer evidence as Jurkat).
+    # Since 2026-11-23 (rebuild v9) the default preset fits the intercept as the median anchor residual and leaves a_k
+    # unmeasured (NaN) where the column cannot resolve k x monomer (lab NaCl / YPD: monomers below ~43 kDa); preset
+    # v8_u1 reproduces the u1 tables.
     secms_toolkit:
       species: yeast
       preset: default
@@ -324,6 +327,9 @@ inventory:
       preset: x5_secms
       overrides:
         secms: {source_id: yeast_final}
+        # oligomer shares from the SEC-MS midpoint share (2026-11-23, rebuild v9; toolkits/secms/protein.py): intensity
+        # at >= sqrt(k (k - 1)) x monomer on the median-residual calibration, not a_k at k x monomer (a pure dimer ~0.5)
+        pdb_homo_oligomers: {share: {source: secms_midpoint}, af_share: {source: secms_midpoint}}
         afdb_heterodimers: {evidence: {string_id: {column: "Gene Names (ordered locus)", prefix: "4932."}}}
       # yeast plugin steps / hooks call the vendored engine modules: their file layout is this build's engine/ (made by
       # the plugin steps yeast_engine_setup and yeast_engine_lib; the structure hooks add entries to engine/lib)

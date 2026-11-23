@@ -69,7 +69,7 @@ One toolkit, one parameter set (`toolkits/secms/presets/default.yaml`) for every
 
 | Table | Columns (in order; schema.py) | Meaning |
 |---|---|---|
-| `secms_protein` extras | `assembled_frac_lo, assembled_frac_hi, assembled_frac_sd, n_rep, n_peptides, void_frac, n_peaks, assembled_frac_peaks, tm, species` | lo/hi: apparent-MW scale shifted by -/+ 1 calibration residual SD; sd: over replicates (`mean` rows) or seeded bootstrap of a per-value standard error (matrix inputs); void_frac: intensity at fractions <= void (counted as assembled); assembled_frac_peaks: peak-level estimator (k = primary k) |
+| `secms_protein` extras | `assembled_frac_lo, assembled_frac_hi, assembled_frac_sd, n_rep, n_peptides, void_frac, n_peaks, assembled_frac_peaks, tm, species, measurable, assembled_frac_mid` | lo/hi: apparent-MW scale shifted by -/+ 1 calibration residual SD; sd: over replicates (`mean` rows) or seeded bootstrap of a per-value standard error (matrix inputs); void_frac: intensity at fractions <= void (counted as assembled); assembled_frac_peaks: peak-level estimator (k = primary k); measurable: False = the column cannot resolve k x monomer (every a_k column NaN, "unmeasured"); assembled_frac_mid: share at >= sqrt(k (k - 1)) x monomer (midpoint between a (k-1)-mer and a k-mer; oligomer shares of the assembly rules with share source `secms_midpoint`) |
 | `secms_complex` extras | `complex_source, name, stoich_known, measured, window_lo_kda, tm_any, calibrant, calibrant_rank, calibrant_kept, calibration_id, species` | measured = coverage >= min_subunits_detected and >= min_detected_frac; assembled_frac = median subunit in-complex fraction; calibrant columns = Complex Portal peak-level calibrant (diagnostic) |
 | `secms_complex_subunit` | `complex_id, complex_source, uniprot, gene, stoich, source_id, condition, replicate, detected, mono_kda, in_complex_frac, free_frac, window_lo_kda, apex_fraction, apex_app_kda` | in-complex = intensity at app. MW >= max(window_lo x expected complex MW, k_floor x monomer), capped at the void's MW |
 | `secms_pairs` | `uniprot_a, uniprot_b, source_id, condition, replicate, r, r_sd, n_rep, apex_delta, pair_source` | Pearson r of smoothed profiles (candidate orientation kept); `all_pairs` rows only with `pairs.all_pairs_min_r` |
@@ -77,6 +77,14 @@ One toolkit, one parameter set (`toolkits/secms/presets/default.yaml`) for every
 | `secms_calibration` | `source_id, condition, replicate, calibration_id, method, role, kind, id, gene, fraction, kda, log10_fit, residual, kept, loo_residual` | role used / check; methods anchors (default), complex_portal, standards |
 | `secms_calibrants` | `cpx, name, n, mw_kda, peak, co_height, mcorr, key, kept, source_id, condition, replicate` | Complex Portal peak-level calibrants (legacy `sec_calibrants_peak.tsv` columns first) |
 | `profiles` | `uniprot, source_id, condition, replicate, kind, f1..fN` | kind smooth (used) / raw (top-N sums) |
+
+Calibration and measurable range (2026-11-23, rebuild v9; `presets/default.yaml`): the Theil-Sen intercept is the median
+anchor residual (`calibration.intercept: median_residual`; before: `medians` = median(y) - slope x median(x), which ran
+1.1-1.8x above the median anchor in the v8 / u1 fits). a_k is computed only when the monomer mass is >= 10^(1 calibration
+SD) x the apparent mass of the last fraction and k x monomer <= the apparent mass of the first non-void fraction /
+10^(1 SD) (`assembled.range_margin_sd: 1.0`); otherwise `measurable` = False and a_k = NaN (before: a protein with
+k x monomer below the last fraction scored 1 by construction). Presets `legacy_v7` and `v8_u1` keep the old rules
+(`v8_u1` reproduces `inventory/secms/*` of the Jurkat v8 and yeast u1 builds). Analysis: `docs/methods_secms_bound_fraction.md` §5.
 
 Assembly-state adapters read these tables through `wholecell.inventory.secms.SecView`; the rules that use them are
 `assembly_options` (same module): `complex_copies: stoichiometry_cap | measured_free_pool`, homo-oligomer share,
@@ -139,7 +147,8 @@ as a per-protein attribute instead. Methods text and per-cell numbers: `docs/met
 
 - measured `secms_bound_fraction` = a_k(p), the share of the protein's SEC-MS elution profile (summed intensity) at
   apparent mass >= k x monomer mass (the toolkit's `assembled_frac` at `threshold_k`, void fractions counted as
-  assembled); dimensionless, 0-1, a copy (intensity) fraction of the whole protein;
+  assembled); dimensionless, 0-1, a copy (intensity) fraction of the whole protein; NA ("unmeasured") when no dataset
+  of the run can resolve k x monomer (toolkit `measurable`, §4a);
 - modelled `modelled_assembled_fraction` = m_p = 1 - N_p^free / N_p (clipped to 0-1); monomer species = `kind protein`
   rows that are not library-level oligomers (`assembly/oligo_map.json` keys, yeast X5); copies in complexes, homo-oligomers,
   AF homo/heterodimers, family / pre-pass species and copies not placed all count as assembled (as in the addendum's m_p);
@@ -159,7 +168,7 @@ the rules' dimer k (`secms_fractions.threshold_k` / AF homodimer share k = 2). O
 |---|---|---|
 | `gene, uniprot, copies, mass_da, mass_pg` | -, -, copies per cell, Da, pg | v0 row (`mass_pg` = copies x mass) |
 | `secms_source_id, secms_condition, secms_replicate` | - | SEC-MS run read (combined runs: condition = replicate = `combined`) |
-| `datasets, n_datasets, confidence` | `source\|condition[;...]`, count, toolkit label | datasets behind the value (combined rows: the contributing conditions; one run: `source\|condition\|replicate`), combine confidence (`high`, `single`, `discordant`, `low`) |
+| `datasets, n_datasets, confidence` | `source\|condition[;...]`, count, toolkit label | datasets behind the value (combined rows: the contributing conditions; one run: `source\|condition\|replicate`), combine confidence (`high`, `single`, `discordant`, `low`, `unmeasured`) |
 | `threshold_k, k_basis` | integer x monomer MW, text | k used and why (`rules: default k 2`, `rules: homo-oligomer state n`, config) |
 | `secms_bound_fraction` | 0-1 | a_k (above) |
 | `secms_bound_fraction_sd` | 0-1 | SD over datasets (combined) or replicates (`mean` rows); NA for one replicate |
@@ -170,7 +179,7 @@ the rules' dimer k (`secms_fractions.threshold_k` / AF homodimer share k = 2). O
 | `model_species, model_homo_state` | ids (top 5 by copies), n | assembly species that name the protein; largest homo-oligomer state |
 | `modelled_free_copies, modelled_assembled_fraction` | copies, 0-1 | N_p^free, m_p |
 | `unrepresented_bound_fraction, unrepresented_share_of_free` | 0-1 | gap (above); NA when not measured |
-| `na_reason` | text | why the measured part is NA: `no SEC-MS step in this build`, `not quantified in SEC-MS run <id>`, `no UniProt accession`, `a_k NaN`, `SEC-MS run not selected`, `no copies in this cell` |
+| `na_reason` | text | why the measured part is NA: `no SEC-MS step in this build`, `not quantified in SEC-MS run <id>`, `no UniProt accession`, `unmeasured at k ...` (k x monomer outside the calibrated range of every dataset), `a_k NaN`, `SEC-MS run not selected`, `no copies in this cell` |
 
 `secms_bound_fraction_summary.json`: selection, k rules, total / SEC-covered mass, mass shares (structure represented,
 monomer only, modelled assembled, measured bound of the covered mass, measured bound but unrepresented) and the top 20
@@ -184,14 +193,20 @@ monomer molecules of a simulation box (`simulation_workflows.md` §3); nothing e
   (TM proteins) and co-elution of unrelated assemblies of similar size raise a_k (over-estimate). a_k is an apparent-mass
   share, not a proof of a specific partner.
 - k threshold: a_k falls with k. With k = 2 the cut sits on the dimer's own mass, so a pure dimer whose apex is at ~2 x
-  reads a_2 ~ 0.5 (yeast ILV5 1.93 x: 0.50; RNR1 2.09 x: 0.51; the monomer PGK1 1.84 x reads 0.40). Monomers with an
-  elongated shape or a large hydrodynamic radius (apparent mass 1.5-2.5 x) can read a_2 > 0. Compare values only at the
-  stated `threshold_k`.
+  reads a_2 ~ 0.5 (on the median-residual calibration the dimeric anchors read 0.54 Jurkat / 0.45 yeast on average,
+  the monomeric anchors 0.15 / 0.14; `docs/methods_secms_bound_fraction.md` §5). Monomers with an elongated shape or a large
+  hydrodynamic radius can read a_2 > 0. The assembly rules therefore take oligomer shares from the midpoint share
+  (`assembled_frac_mid`, share source `secms_midpoint`), while the bound fraction stays a_k. Compare values only at the
+  stated `threshold_k` and estimator. Before 2026-11-23 the calibration intercept inflated apparent masses by 1.1-1.8x
+  (dataset-dependent), which raised a_k of every protein (mass-weighted a_k of the covered mass 0.785 -> 0.666 Jurkat,
+  0.809 -> 0.673 yeast with the fix).
 - Filter vs no-filter datasets: lysate handling shifts a_k. A clarification spin / filter removes pelleted large
   assemblies (ribosomes, cytoskeleton, membranes; Swamy 2022: 15,000 g + 0.45 um filter, no concentration), a 100 kDa
   MWCO concentration step enriches complexes and biases a_k upwards (Pang 2020, low salt, one profile); the lab 2026 runs
   (Jurkat, yeast) have undocumented lysis / spin and void fraction. Void fractions count as assembled (Fossati void at
   fraction 8). The combined value mixes these (see `datasets`); yeast_final uses Pang and lab YPD only as fill.
+- Calibration lower range: proteins whose monomer would elute within one calibration SD of the last fraction are
+  unmeasured (NA), not 1 (lab yeast NaCl / YPD: monomers below ~43 kDa; Jurkat lab NT below ~21 kDa).
 - Calibration upper range: apparent masses above the largest calibrant are extrapolated (yeast: top anchor 1,236 kDa,
   Pang only to 268 kDa); a_k of large k and apexes above ~1 MDa carry the calibration band `_lo`/`_hi`, not the SD.
 - Condition dependence: values are for the measured conditions, combined with equal weight (Jurkat: lab 2026 resting

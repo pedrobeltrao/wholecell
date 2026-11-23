@@ -690,7 +690,7 @@ def afdb_heterodimers(st):
 # ------------------------------------------------------------------------------------------------ homo-oligomers
 def _homo_share_rule(st, o):
     """SEC-fed share of a homo-oligomer (as the inventory pools, steps.py pdb_homo_oligomers / afdb_homodimers, Jurkat
-    legacy_v7; rules in wholecell/inventory/secms.py): option share {source: secms | constant, k_by_state, default,
+    legacy_v7; rules in wholecell/inventory/secms.py): option share {source: secms | secms_midpoint | constant, k_by_state, default,
     value, apex_ratio, apex_check_min_k, apex_check_min_frac} for PDB / audit states and af_share {source, k, default,
     value} for the AF homodimer fallback. The oligomer takes share x the ingredient's copies as a new ingredient row
     '<ing_id>__homo' (the parent's comp_weights, uniprot, ...; oligo_map -> the oligomer library entry); the parent row

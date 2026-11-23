@@ -19,7 +19,7 @@ this file for what another species would need.
 
 ```yaml
 species: human                      # human | yeast  (species/<name>.yaml: Complex Portal taxon, anchor set, hu.MAP allowed)
-preset: default                     # default | legacy_v7 (Jurkat v7 reproduction only)
+preset: default                     # default | v8_u1 (v8 / u1 reproduction) | legacy_v7 (Jurkat v7 reproduction only)
 overrides: {}                       # deep-merged on the preset; only with a DECISION in PLANNING_NOTES
 annotation: {path: <UniProt TSV of the species>}        # columns default to Entry / Mass / Gene Names (primary) / Transmembrane
 complexes:
@@ -61,14 +61,17 @@ analysis in `{data_root}/data/derived/secms_lab2026/`.
 |---|---|---|
 | input | `io.py` | peptide or protein level; q-value < 0.01; shared (`/`) and decoy peptides removed |
 | protein quantification | `quant.py` | top-3 peptides by summed intensity over all runs of the dataset (same peptides in every replicate), summed per fraction; >= 2 peptides; 3-fraction running mean |
-| MW calibration | `calib.py` | **curated native-mass anchors of the species** (`data/anchors_native_mass_<species>.tsv`: apex fraction vs native mass), Theil-Sen on log10 MW; QC gate n >= 8, Spearman <= -0.7, residual <= x2.5 (fail = stop, no silent fallback); diagnostics: residual SD, leave-one-out error, Complex Portal peak-level calibrants and column standards fitted as cross-checks |
-| assembled fraction | `protein.py` | intensity at apparent MW >= k x monomer for k = 2, 3, 4, 6; lo/hi at -/+ 1 calibration SD; void fraction reported |
+| MW calibration | `calib.py` | **curated native-mass anchors of the species** (`data/anchors_native_mass_<species>.tsv`: apex fraction vs native mass), Theil-Sen on log10 MW, intercept = median residual (2026-11-23; before: median(y) - slope x median(x), 1.1-1.8x too high); QC gate n >= 8, Spearman <= -0.7, residual <= x2.5 (fail = stop, no silent fallback); diagnostics: residual SD, leave-one-out error, Complex Portal peak-level calibrants and column standards fitted as cross-checks |
+| assembled fraction | `protein.py` | intensity at apparent MW >= k x monomer for k = 2, 3, 4, 6; lo/hi at -/+ 1 calibration SD; void fraction reported; unmeasured (NaN, `measurable` False) when the monomer is within 1 calibration SD of the last fraction's apparent mass or k x monomer above the first non-void fraction (2026-11-23); midpoint share `assembled_frac_mid` at sqrt(k (k - 1)) x monomer (oligomer shares of the assembly rules) |
 | peaks | `protein.py` | find_peaks (height 5%, prominence 10% of max, distance 2); profile split at minima; peak class monomer / assembled / void; peak-level assembled fraction |
 | complexes | `complexes.py` | co-elution (min of normalised subunit profiles, mean pairwise r); per subunit in-complex fraction at app. MW >= max(0.5 x complex MW, 2 x monomer), void-capped; measured if >= 2 subunits and >= 50% detected |
 | pairs | `pairs.py` | Pearson r of smoothed profiles for candidate pairs (optional: all pairs above r) |
 | replicates | `protein.py`, `pairs.py`, `pipeline.py` | `replicate = mean` rows with SD and n_rep; matrices with SEM: seeded bootstrap (30 draws) |
 
-`legacy_v7` differs only in: single-peptide proteins kept, no calibration QC gate, no bootstrap, anchor set v1. It reproduces
+Preset `v8_u1` (2026-11-23) = default with the old calibration intercept and no measurable-range rule: it reproduces
+`inventory/secms/*` of the Jurkat v8 and yeast u1 builds (checked on the stand-alone runs of the final dataset configs).
+`legacy_v7` differs only in: single-peptide proteins kept, no calibration QC gate, no bootstrap, anchor set v1, old
+intercept, no measurable-range rule. It reproduces
 `sec_assembly.tsv`, `sec_calibrants_peak.tsv` and the orphan `sec_assembly_thresholds.tsv` (a_k) of Jurkat v7 exactly.
 
 ## Calibration choice (Pedro, 2026-11-16)

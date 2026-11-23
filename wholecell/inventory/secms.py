@@ -21,9 +21,12 @@ keys come from its preset, wholecell/inventory/assembly/steps.py legacy_options;
   measured_free_pool: {exclude_tm: true, min_subunits_detected: null, min_detected_frac: null (null = toolkit gate),
                        max_expected_kda: null (larger complexes keep the cap rule: pelleted by the pre-SEC clarification
                        spin or beyond the column), exclude_complex_ids: []}
-  homo_oligomer_share: {source: secms | constant, k_by_state: [[3, 2], [5, 3], [null, 4]], default: 0.5, value: null,
+  (a protein without an SEC-MS row, or unmeasured at the k used (a_k NaN, toolkits/secms/protein.py), takes `default`)
+  share sources: secms = a_k (intensity at >= k x monomer); secms_midpoint (2026-11-23) = the midpoint share at
+  sqrt(k (k - 1)) x monomer (closer to >= k copies than to k - 1; toolkits/secms/protein.py); constant = value
+  homo_oligomer_share: {source: secms | secms_midpoint | constant, k_by_state: [[3, 2], [5, 3], [null, 4]], default: 0.5, value: null,
                         apex_ratio: [0.4, 2.5], apex_check_min_k: 4, apex_check_min_frac: 0.2}
-  afdb_homodimer_share: {source: secms | constant, k: 2, default: 0.3, value: null}
+  afdb_homodimer_share: {source: secms | secms_midpoint | constant, k: 2, default: 0.3, value: null}
   heterodimer: {sec_r_min: 0.6, string_min: 700, bound_fraction: 0.5}
 """
 from __future__ import annotations
@@ -138,11 +141,18 @@ class SecView:
                                 (T.replicate.astype(str) == self.replicate)]
         self.protein = P[P.replicate == self.replicate]
         self.thresholds = self.protein.pivot(index="uniprot", columns="threshold_k", values="assembled_frac")
+        self.thresholds_mid = (self.protein.pivot(index="uniprot", columns="threshold_k", values="assembled_frac_mid")
+                               if "assembled_frac_mid" in self.protein.columns else None)
         self.ctx = ctx
         self._pairs = self._cpx = self._sub = None
 
     def a(self, acc, k, default=np.nan):
         return float(self.thresholds.at[acc, k]) if acc in self.thresholds.index and k in self.thresholds.columns else default
+
+    def a_mid(self, acc, k, default=np.nan):
+        """midpoint share at sqrt(k (k - 1)) x monomer (toolkits/secms/protein.py); NaN when the run has no such column"""
+        T = self.thresholds_mid
+        return float(T.at[acc, k]) if T is not None and acc in T.index and k in T.columns else default
 
     def has(self, acc):
         return acc in self.thresholds.index
@@ -188,19 +198,41 @@ def _only(s, what):
 
 
 # ------------------------------------------------------------------------------------------------ rules
+SHARE_SOURCES = ("secms", "secms_midpoint", "constant")
+
+
+def _check_source(h, name):
+    if h["source"] not in SHARE_SOURCES:
+        raise ValueError(f"assembly_options.{name}.source must be one of {SHARE_SOURCES} (got {h['source']!r})")
+
+
+def _share_value(view, acc, k, source):
+    """a_k (source secms) or the midpoint share (secms_midpoint) of the SEC-MS view; NaN without a value"""
+    if view is None:
+        return np.nan
+    if source == "secms_midpoint":
+        if view.thresholds_mid is None:
+            raise ValueError("share source secms_midpoint needs assembled_frac_mid in the SEC-MS tables (toolkit "
+                             "2026-11-23 or later)")
+        return view.a_mid(acc, k)
+    return view.a(acc, k)
+
+
 def homo_share(view: SecView | None, acc: str, state: int, o: dict):
     """(share, k used): share of the free pool put into the homo-oligomer"""
     h = o["homo_oligomer_share"]
     if h["source"] == "constant":
         return float(h["value"]), None
+    _check_source(h, "homo_oligomer_share")
     k = None
     for lim, kk in h["k_by_state"]:
         if lim is None or state <= lim:
             k = kk
             break
-    if view is not None and view.has(acc):
-        return float(view.thresholds.at[acc, k]), k
-    return float(h["default"]), k
+    v = _share_value(view, acc, k, h["source"])
+    if np.isfinite(v):
+        return float(v), k
+    return float(h["default"]), k                  # no SEC-MS row, or unmeasured at k (NaN): the rule's default
 
 
 def homo_apex_ok(acc: str, state: int, sa: pd.DataFrame, ak: float, o: dict) -> bool:
@@ -218,7 +250,9 @@ def homodimer_share(view: SecView | None, acc: str, o: dict):
     h = o["afdb_homodimer_share"]
     if h["source"] == "constant":
         return float(h["value"])
-    return float(view.thresholds.at[acc, h["k"]]) if view is not None and view.has(acc) else float(h["default"])
+    _check_source(h, "afdb_homodimer_share")
+    v = _share_value(view, acc, h["k"], h["source"])
+    return float(v) if np.isfinite(v) else float(h["default"])     # unmeasured (NaN) = no SEC-MS value
 
 
 def measured_copies(view: SecView, cpx_id: str, present: dict, pool: dict, acc_of: dict, o: dict):

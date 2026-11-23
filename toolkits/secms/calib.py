@@ -1,6 +1,11 @@
 """Fraction -> apparent MW calibration with diagnostics.
 
 Model: log10(MW kDa) = icpt + slope x fraction, robust Theil-Sen fit (CCprofiler calibrateMW fits a line on log MW too).
+Intercept (config `calibration.intercept`, 2026-11-23): `median_residual` (default) = median(y - slope x) (scipy
+theilslopes method 'joint'), so that the points scatter around the line (median residual 0); `medians` (legacy, presets
+before 2026-11-23 and legacy_v7) = median(y) - slope x median(x) (scipy method 'separate'), which does not pass through
+the bulk of an unevenly spaced anchor set: on the Jurkat v8 / yeast u1 anchor fits the line ran 1.1-1.8x above the
+median anchor (median residual -0.05 to -0.26 log10), inflating every apparent mass by that factor.
 Point sources (config `calibration.sources`, combined in one fit):
   standards  column standards {fraction, kda} (the usual globular protein ladder of the column / of the run)
   anchors    curated proteins of well-established native mass (organism file: gene [, uniprot], native_kda); point =
@@ -16,9 +21,14 @@ import numpy as np
 import pandas as pd
 
 
-def _fit(x, y):
+INTERCEPTS = {"median_residual": "joint", "medians": "separate"}
+
+
+def _fit(x, y, intercept="median_residual"):
     from scipy.stats import theilslopes
-    slope, icpt, _, _ = theilslopes(y, x)
+    if intercept not in INTERCEPTS:
+        raise ValueError(f"calibration.intercept must be one of {sorted(INTERCEPTS)} (got {intercept!r})")
+    slope, icpt, _, _ = theilslopes(y, x, method=INTERCEPTS[intercept])
     return float(icpt), float(slope)
 
 
@@ -55,20 +65,21 @@ def fit(points: pd.DataFrame, nf: int, cfg: dict) -> tuple[dict, pd.DataFrame]:
     from scipy.stats import spearmanr
     x = points.fraction.values.astype(float)
     y = np.log10(points.kda.values.astype(float))
-    icpt, slope = _fit(x, y)
+    ic = cfg.get("intercept", "median_residual")
+    icpt, slope = _fit(x, y, ic)
     res = y - (icpt + slope * x)
     kept = np.ones(len(x), bool)
     mad = cfg.get("outlier_mad")
     if mad:
         kept = np.abs(res) < float(mad) * np.median(np.abs(res)) / 0.6745
-        icpt, slope = _fit(x[kept], y[kept])
+        icpt, slope = _fit(x[kept], y[kept], ic)
         res = y - (icpt + slope * x)
     loo = np.full(len(x), np.nan)
     idx = np.nonzero(kept)[0]
     if len(idx) > 3:
         for i in idx:
             m = kept.copy(); m[i] = False
-            a, b = _fit(x[m], y[m])
+            a, b = _fit(x[m], y[m], ic)
             loo[i] = y[i] - (a + b * x[i])
     P = points.copy()
     P["log10_fit"] = icpt + slope * x
@@ -78,7 +89,8 @@ def fit(points: pd.DataFrame, nf: int, cfg: dict) -> tuple[dict, pd.DataFrame]:
     rk = res[kept]
     sd = float(rk.std())
     vf = cfg.get("void_fraction")
-    info = dict(method="theil_sen", sources=list(cfg.get("sources", ["anchors"])), icpt=icpt, slope=slope,
+    info = dict(method="theil_sen", intercept=ic, median_residual_log10=float(np.median(res[kept])),
+                sources=list(cfg.get("sources", ["anchors"])), icpt=icpt, slope=slope,
                 n_points=int(len(x)), n_kept=int(kept.sum()),
                 spearman_rho=float(spearmanr(x[kept], y[kept])[0]) if kept.sum() > 2 else None,
                 resid_sd_log10=sd, resid_fold=float(10 ** sd),

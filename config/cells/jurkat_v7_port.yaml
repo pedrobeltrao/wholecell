@@ -61,6 +61,8 @@ inventory:
     assembly_steps:
       overrides:
         secms: {source_id: inv_sec_fossati_features}   # Step 3 (jurkat.yaml: combined final SEC-MS): the v7 SEC-MS run
+        pdb_homo_oligomers: {share: {source: secms}}   # v7: a_k shares (jurkat.yaml: midpoint shares since 2026-11-23)
+        afdb_homodimers: {share: {source: secms}}
       data:
         complex_copy_caps: plugins/jurkat/data/assembly/complex_copy_caps.tsv   # NPC = 1000 (v7)
         apex_check_exclude: []          # v7: no exclusions (jurkat.yaml: HSPD1 share from Fossati, Step 3 2026-11-19)
