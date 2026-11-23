@@ -27,3 +27,14 @@ pack:
     pool_scores: "{data_root}/data/derived/wholecell_frozen/yeast_x5/work_seed/organisation/pool_pairs.parquet"   # YC_POOL_SCORES (cached pool table X5 read)
     paralogs: "{yeast_root}/yeast_cell_dev_bundle/pipeline/data/alliance_yeast_paralog_pairs.csv"
     field_cap_regions: []      # X5 split (no field cap: yeast.yaml's freeze fix 2026-11-19 is not part of the reference)
+  ledger:
+    explain_no_structure: "X5 reference: no AlphaFold DB model (proteins > 2,700 residues), left out by the engine as in X5"
+# rebuild u2 (yeast.yaml: library step fallback for proteins without an AlphaFold DB model): the A9 reference keeps the
+# X5 library (the engine leaves those proteins out as `no_structure`, recorded in pack/copy_ledger.tsv)
+library:
+  steps:
+    - {step: complexes, table: plugins/yeast/data/library/complexes_orient.tsv, per: 40}
+    - {step: af_models, plddt_min: 50, min_kept: 10, per: 30}
+    - {step: pdb_oligomers, table: plugins/yeast/data/library/pdb_oligomers.tsv, per: 30}
+    - {step: pdb_rna, entries: [{id: tRNA, pdb: 1EHZ, per: 15}]}
+  ledger: {max_missing_mass_frac: 0.01}   # X5: 11 of about 5,600 proteins have no AlphaFold DB model
