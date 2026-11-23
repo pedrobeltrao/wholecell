@@ -1,0 +1,6 @@
+# The toolkit defaults of the Jurkat v8 and yeast u1 paper builds (before 2026-11-23): default.yaml with the old
+# calibration intercept (median(y) - slope x median(x)) and no measurable-range rule (a protein with k x monomer below the
+# last fraction's apparent mass scores a_k = 1). Reproduction only: reproduces inventory/secms/* of those builds.
+extends: default.yaml
+calibration: {intercept: medians}
+assembled: {range_margin_sd: null}

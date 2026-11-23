@@ -227,6 +227,11 @@ inventory:
         # SEC-MS run feeding the rules (Step 3, 2026-11-19): the combined final estimate (secms_toolkit.combine label;
         # condition = replicate = 'combined', the only ones under this label). v7 = inv_sec_fossati_features (jurkat_v7_port)
         secms: {source_id: jurkat_final}
+        # oligomer shares from the SEC-MS midpoint share (2026-11-23, rebuild v9; toolkits/secms/protein.py): intensity
+        # at >= sqrt(k (k - 1)) x monomer on the median-residual calibration (k = 2: 1.41 x), not a_k at k x monomer,
+        # which reads ~0.5 for a pure dimer on an unbiased calibration (docs/methods_secms_bound_fraction.md §5)
+        pdb_homo_oligomers: {share: {source: secms_midpoint}}
+        afdb_homodimers: {share: {source: secms_midpoint}}
         # complex_portal.copies stays stoichiometry_cap (NOT measured_free_pool: Pedro 2026-11-16, not enabled for Jurkat;
         # Step 3: the gates of docs/reference/history/secms_toolkit_report.md §4 (size/pelleting, subcomplex windows,
         # recovery correction) are not implemented, so they cannot pass -> stays OFF)
@@ -269,6 +274,8 @@ inventory:
       # estimates"): lab 2026 NT + TCRAct24h (unpublished lab data; no longer confidential since 2026-11-23) + Fossati 2021, equal weight, each
       # dataset calibrated on its own. Preset default = calibration on the curated native-mass anchors, anchor set v2
       # (v1 minus PFN1, HSP90AB1, YWHAZ, HSPA8), QC gate n >= 8, rho <= -0.7, residual <= x2.5 (fail = stop, no fallback).
+      # Since 2026-11-23 (rebuild v9) the default preset fits the intercept as the median anchor residual and leaves a_k
+      # unmeasured (NaN) where the column cannot resolve k x monomer; preset v8_u1 reproduces the v8 tables.
       # The v7 run (preset legacy_v7, Fossati only, anchor set v1) stays in config/cells/jurkat_v7_port.yaml.
       species: human
       preset: default

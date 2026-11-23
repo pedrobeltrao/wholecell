@@ -39,7 +39,8 @@ SECMS_COMPLEX = ["complex_id", "species_id", "source_id", "condition", "replicat
                  "app_kda", "expected_kda", "notes"]
 # SEC-MS extensions (toolkits/secms; docs/reference/inventory_schema.md §4a): extra columns appended to the two tables above
 SECMS_PROTEIN_EXTRA = ["assembled_frac_lo", "assembled_frac_hi", "assembled_frac_sd", "n_rep", "n_peptides", "void_frac",
-                       "n_peaks", "assembled_frac_peaks", "tm", "species"]
+                       "n_peaks", "assembled_frac_peaks", "tm", "species", "measurable",
+                       "assembled_frac_mid"]
 SECMS_COMPLEX_EXTRA = ["complex_source", "name", "stoich_known", "measured", "window_lo_kda", "tm_any", "calibrant",
                        "calibrant_rank", "calibrant_kept", "calibration_id", "species"]
 SECMS_COMPLEX_SUBUNIT = ["complex_id", "complex_source", "uniprot", "gene", "stoich", "source_id", "condition", "replicate",

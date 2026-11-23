@@ -137,15 +137,21 @@ def test_calibration_from_and_combine():
         assert "anchors" in cal["B"]["checks"]                   # B's own anchor fit is still reported
         a, b = _prot(res, "A"), _prot(res, "B")
         sh = a.index.intersection(b.index)
-        assert np.allclose(a[sh], b[sh])                        # same profiles (scaled) + same calibration
+        assert np.allclose(a[sh], b[sh], equal_nan=True)        # same profiles (scaled) + same calibration
+        sh = sh[a[sh].notna().values]                           # measurable (k x monomer inside the calibrated range)
         out = combine.combine_tables({k: v for k, v in res.items() if not k.startswith("_")}, "cell_combined")
         C = out["secms_protein"]
         C = C[(C.source_id == "cell_combined") & (C.threshold_k == 2)].set_index("uniprot")
-        assert set(C.index) == set(a.index) | set(b.index)
+        assert set(C.index) == set(a.index) | set(b.index)     # unmeasured keys keep a NaN row
+        um = C[C.assembled_frac.isna()]
+        assert len(um) and (um.confidence == "unmeasured").all() and (um.n_conditions == 0).all()
+        assert set(um.index) == set(a.index[a.isna()]) | set(b.index[b.isna()])
         assert (C.loc[sh, "n_conditions"] == 2).all() and np.allclose(C.loc[sh, "assembled_frac"], a[sh])
         only = a.index.difference(b.index)
-        assert len(only) == 5 and (C.loc[only, "n_conditions"] == 1).all() and C.loc[only, "assembled_frac_sd"].isna().all()
-        assert (C.assembled_frac_lo <= C.assembled_frac + 1e-12).all() and (C.assembled_frac_hi >= C.assembled_frac - 1e-12).all()
+        only = only[a[only].notna().values]
+        assert len(only) >= 1 and (C.loc[only, "n_conditions"] == 1).all() and C.loc[only, "assembled_frac_sd"].isna().all()
+        Cm = C[C.assembled_frac.notna()]
+        assert (Cm.assembled_frac_lo <= Cm.assembled_frac + 1e-12).all() and (Cm.assembled_frac_hi >= Cm.assembled_frac - 1e-12).all()
         # a disagreeing pair: the mean and the SD over conditions
         P = res["secms_protein"].copy()
         i = P.index[(P.source_id == "B") & (P.uniprot == sh[0]) & (P.threshold_k == 2)]

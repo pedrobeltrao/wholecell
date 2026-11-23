@@ -1,9 +1,12 @@
 # Jurkat v7 legacy settings (jurkat/inventory/sec_assembly.py, 2026-11-08): reproduces sec_assembly.tsv,
 # sec_calibrants_peak.tsv and the orphan sec_assembly_thresholds.tsv exactly. Differences from default.yaml:
-# single-peptide proteins kept, no calibration QC gate, no bootstrap, anchor set v1.
+# single-peptide proteins kept, no calibration QC gate, no bootstrap, anchor set v1, and the pre-2026-11-23 calibration
+# intercept and assembled fraction (intercept medians, no measurable-range rule).
 extends: default.yaml
 quant: {min_peptides: 1}
 calibration:
   anchor_set: v1                   # the v7 anchor set (25 anchors, outliers included)
   qc: {min_points: 3, max_spearman_rho: null, max_resid_fold: null}
+  intercept: medians
+assembled: {range_margin_sd: null}
 uncertainty: {bootstrap: {n: 0}}

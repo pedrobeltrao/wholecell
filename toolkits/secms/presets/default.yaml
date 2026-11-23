@@ -17,6 +17,9 @@ calibration:
   fallback: null                   # no silent fallback: a failed QC stops the run
   checks: [complex_portal, standards]   # diagnostics only: Complex Portal peak-level calibrants (failed in Jurkat:
                                    # rho -0.34, too flat) and column standards when a dataset provides them
+  intercept: median_residual       # Theil-Sen intercept median(y - slope x): anchors scatter around the line (2026-11-23;
+                                   # 'medians' = median(y) - slope median(x), the v7 / v8 / u1 rule, ran 1.1-1.8x above the
+                                   # median anchor and inflated every apparent mass; calib.py)
   outlier_mad: null                # as v7 (no rejection); residuals and leave-one-out errors are reported
   qc: {min_points: 8, max_spearman_rho: -0.7, max_resid_fold: 2.5}
   complex_calibrants: {mw_min: 40, mw_max: 5000, height_min: 0.5, corr_min: 0.6,
@@ -24,6 +27,9 @@ calibration:
 assembled:
   thresholds_k: [2, 3, 4, 6]       # assembled = intensity at apparent MW >= k x monomer
   primary_k: 2
+  range_margin_sd: 1.0             # a_k only where the column resolves k x monomer: monomer >= 10^(1 SD) x app. mass of the
+                                   # last fraction and k x monomer <= app. mass of the first non-void fraction / 10^(1 SD);
+                                   # else unmeasured (NaN), never 1 by construction (2026-11-23; null = off; protein.py)
 peaks: {min_rel_height: 0.05, min_rel_prominence: 0.1, min_distance: 2}
 complexes:
   window_lo: 0.5                   # subunit in complex = app. MW >= 0.5 x expected complex MW (calibration ~x1.8)

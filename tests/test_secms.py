@@ -47,15 +47,76 @@ def test_assembled_fraction_vs_truth():
     T = pd.read_csv(os.path.join(TC, "secms_truth.tsv"), sep="\t", comment="#")
     m = P[(P.threshold_k == 2) & (P.replicate.astype(str) == "mean")].merge(T, on="uniprot")
     assert len(m) == len(T)
-    well = m[(m.min_ratio >= 2.5) | m.min_ratio.isna()]                     # states well above 2x monomer, or monomers
+    meas = m[m.measurable.astype(bool)]
+    well = meas[(meas.min_ratio >= 2.5) | meas.min_ratio.isna()]            # states well above 2x monomer, or monomers
     err = (well.assembled_frac - well.assembled_true).abs()
     assert err.max() < 0.1, well.loc[err.idxmax()].to_dict()
-    assert (m.assembled_frac_lo <= m.assembled_frac + 1e-12).all() and (m.assembled_frac_hi >= m.assembled_frac - 1e-12).all()
-    assert m.assembled_frac_sd.notna().all() and (m.n_rep == 2).all()       # replicate SD on the mean rows
+    assert (meas.assembled_frac_lo <= meas.assembled_frac + 1e-12).all() and (meas.assembled_frac_hi >= meas.assembled_frac - 1e-12).all()
+    both = P[(P.threshold_k == 2) & (P.replicate.astype(str) != "mean")].groupby("uniprot").measurable.all()
+    assert meas[meas.uniprot.map(both)].assembled_frac_sd.notna().all() and (m.n_rep == 2).all()   # replicate SD (mean rows)
     assert set(P.columns[:len(schema.SECMS_PROTEIN)]) == set(schema.SECMS_PROTEIN)
     assert not P.uniprot.str.contains("/|DECOY").any()                     # shared / decoy peptides removed
     g = P[(P.threshold_k == 2) & (P.gene == "PGK1")]
     assert (g.apex_fraction > 10).all()                                     # q-value 0.05 void rows were filtered
+
+
+def test_measurable_range_and_intercept():
+    """2026-11-23: a protein whose 2 x monomer mass the column cannot resolve is unmeasured (NaN), never 1 by
+    construction; the calibration intercept is the median residual (anchors scatter around the line); preset v8_u1
+    restores the old rules (a_2 = 1 for those proteins, intercept median(y) - slope median(x))"""
+    from toolkits.secms import protein
+    r = _toolkit()
+    P = r["secms_protein"]
+    run1 = P[(P.threshold_k == 2) & (P.replicate.astype(str) == "1")].set_index("uniprot")
+    c = r["_diagnostics"]["datasets"][0]["runs"]
+    c = c[[k for k in c if k.endswith("|1")][0]]["calibration"]
+    assert c["intercept"] == "median_residual" and abs(c["median_residual_log10"]) < 1e-9
+    nf = int(run1.n_fractions.iloc[0])
+    app = 10 ** (c["icpt"] + c["slope"] * np.arange(1, nf + 1))
+    w = 10 ** c["resid_sd_log10"]
+    small = run1[run1.mono_kda < app[-1] * w]                               # monomer within 1 SD of the last fraction
+    assert len(small) and not small.measurable.any() and small.assembled_frac.isna().all()
+    assert small.notes.str.contains("unmeasured").all()
+    big = run1[run1.mono_kda >= app[-1] * w]
+    assert big.measurable.all() and big.assembled_frac.notna().all()
+    # unit rule: 2 x monomer below the last fraction -> unmeasured; inside -> measurable; off -> always measurable
+    app = np.array([1000.0, 300.0, 100.0, 30.0, 10.0])
+    assert not protein.measurable(app, 4.0, 2, 0.1, 1.0) and protein.measurable(app, 40.0, 2, 0.1, 1.0)
+    assert not protein.measurable(app, 450.0, 2, 0.1, 1.0)                  # 2 x monomer above the first fraction
+    assert not protein.measurable(app, 140.0, 2, 0.1, 1.0, vf=1)            # ... above the first non-void fraction
+    assert protein.measurable(app, 4.0, 2, 0.1, None)
+    # legacy rules (preset v8_u1): the same small proteins score a_2 = 1
+    cfg = load_config("testcell")
+    p = secms._frozen_paths(dict(cfg["inventory"]["params"]["secms_toolkit"]), type("C", (), {"cfg": cfg, "frozen": cfg.frozen})())
+    old = pipeline.run(dict(p, preset="v8_u1"))
+    c0 = old["_diagnostics"]["datasets"][0]["runs"]
+    assert all(v["calibration"]["intercept"] == "medians" for v in c0.values())
+    O = old["secms_protein"]
+    O = O[(O.threshold_k == 2) & (O.replicate.astype(str) == "1")].set_index("uniprot")
+    c0 = c0[[k for k in c0 if k.endswith("|1")][0]]["calibration"]
+    app0 = 10 ** (c0["icpt"] + c0["slope"] * nf)
+    assert O.measurable.all() and O.assembled_frac.notna().all() and app0 > c["kda_last_fraction"]   # line ran above
+    assert protein._afrac(np.ones(5), app, 4.0, 2) == 1.0                    # the old artefact: 2 x 4 kDa < 10 kDa
+    for k in ("legacy_v7", "v8_u1"):
+        pr = pipeline.load_preset(k)
+        assert pr["calibration"]["intercept"] == "medians" and pr["assembled"]["range_margin_sd"] is None, k
+    d = pipeline.load_preset("default")
+    assert d["calibration"]["intercept"] == "median_residual" and d["assembled"]["range_margin_sd"] == 1.0
+    # midpoint share (sqrt(k (k - 1)) x monomer <= k x monomer) >= a_k; rules fall back to the default when unmeasured
+    mm = P[P.measurable.astype(bool)]
+    assert (mm.assembled_frac_mid >= mm.assembled_frac - 1e-12).all() and P[~P.measurable.astype(bool)].assembled_frac_mid.isna().all()
+
+    class V:
+        thresholds = pd.DataFrame({2: [np.nan, 0.4]}, index=["U", "M"])
+        thresholds_mid = pd.DataFrame({2: [np.nan, 0.7]}, index=["U", "M"])
+        a = secms.SecView.a
+        a_mid = secms.SecView.a_mid
+    o = secms.assembly_options({})
+    assert secms.homo_share(V(), "U", 2, o) == (0.5, 2) and secms.homo_share(V(), "M", 2, o) == (0.4, 2)
+    om = secms.assembly_options({"assembly_options": {"homo_oligomer_share": {"source": "secms_midpoint"},
+                                                      "afdb_homodimer_share": {"source": "secms_midpoint"}}})
+    assert secms.homo_share(V(), "M", 2, om) == (0.7, 2) and secms.homodimer_share(V(), "M", om) == 0.7
+    assert secms.homodimer_share(V(), "U", om) == 0.3
 
 
 def test_complexes_and_pairs():

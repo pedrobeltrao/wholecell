@@ -14,7 +14,8 @@ Run config (YAML or dict; the inventory adapter `secms_toolkit` passes inventory
       calibration_from: <source_id of an earlier dataset>   (dataset property: same column and fraction numbering;
       that dataset's calibration is used, this dataset's own fits are reported as checks, its QC does not stop the run)
 Steps per dataset and run (condition x replicate): load -> top-N quantification -> smoothing -> calibration (primary,
-QC gate, fallback, cross-checks) -> per-protein assembled fractions (k x monomer) + peaks + uncertainty -> per-complex
+QC gate, fallback, cross-checks) -> per-protein assembled fractions (k x monomer; NaN = unmeasured outside the calibrated
+range, protein.py) + peaks + uncertainty -> per-complex
 co-elution and per-subunit free pools -> pairwise co-elution of candidate pairs; then replicate means.
 `run(cfg, resolve)` returns {table name: DataFrame} + diagnostics; `write(result, out_dir)` writes them.
 """
@@ -206,6 +207,8 @@ def run_dataset(ds, run_cfg, P, sp, annot, cplx, resolve, cand, seed_base=0, cal
             Pt["calibration_id"] = cal_id
             Pt["species"] = sp["species"]
             Pt["notes"] = np.where(Pt.tm, "TM protein", "")
+            um = ~Pt.measurable.astype(bool)
+            Pt.loc[um, "notes"] = (Pt.notes[um] + "; ").str.lstrip("; ") + "unmeasured: k x monomer outside the calibrated range"
         out["secms_protein"].append(Pt)
         out["secms_peaks"].append(pd.DataFrame(peaks))
         Ct, St = cx.complex_tables(prof, cplx, annot, app, nf, Pd, meta)
@@ -231,6 +234,7 @@ def run_dataset(ds, run_cfg, P, sp, annot, cplx, resolve, cand, seed_base=0, cal
         diag["runs"][f"{meta['condition']}|{rep}"] = dict(
             calibration=info, n_proteins_profiled=int(len(prof)), n_proteins_scored=int(a0.uniprot.nunique()) if len(a0) else 0,
             median_assembled_frac_k=float(a0.assembled_frac.median()) if len(a0) else None,
+            n_unmeasured_k=int((~a0.measurable.astype(bool)).sum()) if len(a0) else 0,
             n_complexes_measured=int(Ct.measured.sum()) if len(Ct) else 0, n_calibrants=int(len(cal)),
             n_pairs=int(sum(len(x) for x in out["secms_pairs"][-1:])))
     res = {}

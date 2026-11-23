@@ -95,10 +95,13 @@ def test_apex_check_exclude():
         def __init__(self, src, rows):
             self.source_id, self.condition, self.replicate = src, "c", "1"
             self.thresholds = pd.DataFrame(rows).T
+            self.thresholds_mid = self.thresholds        # jurkat.yaml reads the midpoint share (2026-11-23); same values
 
         def has(self, a): return a in self.thresholds.index
 
         def a(self, a, k): return float(self.thresholds.at[a, k])
+
+        a_mid = a
 
     views = {"fos": View("fos", {"P1": {2: 0.9, 3: 0.9, 4: 0.84}})}
     orig = secms.SecView
@@ -172,8 +175,13 @@ def test_yeast_x5_secms():
     x5 = AS.options({"preset": "legacy_x5"})
     assert o["preset"] == "x5_secms" and o["secms"]["source_id"] == "yeast_final"
     v7 = AS.options({"preset": "legacy_v7"})
-    sh = {k: v for k, v in o["pdb_homo_oligomers"]["share"].items() if k not in ("apex_k", "apex_check_side")}
-    assert sh == v7["pdb_homo_oligomers"]["share"] and o["pdb_homo_oligomers"]["af_share"] == v7["afdb_homodimers"]["share"]
+    sh = {k: v for k, v in o["pdb_homo_oligomers"]["share"].items() if k not in ("apex_k", "apex_check_side", "source")}
+    nosrc = lambda d: {k: v for k, v in d.items() if k != "source"}  # noqa: E731
+    assert sh == nosrc(v7["pdb_homo_oligomers"]["share"])
+    assert nosrc(o["pdb_homo_oligomers"]["af_share"]) == nosrc(v7["afdb_homodimers"]["share"])
+    # yeast.yaml (2026-11-23): oligomer shares from the SEC-MS midpoint share; the preset keeps a_k (legacy_v7 rules)
+    assert o["pdb_homo_oligomers"]["share"]["source"] == o["pdb_homo_oligomers"]["af_share"]["source"] == "secms_midpoint"
+    assert AS.options({"preset": "x5_secms"})["pdb_homo_oligomers"]["share"]["source"] == "secms"
     assert o["pdb_homo_oligomers"]["share"]["apex_check_side"] == "below"                   # addendum A1
     fb = dict(o["pdb_homo_oligomers"]["afdb_fallback"])
     assert fb.pop("ipsae_only_min") == v7["afdb_homodimers"]["min_ipsae"]                    # addendum A2
@@ -191,6 +199,8 @@ def test_yeast_x5_secms():
         def has(self, a): return a in self.thresholds.index
 
         def a(self, a, k): return float(self.thresholds.at[a, k]) if self.has(a) else np.nan
+
+        thresholds_mid, a_mid = thresholds, a                        # yeast.yaml: midpoint share (same test values)
 
         def legacy_sec_assembly(self, k):
             return pd.DataFrame(dict(uniprot=["P1", "P2", "P4"], apex_app_kda=[200.0, 100.0, 1000.0], mono_kda=[50.0, 50.0, 50.0]))
@@ -254,7 +264,7 @@ def test_testcell_step_list():
         assert len(I) > 0 and (I.copies_in_complexes == 0).all()
         assert len(pd.read_csv(os.path.join(a, "complexes_v0.tsv"), sep="\t")) == 0
         S = pd.read_csv(os.path.join(a, "sec_assembly.tsv"), sep="\t")
-        assert len(S) > 0 and S.assembled_frac.between(0, 1).all()
+        assert len(S) > 0 and S.assembled_frac.dropna().between(0, 1).all() and S.assembled_frac.notna().any()
         j = json.load(open(os.path.join(a, "assembly_steps.json")))
         assert j["preset"] == "legacy_v7" and j["steps"] == ["secms_fractions"]
 

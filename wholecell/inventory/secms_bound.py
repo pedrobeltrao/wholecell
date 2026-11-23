@@ -6,6 +6,8 @@ SEC-MS measures more assembly than the structural model represents: many protein
 assemblies are NOT invented (packing unchanged, Pedro 2026-11-19); instead every protein carries, as an attribute,
   measured   secms_bound_fraction = a_k of the SEC-MS run the assembly rules read (fraction of the protein's profile at
              apparent mass >= k x monomer), with its uncertainty (dataset / replicate SD, calibration band) and datasets;
+             NaN (na_reason 'unmeasured ...') when no dataset can resolve k x monomer (toolkits/secms/protein.py
+             measurable range; 2026-11-23: such proteins previously scored 1 by construction)
   modelled   modelled_assembled_fraction = 1 - copies in monomer species / protein copies (v0);
   gap        unrepresented_bound_fraction = max(0, measured - modelled), and the same as a share of the modelled free
              (monomer) copies, unrepresented_share_of_free = gap / (1 - modelled), the quantity a simulation can apply to
@@ -201,7 +203,9 @@ def compute(ctx, P: pd.DataFrame, V0: pd.DataFrame) -> tuple[pd.DataFrame, dict]
                          secms_bound_fraction_hi=s.get("assembled_frac_hi", np.nan),
                          apex_app_kda=s.get("apex_app_kda", np.nan), mono_kda=s.get("mono_kda", np.nan))
                 if not np.isfinite(a):
-                    d["na_reason"] = f"a_k NaN in SEC-MS run {view.source_id}"
+                    nt = s.get("notes") if isinstance(s.get("notes"), str) else ""
+                    d["na_reason"] = (f"unmeasured at k {k}: k x monomer outside the calibrated range of SEC-MS run "
+                                      f"{view.source_id}" if "unmeasured" in nt else f"a_k NaN in SEC-MS run {view.source_id}")
                 elif copies > 0:
                     gap = max(0.0, a - m)
                     d["unrepresented_bound_fraction"] = gap
@@ -228,6 +232,9 @@ def summary(F: pd.DataFrame, ro=None, sel=None, kmode="rules", top=20) -> dict:
         selection=sel, k=kmode, rule_options=ro,
         total_pg=tot, secms_covered_pg=mc, secms_covered_frac=mc / tot if tot else np.nan,
         n_proteins=int(len(X)), n_measured=int(cov.sum()),
+        n_unmeasured_out_of_range=int(X.na_reason.astype(str).str.startswith("unmeasured").sum()),
+        measured_bound_protein_mean=float(X.secms_bound_fraction[cov].mean()) if cov.any() else np.nan,
+        measured_bound_protein_median=float(X.secms_bound_fraction[cov].median()) if cov.any() else np.nan,
         mass_structure_represented_frac=float(mass[X.structure_represented == True].sum()) / tot if tot else np.nan,  # noqa: E712
         mass_monomer_only_frac=float(mass[X.model_state == "monomer_only"].sum()) / tot if tot else np.nan,
         modelled_assembled_frac=w("modelled_assembled_fraction") / tot if tot else np.nan,

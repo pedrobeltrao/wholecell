@@ -26,7 +26,8 @@ Combination spec (optional; 2026-11-17, final SEC-MS estimates with literature d
   per protein x k: assembled_frac = weighted mean over the primary datasets scoring the protein (weights renormalised over
   those present), assembled_frac_sd = reliability-weighted SD over them (= SD ddof 1 for equal weights), range and
   lo/hi as above; proteins scored only by fill datasets take the (weighted) fill value; confidence = high (>= 2 primary,
-  range <= discordant_range) | discordant (>= 2 primary, larger range) | single (one primary dataset) | low (fill only).
+  range <= discordant_range) | discordant (>= 2 primary, larger range) | single (one primary dataset) | low (fill only)
+  | unmeasured (2026-11-23: no dataset can resolve k x monomer; assembled_frac NaN, protein.py measurable range).
   Without a spec every condition is primary with weight 1 (= the equal-weight rule above).
 """
 from __future__ import annotations
@@ -84,14 +85,20 @@ def _wsd(T: pd.DataFrame, keys: list, col: str, mean: pd.Series) -> pd.Series:
 def combine_protein(P: pd.DataFrame, label: str, nnz: pd.DataFrame | None = None, intensity: pd.DataFrame | None = None,
                     min_fractions: int = 0, spec: dict | None = None) -> pd.DataFrame:
     """P: secms_protein rows of single runs (one row per uniprot x condition x k). nnz / intensity: optional DataFrames
-    uniprot x condition (non-zero raw fractions, summed raw intensity). spec: optional weights / roles (module doc)."""
+    uniprot x condition (non-zero raw fractions, summed raw intensity). spec: optional weights / roles (module doc).
+    Unmeasured rows (assembled_frac NaN: k x monomer outside a run's calibrated range, protein.py) do not score the
+    protein: the other datasets (fill datasets included) decide; a key no dataset measures gets one NaN row."""
+    P = P[P.replicate.astype(str) != "mean"]
+    um = P[P.assembled_frac.isna()]
+    P = P[P.assembled_frac.notna()]
     P, fill_only = _prep(P, KEY, spec)
     if nnz is not None and min_fractions:
         n = P.apply(lambda r: nnz.at[r.uniprot, r._cond] if (r.uniprot in nnz.index and r._cond in nnz.columns) else 0, axis=1)
         nc = P.groupby(KEY)._cond.transform("nunique")
         P = P[(n >= min_fractions) | (nc == 1)]
     g = P.groupby(KEY, sort=True)
-    M = _wmean(P, KEY, ["assembled_frac", "assembled_frac_lo", "assembled_frac_hi", "void_frac", "assembled_frac_peaks"])
+    M = _wmean(P, KEY, ["assembled_frac", "assembled_frac_lo", "assembled_frac_hi", "void_frac", "assembled_frac_peaks"]
+               + [c for c in ("assembled_frac_mid",) if c in P.columns])
     M["assembled_frac_sd"] = _wsd(P, KEY, "assembled_frac", M.assembled_frac)
     M["cond_range"] = g.assembled_frac.max() - g.assembled_frac.min()
     M["assembled_frac_lo"] = np.minimum(M.assembled_frac_lo, g.assembled_frac.min())
@@ -127,6 +134,26 @@ def combine_protein(P: pd.DataFrame, label: str, nnz: pd.DataFrame | None = None
     M["notes"] = np.where(M.fill_only, "fill dataset only (low confidence)",
                           np.where(M.n_conditions > 1, "weighted mean over datasets" if spec else "mean over conditions",
                                    "single condition"))
+    if "measurable" in P.columns:
+        M["measurable"] = True
+    if len(um):                                    # keys that no dataset of the combination measures: NaN rows
+        if spec and spec.get("datasets"):
+            um = um[um.source_id.astype(str).isin(spec_ids(spec))]
+        U = um.drop_duplicates(KEY).set_index(KEY)
+        U = U[~U.index.isin(pd.MultiIndex.from_frame(M[KEY]))]
+        if len(U):
+            N = pd.DataFrame(index=U.index).reset_index()
+            for c in ("gene", "mono_kda", "tm", "species", "n_peptides", "apex_fraction", "apex_app_kda", "n_fractions",
+                      "n_peaks"):
+                if c in U.columns:
+                    N[c] = U[c].values
+            N["n_conditions"] = 0
+            N["confidence"] = "unmeasured"
+            N["measurable"] = False
+            N["source_id"], N["condition"], N["replicate"], N["n_rep"] = label, "combined", "combined", 0
+            N["calibration_id"] = "per_condition"
+            N["notes"] = "unmeasured: k x monomer outside the calibrated range in every dataset"
+            M = pd.concat([M, N.reindex(columns=M.columns)], ignore_index=True)
     return M
 
 
