@@ -11,8 +11,8 @@ frozen_inputs:
     kind: measurement
     url: ""
     version: "received 2026-11-19"
-    licence: "unpublished lab data"
-    redistributable: no
+    licence: "CC BY-NC 4.0 (Beltrao lab 2026; processed table deposited with the inputs, raw files to PRIDE)"
+    redistributable: yes
 inventory:
   adapters:
     surface: surface_proteomics       # canonical surface.tsv (evidence only); does NOT change copies or localisation

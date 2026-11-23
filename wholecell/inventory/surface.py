@@ -29,7 +29,7 @@ Modes (`inventory.params.surface_proteomics.mode`):
               variant (copies: per_protein_scaling: [{kind: factor_table, rule_id: surface_<cond>, path: <table>}]).
 
 Params (defaults in DEFAULTS):
-  path            frozen input name | path of the long table (confidential data: declare as frozen input with
+  path            frozen input name | path of the long table (data that may not be redistributed: declare as frozen input with
                   redistributable: no; never commit the data)
   source_id       label in surface.tsv
   columns         {protein, run, condition, replicate, value, features, gene} -> column names of the long table

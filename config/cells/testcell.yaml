@@ -153,7 +153,7 @@ export:
   state: CI build
   status: preview
   data_base: "./"
-  licence: {data: CC-BY-4.0}
+  licence: {data: CC-BY-NC-4.0}
   tiles: {enabled: true, tile_nm: 200, block_tiles: 5, q_org_nm: 80, q_range_nm: 360, shard_max_mb: 45}
   sim_defaults: {temperature_K: 310.15, viscosity_Pa_s: 6.9e-4, ionic_strength_M: 0.15}
 

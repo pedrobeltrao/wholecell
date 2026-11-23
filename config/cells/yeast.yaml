@@ -688,7 +688,7 @@ export:
   cell_type: haploid yeast (BY4741), G1
   state: log phase, YPD
   status: preview
-  licence: {data: "CC BY-NC 4.0 (intended; yeast code has no licence yet: local only)"}
+  licence: {data: CC-BY-NC-4.0}             # LICENSE-DATA (decision 2026-11-23)
 # --- plugin steps (wholecell/plugin_steps.py): yeast steps of the normal stage list, each in plugins/yeast/steps.yaml
 # with where: plugin. yeast_engine_* make the vendored engine's file layout inside this build (<build>/engine/: links,
 # copies and format views of core outputs, never the other way round); the others run vendored yeast code there.
@@ -801,16 +801,16 @@ frozen_inputs:
     why: "Beltrao lab SEC-MS 2026, yeast NaCl: wide protein x 60 fractions; Step 3 final SEC-MS (primary)"
     kind: secms
     version: "lab 2026 (received 2026-11-17)"
-    licence: "UNPUBLISHED, CONFIDENTIAL (Beltrao lab): local only, never upload / push"
-    redistributable: no
+    licence: "CC BY-NC 4.0 (Beltrao lab 2026; processed table deposited with the inputs, raw files to PRIDE)"
+    redistributable: yes
   inv_sec_lab2026_yeast_ypd:
     path: "{data_root}/data/proteomics/umpublished_datasets/ypd.tsv"
     md5: deff2d735f947f67df8c498a01728c06
     why: "Beltrao lab SEC-MS 2026, yeast YPD: wide protein x 60 fractions; Step 3 final SEC-MS (fill only)"
     kind: secms
     version: "lab 2026 (received 2026-11-17)"
-    licence: "UNPUBLISHED, CONFIDENTIAL (Beltrao lab): local only, never upload / push"
-    redistributable: no
+    licence: "CC BY-NC 4.0 (Beltrao lab 2026; processed table deposited with the inputs, raw files to PRIDE)"
+    redistributable: yes
   inv_sec_pang2020_yeast:
     path: "{data_root}/data/proteomics/pang2020_yeast_SEC_PXD019513/profiles_log_intensity.tsv"
     md5: 0d89c4ce9256e3c1cff0317302eec37d
