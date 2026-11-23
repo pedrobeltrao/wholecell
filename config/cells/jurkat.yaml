@@ -462,7 +462,7 @@ library:
     - step: fallback
       topology: {path: inv_uniprot_topology, columns: [acc, topo, tm, intramem]}
       lengths: {path: inv_uniprot_full, columns: {acc: Entry, length: Length, mass: Mass}}
-      pdb_chain: {sifts: inv_sifts, min_cov: 0.5, max_tries: 5}
+      pdb_chain: {sifts: inv_sifts, min_cov: 0.5, max_len_ratio: 1.2, max_tries: 5}
       decompose: true
       afdb_tar: lib_afdb_human_tar
       afdb_tar_index: lib_afdb_human_tar_index

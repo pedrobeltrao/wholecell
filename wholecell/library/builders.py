@@ -432,9 +432,10 @@ def pdb_chain_candidates(sifts, acc, have_pdb, length, min_cov):
     return sorted(out, key=lambda x: (-x[2], x[0], x[1]))
 
 
-def build_pdb_chain(lib, ing_id, pdb, chain, pdb_dir, min_beads, per=30):
+def build_pdb_chain(lib, ing_id, pdb, chain, pdb_dir, min_beads, max_beads, per=30):
     """CA beads of one chain of assembly 1 (an experimental structure of a protein without an AlphaFold model), centred;
-    None if fewer than min_beads residues are observed"""
+    None if fewer than min_beads residues are observed, or more than max_beads (the chain is mostly another protein,
+    e.g. a rearranged TCR chain that contains a J segment)"""
     import gemmi
     st = gemmi.read_structure(assembly_path(pdb_dir, pdb)); st.remove_hydrogens()
     names = [ch.name for ch in st[0] if ch.name.split("-")[0] == chain]
@@ -442,7 +443,7 @@ def build_pdb_chain(lib, ing_id, pdb, chain, pdb_dir, min_beads, per=30):
         return None
     xyz, kind, _ = beads_from_structure(st, chains=names[:1])
     xyz = xyz[kind == 0]
-    if len(xyz) < min_beads:
+    if len(xyz) < min_beads or len(xyz) > max_beads:
         return None
     extra = {"src": f"fallback:pdb_chain:{pdb}:{chain}", "fallback": "pdb_chain", "pdb": pdb}
     return save(lib, ing_id, xyz - xyz.mean(0), np.zeros(len(xyz), np.int8), extra, per=per)

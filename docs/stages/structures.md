@@ -30,14 +30,15 @@ subunit monomers; the pack returns their copies), `species.tsv` (when written fr
 
 **Fallback structures** (step `fallback`, core, rebuild v9): a species still without a model after the builder steps
 gets one by declared tiers, never silently none. Proteins: (1) `pdb_chain`: the chain of a cached RCSB assembly of the
-same protein that maps (SIFTS) and shows the most residues, at least `min_cov` (0.5) of the UniProt length (soluble
-proteins only; option `pdb_chain`); (2) `placeholder`: one bead per residue (UniProt length, else mass / 110 Da),
+same protein that maps (SIFTS) and shows the most residues, at least `min_cov` (0.5) and at most `max_len_ratio`
+(1.2) times the UniProt length (soluble proteins only; option `pdb_chain`; at most `max_tries` 5 candidates read); (2) `placeholder`: one bead per residue (UniProt length, else mass / 110 Da),
 soluble proteins as a ball of the protein volume (1.21 nm3/kDa), transmembrane proteins with each UniProt TRANSMEM
 segment as an ideal helix across the membrane (axes on a hexagonal lattice 1 nm apart, midplane z = 0) and the soluble
 stretches as balls outside |z| >= 2.3 nm on their side (cytoplasmic side +z from TOPO_DOM; N-terminus cytoplasmic when
 unannotated). Assemblies (option `decompose`): split into their subunit monomers (AlphaFold F1 by random access into the
 AFDB tar, else the tiers above). Fallback npz carry `src` = `fallback:...` and `fallback` = the tier. Jurkat: after
-`tm_route`, before `adaptive_trees`; yeast: last step (placeholders only, no SIFTS input).
+`tm_route`, before `adaptive_trees`; yeast: last step (placeholders only, no SIFTS input). Units of the TM-route and
+PM-topology tables that are not species of the build are skipped and listed (`library_meta.json`).
 
 **Build steps** (one function each, `wholecell/library/build.py:STEPS`, run in order): `start` (copy the frozen start
 entries, md5-checked) → the builders of `library.steps`: `complexes` (curated complexes of the species table from

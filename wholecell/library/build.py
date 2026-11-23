@@ -321,14 +321,14 @@ def _afdb_f1(X, p, acc):
 def step_fallback(X, p):
     """a structure for every species still without one after the builder steps, by declared tiers (the species ledger
     records which): protein species -> (1) pdb_chain: the best-covered chain of a cached RCSB assembly of the same
-    protein (SIFTS; >= min_cov of the sequence observed; soluble proteins only), (2) placeholder: a coarse model sized
-    from the sequence length (UniProt length, else mass / 110 Da) with the UniProt TRANSMEM segments as helices across
-    the membrane (builders.placeholder_beads). Other species (option decompose): split into their subunit monomers
+    protein (SIFTS; observed residues >= min_cov and <= max_len_ratio x the sequence length; soluble proteins only),
+    (2) placeholder: a coarse model sized from the sequence length (UniProt length, else mass / 110 Da) with the UniProt
+    TRANSMEM segments as helices across the membrane (builders.placeholder_beads). Other species (option decompose): split into their subunit monomers
     (AlphaFold F1 model by random access when afdb_tar / afdb_tar_index are given, else the tiers above); the pack
     returns their copies to those monomers (library/decomposed.tsv). A species no rule covers stays `missing`.
       {step: fallback, topology: {path, columns}, lengths: {path, columns: {acc, length, mass}},
-       pdb_chain: {sifts: <SIFTS pdb_chain_uniprot>, min_cov: 0.5, max_tries: 5}, decompose: true,
-       afdb_tar: <tar>, afdb_tar_index: <json>, min_res: 10, per: 30}"""
+       pdb_chain: {sifts: <SIFTS pdb_chain_uniprot>, min_cov: 0.5, max_len_ratio: 1.2, max_tries: 5}, decompose: true,
+       afdb_tar: <tar>, afdb_tar_index: <json>, min_res: 1, per: 30}"""
     import math
     import numpy as np
     import pandas as pd
@@ -341,7 +341,7 @@ def step_fallback(X, p):
     todo = sp[~sp.ing_id.map(have)]
     topo = _fb_topology(X, p)
     lens = _fb_lengths(X, p)
-    per, min_res = int(p.get("per", 30)), int(p.get("min_res", 10))
+    per, min_res = int(p.get("per", 30)), int(p.get("min_res", 1))
     pc = p.get("pdb_chain") or {}
     sifts = cached = None
     if pc and len(todo):
@@ -362,7 +362,8 @@ def step_fallback(X, p):
         if pc and not tm and acc:
             mc = float(pc.get("min_cov", 0.5))
             for pdb, ch, k in pdb_chain_candidates(sifts, acc, cached, n, mc)[:int(pc.get("max_tries", 5))]:
-                r = build_pdb_chain(X.partial, ing, pdb, ch, X.pdb_dir, min_beads=math.ceil(mc * n), per=per)
+                r = build_pdb_chain(X.partial, ing, pdb, ch, X.pdb_dir, min_beads=math.ceil(mc * n),
+                                    max_beads=int(float(pc.get("max_len_ratio", 1.2)) * n), per=per)
                 if r is not None:
                     return "pdb_chain", f"{pdb} chain {ch}: {r[0]} of {n} residues observed"
         build_placeholder(X.partial, ing, n, tm, tp_of(acc), per=per)
