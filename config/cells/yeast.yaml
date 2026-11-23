@@ -770,7 +770,7 @@ plugin_steps:
     after: [yeast_s4_validate, yeast_features, yeast_s5_encode]
     before: [validate_suite]
     # the yeast engine env (as the X5 port): the validation scripts need cupy (GPU contacts), pyBigWig, playwright, markdown
-    params: {engine: *yeast_engine, gpus: 1, python: "{data_root}/conda_envs/yeast_x5/bin/python"}
+    params: {engine: *yeast_engine, gpus: 1, python: "{yeast_python}"}
   # export (YCT1, the legacy viewer encoding: input of some yeast validation scripts and of the X5 comparison; the
   # export stage writes YCT2)
   - id: yeast_s5_encode
@@ -779,7 +779,7 @@ plugin_steps:
     threads: max
     after: [yeast_s4_validate]
     params: {engine: *yeast_engine, cwd: scripts, script: s5_encode.py, log: s5_encode.log,
-             python: "{data_root}/conda_envs/yeast_x5/bin/python"}   # yeast engine env: fast_simplification, openmm (not in the core env)
+             python: "{yeast_python}"}   # yeast engine env: fast_simplification, openmm (not in the core env)
 frozen_inputs:
   # v9 (2026-11-23): the build-W / X5 reference files under {yeast_root}/runs and the in-house AF3 pool summary
   # (not redistributable) are no longer declared here: no step of this config reads them (the organisation layer read

@@ -9,6 +9,8 @@ Path placeholders resolved in every string value:
   {geom_root}     where immutable cellgeom_v1 packages live
   {yeast_root}    optional: the yeast model input tree (env WHOLECELL_YEAST_ROOT; yeast configs only)
   {afdb_root}     optional: folder with AlphaFold DB proteome tars (env WHOLECELL_AFDB_ROOT; Jurkat library build)
+  {yeast_python}  optional: interpreter of the yeast engine environment (env WHOLECELL_YEAST_PYTHON; yeast configs only;
+                  default <data_root>/conda_envs/yeast_x5/bin/python)
   {repo}          the repository root (the checkout running the build)
 A placeholder whose site key is not set stays unresolved (the frozen-input check then reports the file MISSING).
 No absolute path may appear in package code; site-specific absolute paths live only in config/site.yaml.
@@ -24,17 +26,19 @@ import re
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_PH = re.compile(r"\{(data_root|results_root|geom_root|repo|yeast_root|afdb_root)\}")
+_PH = re.compile(r"\{(data_root|results_root|geom_root|repo|yeast_root|afdb_root|yeast_python)\}")
 
 
 def load_site(path: str | None = None) -> dict:
     """site settings (absolute paths of this machine). Env vars override the file."""
     path = path or os.environ.get("WHOLECELL_SITE") or os.path.join(REPO, "config", "site.yaml")
     site = yaml.safe_load(open(path)) if os.path.exists(path) else {}
-    for k in ("data_root", "results_root", "geom_root", "yeast_root", "afdb_root"):
+    for k in ("data_root", "results_root", "geom_root", "yeast_root", "afdb_root", "yeast_python"):
         env = os.environ.get("WHOLECELL_" + k.upper())
         if env:
             site[k] = env
+    if not site.get("yeast_python") and site.get("data_root"):        # the paper builds' location of the yeast engine env
+        site["yeast_python"] = os.path.join(str(site["data_root"]), "conda_envs", "yeast_x5", "bin", "python")
     site.setdefault("repo", REPO)
     return site
 

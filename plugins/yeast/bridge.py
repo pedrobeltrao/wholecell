@@ -393,7 +393,7 @@ def engine_pack_view(cfg, bdir, p):
 
 # ------------------------------------------------------------------ vendored scripts
 def _python(p):
-    """interpreter of a vendored script: params.python (e.g. the yeast engine env "{data_root}/conda_envs/yeast_x5/bin/python"
+    """interpreter of a vendored script: params.python (e.g. the yeast engine env "{yeast_python}"
     for s5_encode / validate_all: cupy, fast_simplification, pyBigWig, playwright, markdown, openmm are not in the core
     env), else the core interpreter"""
     py = p.get("python") or sys.executable
