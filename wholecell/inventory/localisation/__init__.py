@@ -29,7 +29,7 @@ function still in code, with a one-line reason). The rule-set code checks its st
 Presets: common (step B5: one set of defaults for every cell; the cell data block `common:` of the localisation params
 supplies vocabulary, key-selection data, imaging groups and the N/C calibration; docs/unification_criteria/
 B5_localisation.md); legacy_v7 (Jurkat v7 exactly); legacy_x5 (yeast X5 / port build s0 comp_weights exactly: ordered-annotation
-steps; cell data plugins/yeast/data/localisation/, check scripts/localisation_x5_check.py; not yet wired into the yeast
+steps; cell data plugins/yeast/data/localisation/, check scripts/dev/localisation_x5_check.py; not yet wired into the yeast
 DAG, A9).
 """
 from __future__ import annotations

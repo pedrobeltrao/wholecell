@@ -384,7 +384,7 @@ preplaced:                           # pre-placed structures ("prepass" before A
   # the vendored stage 3 (scripts/s3_pack.py) as registered modules, in its order (the order is part of the result:
   # each builder avoids the ones before it and deducts its copies from the pools the next ones read). `seed` values
   # are the yeast stream numbers (engine config.seed(k) = k + 1000003 x master seed). Reproduces the port build's
-  # prepass.npz (scripts/preplaced_a6_check.py; builders 19-28 = s0 + PORT PATCH 4). core.* = mechanism shared with
+  # prepass.npz (scripts/dev/preplaced_a6_check.py; builders 19-28 = s0 + PORT PATCH 4). core.* = mechanism shared with
   # other cells (numerics still the engine's until B4). The context reads the stage-2 view of this build
   # (engine/work/yc3d: package geometry, core tile measures; plugin step yeast_engine_view) and writes
   # engine/work/yc3d/pack_trees_15.npz (packing trees of the packed types, wc3d.PACK_PER = 15; pack.shapes below).

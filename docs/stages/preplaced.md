@@ -44,7 +44,7 @@ context's library pack), `serial/serial_manifest.json`. The pack stage indexes t
 
 **Checks.** Frozen files verified by checksum; builder vs frozen comparison (Jurkat B5, lamina; not identical, so the
 frozen lamina is used); Jurkat B7 (pre-pass index identical, v7 port). Yeast serial run vs the port build s0: S1–S4 + pools
-(`scripts/preplaced_a6_check.py`). B4: `scripts/b4_preplaced_check.py measure|verdict` (pores, MT dimers, polysome
+(`scripts/dev/preplaced_a6_check.py`). B4: `scripts/dev/b4_preplaced_check.py measure|verdict` (pores, MT dimers, polysome
 fraction, ribosome NN, pre-pass self-overlaps by module pair, mito machines). Validation step `chromatin` reports frozen chromatin metrics.
 
 **Code.** `wholecell/preplaced/{stage.py, serial.py, builders/}`; Jurkat-specific pieces in `plugins/jurkat`; yeast

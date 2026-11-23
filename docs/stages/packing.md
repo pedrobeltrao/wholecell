@@ -46,7 +46,7 @@ cell packs as before. Pins: `legacy_v7` (nothing merged: the cell's own keys wit
 `legacy_x5` preset holds only algorithm keys; its cell keys (thin lumens, bands tolerance, exclusion zones,
 organisation layer, packing trees, pre-placed index, `thinning.resplit`) sit in its base `pack:` section (effective
 section unchanged, md5-checked in `tests/test_pack_switches.py`). Benchmark settings `b1_s1` ... `b1_s5`, `b1_s4y`,
-`b1_s4p` (`switches.B1_BENCHMARK`) and the benchmark: `scripts/b1_benchmark.py`, criteria
+`b1_s4p` (`switches.B1_BENCHMARK`) and the benchmark: `scripts/dev/b1_benchmark.py`, criteria
 `docs/unification_criteria/B1_packer.md`; its `selection.json: common_defaults` is what goes into `COMMON_DEFAULTS`.
 
 **Tiling and requests for every cell (A2).** `wholecell/pack/tiling.py` makes the tiles of any cell from its config
@@ -62,7 +62,7 @@ loadings: A7). Check `tests/check_a2_yeast_tiles.py` (G4, G5, P3 vs the port bui
 outputs: totals and library order from `preplaced/serial/`, packing trees from the pre-placed context.
 
 **A7 phase 2 checks.** Organisation layer on the yeast inputs vs the port build s0 (criterion P2 + addendum, core
-environment, `scripts/organisation_a7_check.py`): pool on (X5 settings) passes at tolerance level: Z identical, the
+environment, `scripts/dev/organisation_a7_check.py`): pool on (X5 settings) passes at tolerance level: Z identical, the
 loadings within 6e-8 after aligning one of 128 eigenvector signs (LAPACK of the core environment: the field
 realisation of that component is mirrored), partner CSR identical up to one equal-strength tie at the 16-partner cut.
 Pool off (published default) changes the partner rows of 74 % of the types (contact partners gone; 59 % of the
@@ -85,7 +85,7 @@ label-volume molecule of a tile moves, yeast semantics), exclusion zones from a 
 `shapes: pack_shapes`. (3) `legacy_x5` requests read `pack/organisation/network.npz` (float64 loadings) when
 `requests.organisation` is not given. (4) `pack.preplaced_index`: pre-placed instances from one grouped npz (yeast
 `prepass.npz`, groups in `wc3d.PRE_GROUPS` order, beads as obstacles) -> the core index (+ `preplaced_groups.json`).
-(5) Snakemake rule `pack_organisation`. Check `scripts/pack_a7_yeast_check.py` (P3 / P5 / P6 vs s0 with the
+(5) Snakemake rule `pack_organisation`. Check `scripts/dev/pack_a7_yeast_check.py` (P3 / P5 / P6 vs s0 with the
 addendum seed spread, clash / containment / exclusion; subset or whole cell); the whole-cell run is prepared in
 `_dev_unify/a7y/full_run.sh`. Subset (20 busy tiles: nucleus, cortex, mitochondria, ER, vacuole; s0 neighbours as
 context, s0 pre-pass, core request split): placed / requested 0.9819 vs s0 0.9828; per-region fractions within 0.01
@@ -109,7 +109,7 @@ legacy defaults). `pack.engine` (`yeast_rsa_v1`, the vendored stage 3) remains o
 `config/cells/yeast_x5_port.yaml`. **B1** sets common defaults
 after a benchmark; **B2** switches the organisation layer on (STRING; AF3 pool off). Until B2 is accepted its settings live in the overlays
 `config/cells/jurkat_b2.yaml` (organisation on, STRING v12 9606, combined score >= 400) and `config/cells/yeast_b2.yaml`
-(pool off; `yeast.yaml` keeps the X5 pool setting), built by the B2 queue job; check `scripts/b2_organisation_check.py`,
+(pool off; `yeast.yaml` keeps the X5 pool setting), built by the B2 queue job; check `scripts/dev/b2_organisation_check.py`,
 criteria `docs/unification_criteria/B2_organisation.md`.
 
 **Methods text (draft).** The cell was divided into cubic tiles (500 nm for Jurkat). The expected copies of each

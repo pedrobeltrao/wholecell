@@ -60,7 +60,7 @@ pre-registered by each application:
 Inventory-only dry runs (CPU <= 6) of the branch code (commit a65b42d) into new folders
 `wholecell_builds/{jurkat,yeast}/_dev_unify/secms_bound_fraction/new_a65b42d_<config>/` (Jurkat: full inventory chain,
 geometry em_cell1_v8r copied from `jurkat/_dev_unify/step3_secms/new_a12bdac_wiring`; yeast: pseudo-build as
-`scripts/step3_yeast_secms_dryrun.py`, inventory/{yeast, v0, copies} + engine copied from build
+`scripts/dev/step3_yeast_secms_dryrun.py`, inventory/{yeast, v0, copies} + engine copied from build
 `yeast/20261119-87a2018-s0-step2ds`, then secms -> assembly (preset x5_secms) -> ingredients -> pack_table -> canonical).
 Numbers below come from `secms_bound_fraction.tsv` of these runs (mass = copies x monomer mass; shares of the cell's
 protein mass unless stated); per-cell files `summary_<config>.json` and `top20_<config>.tsv` sit next to the runs.

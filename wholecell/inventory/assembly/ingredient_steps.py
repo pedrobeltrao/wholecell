@@ -9,7 +9,7 @@ by its `structure.builder` option (registry kind `assembly_hook`); with builder 
 
 Ported from the vendored yeast engine (plugins/yeast/engine, X5 code e3b7448): every function carries its origin.
 The arithmetic is the yeast one line for line (preset legacy_x5 reproduces the yeast port build s0 tables; check:
-scripts/assembly_x5_check.py); constants are preset options and the yeast lists are cell data
+scripts/dev/assembly_x5_check.py); constants are preset options and the yeast lists are cell data
 (inventory.params.assembly_steps.data, TSVs with a reason column under plugins/yeast/data/assembly/).
 
 Inputs (params.assembly_steps): inputs.protein_table (the stage-1 protein table: gene, uniprot, name, copies_per_cell,

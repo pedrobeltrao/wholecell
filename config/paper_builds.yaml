@@ -19,7 +19,7 @@ source:
 release:
   version: 0.1.0-staging
   staged: 2026-11-23
-  commit: "the first commit of this repository (see git log; recorded in docs/release_notes.md once made)"
+  commit: ad93956f54ef48122afc1bcd7ee9e8ec33b49113   # first commit of this repository (content); later commits: docs / references only (git log)
 
 builds:
   jurkat:

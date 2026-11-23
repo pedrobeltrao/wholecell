@@ -39,7 +39,7 @@ Fix: `W = np.c_[around, -u, -radial]` (det +1) and `ax_mid = np.cross(ax_short, 
 whatever sign `eigh` returns). The library mid axis has no placement meaning (only long axis = around the tube and short
 axis = concave side towards the membrane are intended, both unchanged), so flipping its world direction is free.
 `Rl` is numerically unchanged for this entry (det was already +1), so the lattice (dimer length, width, thickness) is
-unchanged. Check: `scripts/check_amphiphysin_chirality.py`, results in
+unchanged. Check: `scripts/dev/check_amphiphysin_chirality.py`, results in
 `data/derived/wholecell_builds/yeast/_dev_unify/amphiphysin_fix/`.
 
 Changes output: the amphiphysin layer (`rvs_pos`, `rvs_q`; the count can change because the residue-level tests now

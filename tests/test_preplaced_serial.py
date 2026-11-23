@@ -12,7 +12,7 @@
   legacy       the A0c rename "prepass" -> "preplaced": old config keys load (renamed, one message), old build files
                are found through wholecell.build.ref_path, the CLI accepts `prepass`, and scripts/ci_compare_builds.py
                matches an old and a new build file by file
-The exactness against the yeast port build is checked by scripts/preplaced_a6_check.py (full builders, ~1 h).
+The exactness against the yeast port build is checked by scripts/dev/preplaced_a6_check.py (full builders, ~1 h).
 """
 import os
 import sys

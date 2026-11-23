@@ -21,8 +21,8 @@ copy_sources.tsv, anchors.tsv, summary.json, report.txt}` (when `inventory.copie
 Spec: [../reference/inventory_schema.md](../reference/inventory_schema.md) §4b.
 
 **Checks.** Anchor check (implied copies of known structures, e.g. ribosomes, nucleoporins, histones; diagnostic
-only). Regression: `scripts/copies_regression_check.py` (Jurkat C1-C7, v0 and pack table md5-identical) and
-`scripts/copies_yeast_check.py` (yeast Y1-Y4 vs build W), criteria in
+only). Regression: `scripts/dev/copies_regression_check.py` (Jurkat C1-C7, v0 and pack table md5-identical) and
+`scripts/dev/copies_yeast_check.py` (yeast Y1-Y4 vs build W), criteria in
 [../reference/history/copies_regression_criteria.md](../reference/history/copies_regression_criteria.md).
 
 **Code.** `wholecell/inventory/{copies.py, stage.py, generic.py}`, `wholecell/inventory/COPIES.md`; Jurkat RNA

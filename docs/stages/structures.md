@@ -52,7 +52,7 @@ fails.
 
 **Code.** `wholecell/library/stage.py` (modes), `build.py` (build steps), `builders.py` (beads, sphere trees,
 orientation; ported from yeast `structlib.py` / `build_structs.py` @ e3b7448), `pack_shapes.py`; check
-`scripts/library_a3_check.py` (vs the yeast port build s0); tests `tests/test_library.py`; Jurkat builders in `wholecell/library/legacy/` (`jlib_*`, `lib_refine_st`,
+`scripts/dev/library_a3_check.py` (vs the yeast port build s0); tests `tests/test_library.py`; Jurkat builders in `wholecell/library/legacy/` (`jlib_*`, `lib_refine_st`,
 `tm_graft`, ...); `workflow/rules/library.smk`.
 
 **Jurkat vs yeast today.** Yeast builds its library with the core stage, mode `build` (A9; policy of `s0_library.py`:
@@ -62,7 +62,7 @@ into `engine/lib`, a writable copy; the pack's shapes are the pre-placed context
 over the packed types. **A3** moved this policy into the core (Jurkat keeps the frozen v7 library); results: see the A3 commit message
 (`_dev_unify/a3/run_*/check_report.json`). **B3** (2026-11-17) rebuilds the Jurkat library with the
 scripted stage (TM routing, adaptive sphere trees); the Jurkat pack keeps the library's own adaptive trees
-(`pack.shapes.source: library`) until B1. Check: `scripts/library_b3_check.py` (criteria
+(`pack.shapes.source: library`) until B1. Check: `scripts/dev/library_b3_check.py` (criteria
 [../unification_criteria/B3_library.md](../unification_criteria/B3_library.md)).
 
 **Methods text (draft).** Each species was represented by a coarse-grained model with one bead per residue, derived

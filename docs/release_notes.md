@@ -1,7 +1,7 @@
 # Release notes: 0.1.0-staging (2026-11-23)
 
 This repository is a clean public-release copy of the development repository `wholecell` (private, full history).
-It was staged from development `main` at **e5dda5c** (`e5dda5cf36b2bd34647b71b6b6f068954cb54ecf`) with a fresh git
+It was staged (release commit ad93956f54ef48122afc1bcd7ee9e8ec33b49113, "0.1.0-staging") from development `main` at **e5dda5c** (`e5dda5cf36b2bd34647b71b6b6f068954cb54ecf`) with a fresh git
 history. The two paper builds were made from development commit **0a3ba79**; `git diff 0a3ba79 e5dda5c` outside
 `applications/` is docs-only (the two freeze acceptance addenda), so the pipeline code here is the paper-build code
 plus the release edits listed below. Pins: `config/paper_builds.yaml`.
@@ -53,6 +53,10 @@ Nothing else was removed: all tests, docs, plugins, toolkits and configs of deve
    (legacy project tree under `data_root`, development builds under `results_root`, the yeast model tree); kept because
    the frozen criteria in `docs/unification_criteria/` cite them (by their old path `scripts/<name>`). Imports were
    adjusted (`REPO` one level up; `scripts/dev` on `sys.path` for `freeze_check.py`, `step2_combined_check.py` and two tests).
+   References were updated to `scripts/dev/<name>` in `docs/stages/`, `docs/methods_secms_bound_fraction.md`,
+   `PORTING_STATUS.md`, code docstrings / comments and YAML comments; the frozen records (`docs/unification_criteria/`,
+   `docs/reference/history/`), the development log `docs/unification_progress.md` and the vendored test configs keep
+   the old paths.
 6. **Reference configs** `config/cells/b1r_*.yaml` (7 B1 reduced-benchmark overlays) moved to `config/cells/dev/`
    (`extends: ../jurkat.yaml` / `../yeast.yaml`); `scripts/dev/b1_reduced.py` updated.
 7. **Test without git history.** `tests/test_localisation.py` (localisation switch test) read the pre-switch configs
@@ -123,5 +127,18 @@ resolution with development main's own loader gives no difference besides the ch
 | `plugins/yeast/engine/docs/figures/viewer_marks_h3k4me3.png` | 1.52 MB | figure of the engine's validation document (our own viewer screenshot); kept unchanged so it matches `ORIGIN_sha256.json` |
 No file is larger than 5 MB.
 
-## Tests and build checks (staging)
-See the section "Staging test record" at the end of this file.
+## Staging test record (2026-11-23, shared node; site file with the development machine's roots)
+- **Test suite** (`PYTHONHASHSEED=0 python tests/test_X.py`, each, from the release checkout at ad93956 + reference
+  edits; core env vcell): **23 / 23 pass (exit 0), no skips**: test_assembly_steps, test_copies, test_geometry,
+  test_inventory, test_inventory_freeze_e2e (full Jurkat inventory, 695 s), test_library, test_localisation,
+  test_numba_env, test_pack_numba_threads, test_pack_organisation, test_pack_regions, test_pack_smoke,
+  test_pack_switches, test_pm_topology, test_preplaced_b4, test_preplaced_serial, test_secms, test_secms_bound,
+  test_secms_lab_formats, test_surface, test_validate_suite (incl. the suite on a testcell CI build), test_yeast_vacuole_log.
+  The `tests/check_*.py` scripts are manual checks that need the legacy data (not run).
+- **Snakemake dry runs** (`snakemake -n --config cell=<cell>`, orchestration env, results_root in scratch):
+  jurkat 37 jobs, yeast 41 jobs, both OK (same job counts as the development dry runs of 2026-11-20).
+- **Testcell CI** (`scripts/ci_testcell.sh` at commit ad93956, results_root in scratch, CI_MAX_SECONDS=1800 because
+  the node was shared): **PASS**; 8-worker build 427 s, 4-worker 407 s; 8- vs 4-worker builds identical (213 files).
+  Compared with the development main testcell CI build `20261122-e5dda5c-s1-ci-w8`: 213 files, only
+  `config.resolved.json` differs, and only in `_site.results_root` (scratch) and `_site.afdb_root` (new key): the
+  release code builds a content-identical testcell.

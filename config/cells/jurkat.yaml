@@ -510,7 +510,7 @@ preplaced:
           ribosome: RIBO80S
           pool_region: null                    # pool = the pack-table RIBO80S copies
           polysome_fraction: 0.70              # B4 J3: this cell's EM, 0.697 of de-duplicated EM ribosomes in 34-nm groups of >= 2
-          channel: "repo:plugins/jurkat/data/preplaced/RIBO80S_mrna_channel.npy"     # 7ZW0 channel via rRNA superposition (scripts/ribosome_channel_transfer.py)
+          channel: "repo:plugins/jurkat/data/preplaced/RIBO80S_mrna_channel.npy"     # 7ZW0 channel via rRNA superposition (scripts/dev/ribosome_channel_transfer.py)
           disome: "repo:plugins/jurkat/data/preplaced/RIBO80S_disome_6I7O.npy"
           transcripts: {table: jurkat.mrna_table, npz: pre_mrna_v1, kinds: [0, 1], occupancy: 0.79, max_ribo: 40}   # v1: 170,410 of 215,000 cytosolic mRNAs on ribosomes
           obstacles: [npc, mt_all, centrioles, actin]
@@ -524,7 +524,7 @@ preplaced:
           # complement, thinned as J3b / J4) among the values keeping J3a 0.68-0.72 (60 nt fits best unconstrained but
           # ends chains short: J3a 0.651). Subset EM: NN 27.20 nm, linked 0.691; at 150 nt: 35.38 nm, 0.437 (default
           # 35.70, 0.426): the linker cannot reach the EM values (centre spacing floor ~27 nm, the disome pose).
-          # scripts/b4_polysome_calibration.py; results jurkat/_dev_unify/b4/addendum_20261117/calib/calibration.json
+          # scripts/dev/b4_polysome_calibration.py; results jurkat/_dev_unify/b4/addendum_20261117/calib/calibration.json
           linker_nt_mean: 150.0
           # Walk search (walk fix 2026-11-18, docs/unification_criteria/B4_preplaced_addendum_polysomes_2026-11-18.md):
           # every grown ribosome is the fitting candidate nearest the chain's centroid among 40 poses per round (entry

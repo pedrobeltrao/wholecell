@@ -119,7 +119,7 @@ inventory:
       - {id: yeast_surface_proteomics, type: surface_proteomics, role: pm_copies, enabled: false, notes: "PM copy numbers when available"}
   params:
     # Core assembly step list, preset legacy_x5 (unification A4; wholecell/inventory/assembly). NOT wired yet
-    # (adapters.assembly stays null; the build runs the engine's s1 until A9): scripts/assembly_x5_check.py runs it on the
+    # (adapters.assembly stays null; the build runs the engine's s1 until A9): scripts/dev/assembly_x5_check.py runs it on the
     # s0 stage-1 inputs and requires the s0 assembly tables. inputs: frozen input name or "<frozen name>/<path inside>";
     # protein_table = the stage-1 protein table (engine inventory.build(); A9: the core composition + localisation
     # output); engine = the vendored engine layout {root, work, lib, pdb, code, inputs} of the plugin steps (set by
@@ -388,7 +388,7 @@ preplaced:                           # pre-placed structures ("prepass" before A
   # each builder avoids the ones before it and deducts its copies from the pools the next ones read). `seed` values
   # are the yeast stream numbers (engine config.seed(k) = k + 1000003 x master seed). The yeast build still runs the
   # pre-pass inside the engine's s3_pack until the wiring step (A9); this section reproduces its prepass.npz exactly
-  # (scripts/preplaced_a6_check.py). core.* = mechanism shared with other cells (numerics still the engine's until B4).
+  # (scripts/dev/preplaced_a6_check.py). core.* = mechanism shared with other cells (numerics still the engine's until B4).
   numba_threads: 8
   serial:
     context: yeast.s3

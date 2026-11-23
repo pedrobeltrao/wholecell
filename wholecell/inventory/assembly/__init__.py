@@ -34,7 +34,7 @@ complexes_tried.csv, complexes_added.csv, heterodimers.csv, oligomers.csv (+ plu
 and assembly_steps.json.
 
 Presets: legacy_v7 (Jurkat v7, exact: B3/B4 md5), legacy_x5 (yeast port build s0 assembly tables, exact:
-scripts/assembly_x5_check.py), x5_secms (legacy_x5 + the SEC-fed rules of legacy_v7: homo-oligomer / AF homodimer
+scripts/dev/assembly_x5_check.py), x5_secms (legacy_x5 + the SEC-fed rules of legacy_v7: homo-oligomer / AF homodimer
 shares, SEC co-elution or STRING heterodimer evidence; Step 3, docs/unification_criteria/step3_yeast_secms_assembly.md).
 run_standalone() runs a step list outside a build (checks).
 """
@@ -330,7 +330,7 @@ def run_ingredients(ctx, p, o, df=None, has_secms=False):
 
 
 def run_standalone(out_dir, params, cell="yeast", plugins=(), protein_table=None):
-    """run a step list outside a build (checks, scripts/assembly_x5_check.py): outputs in <out_dir>/inventory/assembly;
+    """run a step list outside a build (checks, scripts/dev/assembly_x5_check.py): outputs in <out_dir>/inventory/assembly;
     frozen input names resolve through config/cells/<cell>.yaml"""
     import importlib
     from ...config import load

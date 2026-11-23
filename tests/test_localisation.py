@@ -2,7 +2,7 @@
 rules, membrane restriction, new-from-imaging, N/C models; the ordered-annotation steps of legacy_x5: ordered list,
 annotation overrides, organelle fractionation, rank weights, imaging groups), override tables (checks, ops, grouping),
 presets and config errors, the Jurkat and yeast preset wiring, and a testcell run through the inventory v0 step. The
-full yeast check against the port build s0 is scripts/localisation_x5_check.py (needs the yeast data).
+full yeast check against the port build s0 is scripts/dev/localisation_x5_check.py (needs the yeast data).
 
     PYTHONHASHSEED=0 python tests/test_localisation.py        (or pytest tests/test_localisation.py)
 """

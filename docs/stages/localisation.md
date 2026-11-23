@@ -32,7 +32,7 @@ sets v4..v7 in order and what it is: `overrides` (v4.c, v4.f_curated, v4.f_drop_
 tables generated at build time from the frozen v4/v5 pack tables, written to `rules/<set>/overrides_<id>.tsv`; only in
 this preset, plan §3b) or `legacy` (a rule function still in code, with a one-line reason). The rule-set code checks its
 step order against this list. `legacy_x5` reproduces the yeast X5 comp_weights exactly (A5 yeast half, 2026-11-17:
-6,067 proteins identical to the port build s0, `scripts/localisation_x5_check.py`, results in
+6,067 proteins identical to the port build s0, `scripts/dev/localisation_x5_check.py`, results in
 `yeast/_dev_unify/a5/`); its cell data are `plugins/yeast/data/localisation/` (term rules, SPB core, CYCLoPs map, LOC_FIX
 override row); the `inventory.params.localisation` block and its frozen inputs are in `config/cells/yeast.yaml` (A9).
 
@@ -57,7 +57,7 @@ held-out half; [validation.md](validation.md)). Jurkat B3/B4: `pack_table.tsv` m
 
 **Code.** `wholecell/inventory/localisation/{__init__, evidence, combiner, overrides}.py`, `presets/`;
 `plugins/jurkat/inventory/rules_v4.py` ... `rules_v7.py`; tests `tests/test_localisation.py`; yeast check
-`scripts/localisation_x5_check.py`.
+`scripts/dev/localisation_x5_check.py`.
 
 **Jurkat vs yeast today.** Yeast takes its localisation (UniProt/GO with Huh precedence, Vögtle/Morgenstern, CYCLoPs,
 NUC_K) from the core with `legacy_x5` (A9; same weights as the engine, A5). Its evidence is keyed by ORF while the

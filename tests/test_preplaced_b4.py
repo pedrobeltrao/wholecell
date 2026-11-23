@@ -18,8 +18,8 @@
                  = rate 0 in the reference, classes of a new module reported (pass None), tolerance max(10 %, 1 per 1e6)
   atp_rows       J6 addendum 2026-11-18: Jurkat ATP synthase dimers use the dense rim rows (rim_sampling rows, tm_tol 4.5,
                  literature row spacing); yeast keeps the crista prims (no rows params); rows mode is off by default
-The exactness of the yeast builders against the port build: scripts/preplaced_a6_check.py; Jurkat numbers:
-scripts/b4_preplaced_check.py measure.
+The exactness of the yeast builders against the port build: scripts/dev/preplaced_a6_check.py; Jurkat numbers:
+scripts/dev/b4_preplaced_check.py measure.
 """
 import os
 import sys
@@ -113,7 +113,7 @@ def test_linker():
 
 def test_walk_option():
     """walk fix 2026-11-18: params.walk (candidate search) is a generic option of core.polysomes whose default is the
-    legacy walk (candidates 0: yeast bitwise unchanged, scripts/preplaced_a6_check.py); Jurkat sets it in its config"""
+    legacy walk (candidates 0: yeast bitwise unchanged, scripts/dev/preplaced_a6_check.py); Jurkat sets it in its config"""
     from wholecell import config as C
     from wholecell.preplaced.builders.polysomes import WALK_SEARCH
     assert WALK_SEARCH["candidates"] == 0 and WALK_SEARCH["priors_first"] is False

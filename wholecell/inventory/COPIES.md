@@ -10,7 +10,7 @@ One step, one code path (`copies.py`) for every cell. A cell's copy-number metho
 - In a build: set `inventory.copies` and `inventory.adapters.proteome: copies` -> step `copies` (after `rna`, before
   `v0`) writes `inventory/copies/*`; `v0` reads `copies.tsv` (columns `v0_columns`).
 - Alone: `PYTHONHASHSEED=0 python -m wholecell inventory --cell <cell> --build <dir> --step copies`.
-- Yeast (stub config, inputs read in place from `{yeast_root}`): `python scripts/copies_yeast_check.py --out <new dir>`
+- Yeast (stub config, inputs read in place from `{yeast_root}`): `python scripts/dev/copies_yeast_check.py --out <new dir>`
   (runs only this step and compares with build W).
 
 ## Config (annotated; every key optional unless marked)

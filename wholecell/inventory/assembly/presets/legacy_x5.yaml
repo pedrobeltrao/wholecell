@@ -1,6 +1,6 @@
 # Assembly preset legacy_x5: the yeast X5 assembly state exactly (vendored engine plugins/yeast/engine, code e3b7448:
 # scripts/s1_inventory.py + pipeline/{ingredients, preribosomes, assemblies, heterodimers}.py), checked against the
-# yeast port build s0 (scripts/assembly_x5_check.py: every assembly table identical). Behaviour only: the yeast lists
+# yeast port build s0 (scripts/dev/assembly_x5_check.py: every assembly table identical). Behaviour only: the yeast lists
 # are cell data (inventory.params.assembly_steps.data = plugins/yeast/data/assembly/*.tsv, each with a reason column),
 # yeast-only biology runs as plugin steps (plugins/yeast/assembly.py, registry kind assembly_step) and the structure
 # builder (beads, own RNA, membrane orientation: structures-stage work) as a hook (kind assembly_hook).

@@ -27,7 +27,7 @@ column + scalars). Config errors name the key, the allowed values and the neares
 | Preset | Status | Notes |
 |---|---|---|
 | `legacy_v7` | used by Jurkat | v7 exactly (B3/B4 md5); runs `pdb_homo_oligomers` before the AFDB dimers, as v7 did |
-| `legacy_x5` | used by yeast (A9) | X5 exactly: every s0 assembly table identical (`scripts/assembly_x5_check.py`); `pools: ingredients` (`ingredient_steps.py`), yeast lists in `plugins/yeast/data/assembly/*.tsv`, yeast plugin steps + structure hook (`plugins/yeast/assembly.py`) |
+| `legacy_x5` | used by yeast (A9) | X5 exactly: every s0 assembly table identical (`scripts/dev/assembly_x5_check.py`); `pools: ingredients` (`ingredient_steps.py`), yeast lists in `plugins/yeast/data/assembly/*.tsv`, yeast plugin steps + structure hook (`plugins/yeast/assembly.py`) |
 
 **Pools.** `legacy_v7` works on integer pools of `inventory_v0.tsv` (`steps.py`). `legacy_x5` (`pools: ingredients`,
 `ingredient_steps.py`) works on one ingredient table with fractional copies: `curated_machines` (TSV machines with
@@ -49,21 +49,21 @@ kind `assembly_hook`, named in the preset options.
 `params.complex_table.assembly_options`, `pack_table.order_reference`, `canonical.*`. Spec: [../reference/inventory_schema.md](../reference/inventory_schema.md)
 §3-§4a.
 
-**Checks.** SEC-MS regression S1-S11 (`scripts/secms_regression_check.py`;
+**Checks.** SEC-MS regression S1-S11 (`scripts/dev/secms_regression_check.py`;
 [../reference/history/secms_regression_criteria.md](../reference/history/secms_regression_criteria.md)); Jurkat
 pack table md5 (B3). `measured_free_pool` stays off for Jurkat (see
 [../reference/history/secms_toolkit_report.md](../reference/history/secms_toolkit_report.md)).
 
 **Code.** `wholecell/inventory/assembly/{__init__.py (options, presets, runner), steps.py, presets/}`,
 `wholecell/inventory/{secms.py, generic.py, canonical.py, legacy_order.py}`, `toolkits/secms/`; Jurkat curation
-`plugins/jurkat/data/assembly/*.tsv`. Yeast: `plugins/yeast/assembly.py`, `plugins/yeast/data/assembly/*.tsv`. Test: `tests/test_assembly_steps.py`; check `scripts/assembly_x5_check.py`.
+`plugins/jurkat/data/assembly/*.tsv`. Yeast: `plugins/yeast/assembly.py`, `plugins/yeast/data/assembly/*.tsv`. Test: `tests/test_assembly_steps.py`; check `scripts/dev/assembly_x5_check.py`.
 
 **Jurkat vs yeast today.** Jurkat runs the core step list (preset `legacy_v7`), yeast the same step list with
 `legacy_x5` (A9): its stage-1 protein table is the core copies + localisation in the engine's column layout (plugin
 step `yeast_protein_table`, `before: [inventory_assembly]`), the yeast plugin steps and structure hooks call the vendored
 modules in the build's `engine/` layout (structure hooks add library entries to `engine/lib`, a writable copy of the
 sealed library: plugin step `yeast_engine_lib`), and the builder `yeast.x5_ingredients` turns `assembly/ingredients.csv`
-into the pack table. Exactness: `scripts/assembly_x5_check.py` (A4) and the A9 stage check. A9 added the plugin step
+into the pack table. Exactness: `scripts/dev/assembly_x5_check.py` (A4) and the A9 stage check. A9 added the plugin step
 `yeast_barrel_monomers` (s1 rebuilt the outer-membrane beta-barrel monomers as oriented membrane library entries before
 anything else; A4 compared tables only and missed it).
 

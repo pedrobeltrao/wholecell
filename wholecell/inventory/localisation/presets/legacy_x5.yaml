@@ -3,7 +3,7 @@
 # apply_morgenstern, weights, cyclops_weights, nucleocyto_split; read 2026-11-17 @ e3b7448). Unification plan §3d / A5:
 # rank split, Huh precedence, NUC_K = 5, CYCLoPs thresholds 0.05 / 0.5 must give the yeast comp_weights within 1e-6.
 # Checked against the yeast PORT build s0 (20261116-aabe7b5-s0-x5repro, protein_features.parquet) by
-# scripts/localisation_x5_check.py: identical for all 6,067 proteins.
+# scripts/dev/localisation_x5_check.py: identical for all 6,067 proteins.
 #
 # Behaviour only. Sources (adapters + their thresholds), term rules, the SPB core list, the CYCLoPs term map and the
 # LOC_FIX override row are cell data: plugins/yeast/data/localisation/ (TSVs) and the inventory.params.localisation block
