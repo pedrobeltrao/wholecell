@@ -95,6 +95,9 @@ library:
   pack_tree_level: 15              # residues per sphere for packing trees (yeast PACK_PER), viewer gets library trees
 ```
 Why: human library mutated in place by 5 scripts vs yeast scripted stage 0 (H merge_notes §2); phase 1 uses frozen.
+Build mode (implemented; `wholecell/library/stage.py`): `species` (a TSV, or `{from: pack_table, accs: {table, gene,
+acc}}`: written from this build's pack table), `steps` (incl. `fallback`: placeholder / experimental-chain structures,
+assemblies split into monomers), `ledger: {max_missing_mass_frac}` (`library/species_ledger.tsv`; rebuild v9).
 
 ### 3.4 `preplaced` (draft)
 
@@ -134,6 +137,8 @@ pack:
   mapping_rules: {tm: [{rule: om_vs_im, frac: mito_om_frac}], soluble: [{rule: signal_lumen}]}
   area_factors: {GOLGI: 1.296, MITO_IM: 1.0}
   drop: [no_structure, tm_in_soluble_compartment]       # named drop rules (yeast drops these two names)
+  index_drops: [{name, libs, lib_prefixes, mode, ..., reason, return_to_pool: {lib: species}}]   # implemented; reason required
+  ledger: {max_unexplained_mass_frac: 1.0e-4, explain_no_structure: null}   # implemented (rebuild v9): pack/copy_ledger.tsv
 ```
 Kinds: `volume` (labels; optional `sdf_lt: {membrane, nm}` keeps voxels with that SDF < nm, e.g. the yeast outer 60 nm
 of wall), `virtual` (registered `virtual_region` provider), `membrane` (engine membrane), `shell` (membrane, labels,

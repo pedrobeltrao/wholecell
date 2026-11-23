@@ -4,22 +4,38 @@
 structures. The cell is cut into cubic tiles that are packed independently in phases, so neighbouring tiles never run
 at the same time.
 
-**Today.** Folder and CLI stage `pack`. Snakemake rules (`workflow/rules/pack.smk`): `pack_tiles` -> `pack_counts` ->
-`pack_index` -> `pack_pack` -> `pack_summary`. With `pack.organisation` on, the step `organisation` runs after `tiles` and
-before `counts` (rule `pack_organisation`, plan key `pack_organisation`).
+**Today.** Folder and CLI stage `pack`. Snakemake rules (`workflow/rules/pack.smk`): `pack_tiles` -> `pack_index` ->
+`pack_counts` -> `pack_pack` -> `pack_summary` (index before counts since rebuild v9: index drops can return copies to
+the pool). With `pack.organisation` on, the step `organisation` runs after `tiles` and before `counts` (rule
+`pack_organisation`, plan key `pack_organisation`).
+
+**No silent losses (rebuild v9, 2026-11-23).** Every pack-table copy that is not requested from the packer is recorded
+with a reason:
+- `pack/copy_ledger.tsv` (counts step; `event, ing_id, copies, mass_pg, explained, reason`): `no_structure` (a species
+  without a library entry; unexplained unless a reference preset sets `pack.ledger.explain_no_structure`),
+  `decomposed_out` / `decomposed_in` (an assembly without a structure, `library/decomposed.tsv`, split into its subunit
+  monomers: copies x stoichiometry added to the monomer rows, compartments mixed copy-weighted), `index_drop_returned`
+  (copies of an index drop with `return_to_pool`), `not_requested` (yeast `legacy_x5`: engine totals in a region that is
+  not a pack region, e.g. `no_structure`, `dropped_TM_in_soluble_compartment`). The counts step fails when the
+  unexplained losses exceed `pack.ledger.max_unexplained_mass_frac` (default 1e-4) of the pack-table mass.
+- `pack/index_drops.tsv` (index step; `name, lib, n, returned_to, reason`): pre-placed instances removed at indexing,
+  per `pack.index_drops` entry and library id (every entry must state a `reason`; optional `return_to_pool: {library id:
+  pack-table species}`), plus instances whose centre lies in no tile (`outside_tiles`).
+- `summary.json` carries both (`copy_ledger`, `index_drops`).
 
 **Inputs.** Geometry package, `inventory/pack_table.tsv`, the library manifest, `preplaced/preplaced_manifest.json`.
 
 **Outputs** (`pack/`): `tiles.parquet`, `tiles_meta.json` (tile list and measures); `counts.npz`, `libs.json`
 (expected copies per tile, species and region); `preplaced_{types,pos,quat,off}.npy`, `preplaced_libs.json` (pre-placed
-index; `prepass_*` in builds before A0c); `tiles/<i>.npz` (placed instances per tile); `pack_log.tsv`; `pack_done.json`; `summary.json` (placed vs
+index; `prepass_*` in builds before A0c); `index_drops.tsv`, `copy_ledger.tsv` (above); `tiles/<i>.npz` (placed instances per tile); `pack_log.tsv`; `pack_done.json`; `summary.json` (placed vs
 expected mass, overall and per region).
 
 **Config keys** (`pack:`): `tile_nm` (500 nm Jurkat and testcell, 200 nm yeast), `vox_nm`, `mesh_h_nm`, `meas_h_nm`,
 `meas_vox_nm` (voxel size of the tile volume measures; default `meas_h_nm`), `tiling` (below), `requests` (below), `halo_nm`,
 `max_tries`, `give_up`, `thin_try_f`, `thin_giveup_f`, `seed_prune`, `lumen_align`, `shell_area_factor`,
 `thin_lumens`, `regions` (ordered; kinds `volume`, `virtual`, `membrane`, `shell`, `preplaced`), `virtual_providers` (Jurkat),
-`region_map`, `region_map_default`, `mapping_rules`, `area_factors`, `open_face`, `index_drops`, `numba_threads`;
+`region_map`, `region_map_default`, `mapping_rules`, `area_factors`, `open_face`, `index_drops` (each with `reason`,
+optional `return_to_pool`), `ledger` (`max_unexplained_mass_frac`, `explain_no_structure`), `numba_threads`;
 the algorithm switches below. Spec: [../reference/cell_config.md](../reference/cell_config.md) §3.5.
 
 **Algorithm switches (A7 phases 1 and 2; yeast X5 algorithms ported into the core packer).** Defaults and meaning:

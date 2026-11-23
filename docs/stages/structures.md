@@ -10,16 +10,34 @@ transmembrane species oriented in the membrane.
 declared frozen start entries plus scripted builders, and derived packing shapes. Yeast settings:
 `library:` in `config/cells/yeast.yaml` (A9; the A3 fragment `library_x5.yaml` was merged into it).
 
-**Inputs.** Jurkat (B3): species table `plugins/jurkat/data/library/species_v7.tsv.gz` (16,279 rows: the legacy table
-the v7 library was built from, `ingredients_v0_pre_v4.tsv`, with the structure source recorded in each v7 npz; it
-differs from the inventory's `struct_src` for 321 assemblies), TM-route ids, start entries (`start_v7.tsv`: the
+**Inputs.** Jurkat: species table written by the stage from this build's pack table (`library.species: {from:
+pack_table, accs: ...}` -> `library/species.tsv`; rebuild v9, 2026-11-23): one row per species the pack will request,
+structure source = the inventory's `struct_src` (the current coverage rule). Until v8 it was
+`plugins/jurkat/data/library/species_v7.tsv.gz` (16,279 rows: the legacy table the v7 library was built from, with the
+v7 npz source for 321 complexes; kept in the repo as history): 117 pack-table species of v8 (72 monomers, 45
+homo-oligomers, 0.51 pg) had no entry and were dropped by the pack without a record. TM-route ids, start entries (`start_v7.tsv`: the
 pre-pass templates `F_ACTB`, `MT_TUBA1B-TUBB4B` + json, md5-checked against the v7 manifest), and frozen inputs:
 AFDB v6 human tar (+ index, fragment index), AFDB complex models (manifest in the repo), UniProt topology / table /
 REST cache, SIFTS, the RCSB assembly cache (read offline; md5 of every file read in `library/work/`). The frozen v7
 library `lib_structures_v7` (16,246 files, md5 manifest in the repo) is the reference preset's library. Testcell: `lib_testcell` (45 npz copied from the Jurkat v7 library, in `tests/data/testcell/lib`).
 
 **Outputs** (`library/`): `library_manifest.tsv` (species, path, md5; build mode adds `origin` = the step that wrote
-the file), `library_meta.json`; build mode also `lib/`, `library_af.json`, `pack_shapes/`.
+the file), `library_meta.json`; build mode also `lib/`, `library_af.json`, `pack_shapes/`, `species_ledger.tsv`
+(every species: `status` built | fallback | decomposed | missing, `source` pdb | afdb_complex | afdb_monomer |
+afdb_fragment | pdb_chain | placeholder; the stage fails before sealing when `missing` species carry more than
+`library.ledger.max_missing_mass_frac` of the requested mass, default 1e-4), `decomposed.tsv` (assemblies split into
+subunit monomers; the pack returns their copies), `species.tsv` (when written from the pack table).
+
+**Fallback structures** (step `fallback`, core, rebuild v9): a species still without a model after the builder steps
+gets one by declared tiers, never silently none. Proteins: (1) `pdb_chain`: the chain of a cached RCSB assembly of the
+same protein that maps (SIFTS) and shows the most residues, at least `min_cov` (0.5) of the UniProt length (soluble
+proteins only; option `pdb_chain`); (2) `placeholder`: one bead per residue (UniProt length, else mass / 110 Da),
+soluble proteins as a ball of the protein volume (1.21 nm3/kDa), transmembrane proteins with each UniProt TRANSMEM
+segment as an ideal helix across the membrane (axes on a hexagonal lattice 1 nm apart, midplane z = 0) and the soluble
+stretches as balls outside |z| >= 2.3 nm on their side (cytoplasmic side +z from TOPO_DOM; N-terminus cytoplasmic when
+unannotated). Assemblies (option `decompose`): split into their subunit monomers (AlphaFold F1 by random access into the
+AFDB tar, else the tiers above). Fallback npz carry `src` = `fallback:...` and `fallback` = the tier. Jurkat: after
+`tm_route`, before `adaptive_trees`; yeast: last step (placeholders only, no SIFTS input).
 
 **Build steps** (one function each, `wholecell/library/build.py:STEPS`, run in order): `start` (copy the frozen start
 entries, md5-checked) → the builders of `library.steps`: `complexes` (curated complexes of the species table from

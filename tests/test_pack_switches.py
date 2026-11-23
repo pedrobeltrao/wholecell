@@ -146,11 +146,11 @@ def test_preset_and_providers():
 # Effective pack: sections of the reproduction presets (md5 of the canonical JSON of switches.effective on the raw
 # config, `_preset` removed), recorded at B1 (2026-11-17) = the values before the B1 mechanism and the yeast split.
 # A change here changes a reproduction preset: only on purpose (and then update the number with the reason).
-REPRO_PACK_MD5 = {("jurkat_v7_port", None): "cead23259b5d46793144ae7e856256ee",
-                  ("jurkat", "legacy_v7"): "533b53b6a799a35beeb84e196122976e",   # freeze fix 2026-11-19: + organisation.field_cap_regions (was b2cdc84e...; B2: + organisation, was 0296332c...)
+REPRO_PACK_MD5 = {("jurkat_v7_port", None): "4af392b52dd6960cef7315f132f197a2",   # rebuild v9 2026-11-23: + pack.ledger, index_drops reason / return_to_pool (without them = the previous md5) (was cead2325...)
+                  ("jurkat", "legacy_v7"): "2ef7f9300f4d953e1a1da1de4740f6df",   # rebuild v9 2026-11-23: + pack.ledger, index_drops reason / return_to_pool (without them = the previous md5) (was 533b53b6...); freeze fix 2026-11-19: + organisation.field_cap_regions (was b2cdc84e...; B2: + organisation, was 0296332c...)
                   ("testcell", "legacy_v7"): "f89bbca208dcbeb9e5172c6d5b96fef5",
-                  ("yeast", None): "200dec5d081a0810c275fbef95fcab47",   # freeze fix 2026-11-19: + organisation.field_cap_regions (was 7edc6905...); B1 2026-11-18: C3 pin (was ac4fdfb1... B2: AF3 pool off; 0e58bf80... = yeast_x5_core)
-                  ("yeast_x5_core", None): "fdb7204589bf29880f22b422cab8b894",   # freeze fix 2026-11-19: field_cap_regions [] spelled out (= the default; was 0e58bf80...)
+                  ("yeast", None): "3a770229b110d99baeb42447502fd021",   # rebuild v9 2026-11-23: + pack.ledger, index_drops reason / return_to_pool (without them = the previous md5) (was 200dec5d...); freeze fix 2026-11-19: + organisation.field_cap_regions (was 7edc6905...); B1 2026-11-18: C3 pin (was ac4fdfb1... B2: AF3 pool off; 0e58bf80... = yeast_x5_core)
+                  ("yeast_x5_core", None): "b615ed5e7ef390f1ba4268d777231978",   # rebuild v9 2026-11-23: + pack.ledger, index_drops reason / return_to_pool (without them = the previous md5) (was fdb72045...); freeze fix 2026-11-19: field_cap_regions [] spelled out (= the default; was 0e58bf80...)
                   ("yeast_x5_port", None): "d53e76b814e6a6421a4eee5110cd73b8"}
 
 

@@ -276,7 +276,7 @@ class CopyLedger:
     def write(self, total_mass_pg, log=print):
         """pack/copy_ledger.tsv + the check; returns the summary dict (libs.json key `ledger`)"""
         import pandas as pd
-        L = pd.DataFrame(self.rows, columns=list(LEDGER_COLS))
+        L = pd.DataFrame(self.rows, columns=list(LEDGER_COLS)).astype({"copies": float, "mass_pg": float, "explained": bool})
         _atomic(self.p.path("copy_ledger.tsv"), lambda tmp: L.to_csv(tmp, sep="\t", index=False))
         lost = L[L.event.isin(LOSS_EVENTS)]
         un = lost[~lost.explained]
