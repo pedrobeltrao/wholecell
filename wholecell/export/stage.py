@@ -11,6 +11,13 @@ Steps (outputs in <build>/export/ unless out_dir= is given):
                 web/regions.json, web/library/types.json, web/encode_meta.json, web/encode_check.json (round trip, counts),
                 web/version.json, web/MANIFEST.sha256. Optional target for large cells; blocks=<n> or blocks=bx,by,bz;...
                 encodes a subset (test), selftest=1 re-encodes into a temp dir and compares the manifests (determinism).
+                Tiles carry PALETTE + INST, GHOST, POLY (mRNA, DNA, extra) and MESH sections (meshpoly.py; switches
+                mesh=0 / polylines=0 / ghosts=0 or config export.tiles.{mesh, polylines, ghosts, mesh_h_nm, mesh_skip,
+                lipid_mask_regions, workers}); blocks are encoded in parallel (workers=, default 8), one task per
+                (bx, by) column; output is independent of the worker count.
+  web           = tiles_v2. Standalone re-export of an existing build: python -m wholecell export --build B --step web
+                --out DIR (--cell defaults to the build's config.resolved.json); DIR is the web folder (tiles/, library/,
+                regions.json, ...); the build folder is only read.
   sim_manifest  one small simulation box (docs/reference/simulation_workflows.md section 3, schema wholecell.simbox/1;
                 stub writer): boxes/<name>/{box.json, molecules.parquet, bodies.npz, walls.npz, MANIFEST.sha256}.
                 Monomer molecules carry the SEC-MS bound-fraction attribute of their protein (inventory
@@ -42,7 +49,7 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from ..validate import common, regions as R_  # noqa: E402
-from . import quat as Q, yct2  # noqa: E402
+from . import meshpoly as MP, quat as Q, yct2  # noqa: E402
 
 KIND_GROUP = {"volume": "soluble", "virtual": "soluble", "membrane": "membrane", "shell": "shell", "preplaced": "prepass"}
 # Viewer format (docs/reference/tile_format_v2.md) names: pre-placed regions, groups, flags and the `src` of box molecules
@@ -181,6 +188,37 @@ class _TileCache:
         return v
 
 
+def _flag_opt(kw, tc, name, default=True):
+    v = kw.get(name)
+    if v is not None:
+        return str(v).lower() not in ("0", "false", "no", "off")
+    return bool(tc.get(name, default))
+
+
+def _lib_br(cfg, bdir, inp, kw, types, web):
+    """library cache (bounding radius, bead mass) of the export types; the build's validation cache is read, never
+    rewritten from a standalone export (out=): a missing / incomplete cache is then written next to the output"""
+    cp = os.path.join(bdir, "validate", "cache", "lib_all.npz")
+    if kw.get("out"):
+        ok = False
+        if os.path.exists(cp):
+            z = np.load(cp, allow_pickle=False); ok = set(types) <= set(str(x) for x in z["names"])
+        if not ok:
+            cp = os.path.join(_work_dir(web), "lib_all.npz")
+    try:
+        return common.lib_cache(inp, types, cp, nproc=min(8, common.nprocs(cfg, kw)))
+    except Exception as e:  # noqa: BLE001 - library absent: types without radii
+        print("library cache unavailable:", e)
+        return None
+
+
+def _work_dir(web):
+    return os.path.normpath(web) + "_work"
+
+
+_W = {}
+
+
 def _encode(cfg, bdir, inp, kw, web):
     ec = cfg.get("export", {}) or {}
     tc = ec.get("tiles", {}) or {}
@@ -204,10 +242,6 @@ def _encode(cfg, bdir, inp, kw, web):
     rid = {r["name"]: r["id"] for r in rows}
     pre_reg = np.array([rid[g] for g in pg], np.int64) if PL else np.zeros(0, np.int64)     # pg: group per pre-pass entry
     has_pre = inp.has("preplaced_off") and len(PL) > 0
-    poff = np.load(inp["preplaced_off"]) if has_pre else None
-    ptypes = np.load(inp["preplaced_types"], mmap_mode="r") if has_pre else None
-    ppos = np.load(inp["preplaced_pos"], mmap_mode="r") if has_pre else None
-    pquat = np.load(inp["preplaced_quat"], mmap_mode="r") if has_pre else None
     lib_tag = yct2.tag4(json.dumps(types)); bid = _build_id(bdir); build_tag = yct2.tag4(bid)
     # blocks: from the pack tile grid
     tij = M[["ti", "tj", "tk"]].values.astype(np.int64)
@@ -226,46 +260,214 @@ def _encode(cfg, bdir, inp, kw, web):
             blocks = np.array(sorted(cnt, key=lambda b: (-cnt[b], b))[:int(sel)], np.int64)
     else:
         blocks = blk_all
-    cache = _TileCache(inp)
-    ppb = int(round(B / PT))
-    tiles_rows = []; counts = {}; files = []
-    src_n = 0
-    check = dict(max_pos_err_nm=0.0, max_rot_err_rad=0.0, n_checked=0)
+    lc = _lib_br(cfg, bdir, inp, kw, types, web)
+    # MESH / GHOST / POLY sections (meshpoly.py); switches: config export.tiles.{mesh, ghosts, polylines} or key=0/1
+    do_mesh = _flag_opt(kw, tc, "mesh"); do_poly = _flag_opt(kw, tc, "polylines"); do_ghost = do_mesh and _flag_opt(kw, tc, "ghosts")
+    mask_names = [r["name"] for r in rows if r["kind"] == "membrane"] + [n for n in (tc.get("lipid_mask_regions") or []) if n in rid]
+    mask_ids = np.array(sorted({rid[n] for n in mask_names}), np.int64)
+    br = np.array([float(lc.br[lc.idx[n]]) if (lc is not None and n in lc.idx) else 15.0 for n in types], np.float64)
+    cell = mesher = None; mesh_info = {}
+    if do_mesh:
+        from ..geometry import cellgeom
+        from ..geometry.engines import cellgeom_eval_v1 as ev
+        pj = json.load(open(os.path.join(bdir, "geometry", "package.json")))
+        cell = cellgeom.load(pj["package_dir"], verify="quick")
+        mems = MP.lipid_membranes(cell.manifest, skip=set(tc.get("mesh_skip", []) or []))
+        zf = float(cell.G[ev.G_ZFACE]) if cell.G[ev.G_FACE] > 0 else None
+        mesh_h = float(tc.get("mesh_h_nm", MP.MESH_H))
+        mesher = MP.TileMesher(cell, mems, tile_nm, mesh_h, zf)
+        mesh_info = dict(mesh_h_nm=mesh_h, membranes=[dict(code=c, name=n) for c, n in mems], open_face_z_nm=zf,
+                         package_id=pj.get("package_id"), source="geometry package membrane SDFs (cellgeom_eval_v1 mems)")
+    kmin = blk_all.min(0) * bt; kdim = (blk_all.max(0) + 1) * bt - kmin
+    poly = None; poly_tiles = set()
+    if do_poly:
+        # polyline work files (memory-mapped, scattered writes): on a local temp disk (tmp_dir= or $TMPDIR), never on the
+        # build's / output's network file system; removed after the export. poly_work=DIR: keep and reuse (dev)
+        work = kw.get("poly_work") or tempfile.mkdtemp(prefix="wholecell_poly_", dir=kw.get("tmp_dir") or None)
+        _W["poly_tmp"] = None if kw.get("poly_work") else work
+        poly = MP.PolyStore(work, origin, tile_nm, kmin, kdim)
+        if kw.get("poly_work") and os.path.exists(os.path.join(work, "poly_meta.json")):
+            poly.stats = {int(k): v for k, v in json.load(open(os.path.join(work, "poly_meta.json"))).items()}
+            print(f"polylines reused from {work}", flush=True)
+        else:
+            poly.build(MP.build_sources(cfg, bdir, inp.lib_dir()))
+        poly.open(); poly_tiles = poly.tile_keys()
     tdir = os.path.join(web, "tiles"); os.makedirs(tdir, exist_ok=True)
-    for b in [tuple(x) for x in blocks.tolist()]:
-        blo = origin + np.array(b) * B
-        p0 = np.floor((blo - lo0) / PT + 1e-9).astype(np.int64)
-        parts = []
-        for di in range(-1, ppb + 1):                       # block pack tiles + a one-tile margin (centres may stray)
-            for dj in range(-1, ppb + 1):
-                for dk in range(-1, ppb + 1):
-                    t = key.get((int(p0[0] + di), int(p0[1] + dj), int(p0[2] + dk)))
-                    if t is None: continue
-                    v = cache.get(t)
-                    if v is not None and len(v[0]):
-                        parts.append((v[0], v[3], np.zeros(len(v[0]), np.uint32), v[1], v[2], 0 <= di < ppb and 0 <= dj < ppb and 0 <= dk < ppb))
-                    if has_pre and poff[t + 1] > poff[t]:
-                        a, c = int(poff[t]), int(poff[t + 1]); pt = np.asarray(ptypes[a:c]).astype(np.int64)
-                        parts.append((pmap[pt], pre_reg[pt], np.full(c - a, yct2.FLAG_PREPASS, np.uint32),
-                                      np.asarray(ppos[a:c], np.float64), np.asarray(pquat[a:c], np.float64), False))
-        if not parts:
+    poly_tmp = _W.get("poly_tmp")
+    _W.clear()
+    _W.update(poly_tmp=poly_tmp, inp=inp, key=key, PT=PT, lo0=lo0, origin=origin, B=B, bt=bt, tile_nm=tile_nm, q_org=q_org, q_range=q_range,
+              shard_max=shard_max, has_pre=has_pre, pmap=pmap, pre_reg=pre_reg, lib_tag=lib_tag, build_tag=build_tag,
+              tdir=tdir, mesher=mesher, poly=poly, poly_tiles=poly_tiles, do_ghost=do_ghost, mask_ids=mask_ids, br=br)
+    blist = [tuple(x) for x in blocks.tolist()]
+    groups = {}
+    for b in blist:                                       # one task per (bx, by) column: consecutive blocks share pack tiles
+        groups.setdefault(b[:2], []).append(b)
+    tasks = [sorted(v, key=lambda b: b[2]) for _, v in sorted(groups.items())]
+    nw = max(1, min(int(kw.get("workers", tc.get("workers", 8))), len(tasks)))
+    res = {}
+    if nw == 1:
+        for t in tasks:
+            for r in _encode_column(t):
+                res[r["block"]] = r
+    else:
+        import multiprocessing as mp_
+        from concurrent.futures import ProcessPoolExecutor
+        with ProcessPoolExecutor(nw, mp_context=mp_.get_context("fork"), initializer=_worker_init) as ex:
+            for out in ex.map(_encode_column, tasks):
+                for r in out:
+                    res[r["block"]] = r
+    tiles_rows = []; counts = {}; files = []; src_n = 0
+    check = dict(max_pos_err_nm=0.0, max_rot_err_rad=0.0, n_checked=0)
+    sec_stats = dict(tiles_mesh=0, n_vert=0, n_tri=0, n_ghost=0, n_poly_tiles=0, n_poly_beads=0, mesh_area_um2={})
+    names = {c: n for c, n in (mesher.mem if mesher else [])}
+    for b in blist:                                       # assemble in block order (deterministic, independent of workers)
+        r = res.get(b)
+        if r is None:
             continue
+        tiles_rows += r["rows"]; files += r["files"]; src_n += r["src_n"]
+        for k, v in r["counts"].items():
+            counts[k] = counts.get(k, 0) + v
+        check["max_pos_err_nm"] = max(check["max_pos_err_nm"], r["check"]["max_pos_err_nm"])
+        check["max_rot_err_rad"] = max(check["max_rot_err_rad"], r["check"]["max_rot_err_rad"])
+        check["n_checked"] += r["check"]["n_checked"]
+        for k in ("tiles_mesh", "n_vert", "n_tri", "n_ghost", "n_poly_tiles", "n_poly_beads"):
+            sec_stats[k] += r["sec"][k]
+        for c, a in r["sec"]["area"].items():
+            nm_ = names.get(c, str(c))
+            sec_stats["mesh_area_um2"][nm_] = sec_stats["mesh_area_um2"].get(nm_, 0.0) + a / 1e6
+    sec_stats["mesh_area_um2"] = {k: round(v, 3) for k, v in sorted(sec_stats["mesh_area_um2"].items())}
+    check["sections"] = sec_stats
+    if poly is not None:
+        check["polylines"] = poly.stats
+    allt = np.array([r[:3] for r in tiles_rows]) if tiles_rows else np.zeros((0, 3), int)
+    written = ["PALETTE", "INST"] + (["GHOST"] if do_ghost else []) + (["POLY_MRNA", "POLY_LINK", "POLY_EXTRA"] if do_poly else []) \
+        + (["MESH"] if do_mesh else [])
+    not_written = [x for x in ("GHOST", "POLY", "MESH") if not any(w.startswith(x) for w in written)] + ["COLUMN", "LOD1 overview"]
+    pk = {}
+    if do_poly:
+        for sec_, d in MP.SECTIONS.items():
+            pk[str(sec_)] = dict(name=d["name"], poly_q=d["poly_q"], free_kind=d["free_kind"], piece_points=MP.PIECE,
+                                 sources=[x["name"] for x in poly.stats.get(sec_, {}).get("sources", [])])
+        pk["6"]["kinds"] = {str(k): v for k, v in MP.EXTRA_KINDS.items()}
+    index = dict(format="YCT2", version="2.0", build_id=bid, tile_nm=tile_nm, block_tiles=bt,
+                 grid=dict(origin_nm=origin.tolist(), min_ijk=allt.min(0).tolist() if len(allt) else None,
+                           max_ijk=allt.max(0).tolist() if len(allt) else None),
+                 q_org=q_org, q_range=q_range, lod=[0], flag_bits=yct2.CORE_FLAG_BITS + list(ec.get("flag_bits", []) or []),
+                 columns=[], polyline_kinds=pk, sections_written=written,
+                 not_written=not_written, tile_columns=yct2.TILE_COLUMNS,
+                 lib_tag=lib_tag, build_tag=build_tag)
+    if do_mesh:
+        index["mesh"] = mesh_info
+    if do_ghost:
+        index["lipid_mask_regions"] = [int(x) for x in mask_ids]
+    index["tiles"] = tiles_rows
+    ij = json.dumps(index, separators=(",", ":"))
+    open(os.path.join(tdir, "index.json"), "w").write(ij)
+    open(os.path.join(tdir, "index.json.gz"), "wb").write(yct2.gz(ij.encode()))
+    rr = dict(schema="wholecell.regions/1", cell_id=cfg["cell_id"], build_id=bid, regions=rows)
+    json.dump(rr, open(os.path.join(web, "regions.json"), "w"), indent=1)
+    os.makedirs(os.path.join(web, "library"), exist_ok=True)
+    # mass per type: libs.json mass_da (Jurkat, testcell); else, and for pre-pass types, the library bead mass (aa 110 Da,
+    # nt 330 Da), as the yeast engine computed it (webenc.encode_library, val3d.lib_beads) and validate.common.lib_masses
+    tj = [dict(id=i, name=n, mass_da=(mass[i] if i < len(mass) else (float(lc.bead_mass[lc.idx[n]]) if lc else None)),
+               br_nm=(round(float(lc.br[lc.idx[n]]), 3) if lc else None), prepass=n in PL and n not in libs) for i, n in enumerate(types)]
+    json.dump(dict(schema="wholecell.types/1", ids=types, types=tj), open(os.path.join(web, "library", "types.json"), "w"))
+    json.dump(dict(v=bid), open(os.path.join(web, "version.json"), "w"))
+    return index, counts, check, src_n, files
+
+
+def _worker_init():
+    try:
+        import numba
+        numba.set_num_threads(1)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _encode_column(blocks):
+    cache = _TileCache(_W["inp"])
+    return [_encode_block(b, cache) for b in blocks]
+
+
+def _encode_block(b, cache):
+    W = _W
+    inp, key, PT, lo0, origin, B, bt, tile_nm = W["inp"], W["key"], W["PT"], W["lo0"], W["origin"], W["B"], W["bt"], W["tile_nm"]
+    q_org, q_range, shard_max, tdir = W["q_org"], W["q_range"], W["shard_max"], W["tdir"]
+    has_pre, pmap, pre_reg = W["has_pre"], W["pmap"], W["pre_reg"]
+    mesher, poly, br, mask_ids = W["mesher"], W["poly"], W["br"], W["mask_ids"]
+    if has_pre and "poff" not in W:
+        W["poff"] = np.load(inp["preplaced_off"]); W["ptypes"] = np.load(inp["preplaced_types"], mmap_mode="r")
+        W["ppos"] = np.load(inp["preplaced_pos"], mmap_mode="r"); W["pquat"] = np.load(inp["preplaced_quat"], mmap_mode="r")
+    poff = W.get("poff"); ptypes = W.get("ptypes"); ppos = W.get("ppos"); pquat = W.get("pquat")
+    ppb = int(round(B / PT))
+    out = dict(block=b, rows=[], files=[], counts={}, src_n=0, check=dict(max_pos_err_nm=0.0, max_rot_err_rad=0.0, n_checked=0),
+               sec=dict(tiles_mesh=0, n_vert=0, n_tri=0, n_ghost=0, n_poly_tiles=0, n_poly_beads=0, area={}))
+    check = out["check"]; counts = out["counts"]; sec = out["sec"]
+    blo = origin + np.array(b) * B
+    p0 = np.floor((blo - lo0) / PT + 1e-9).astype(np.int64)
+    parts = []
+    for di in range(-1, ppb + 1):                       # block pack tiles + a one-tile margin (centres may stray)
+        for dj in range(-1, ppb + 1):
+            for dk in range(-1, ppb + 1):
+                t = key.get((int(p0[0] + di), int(p0[1] + dj), int(p0[2] + dk)))
+                if t is None: continue
+                v = cache.get(t)
+                if v is not None and len(v[0]):
+                    parts.append((v[0], v[3], np.zeros(len(v[0]), np.uint32), v[1], v[2]))
+                if has_pre and poff[t + 1] > poff[t]:
+                    a, c = int(poff[t]), int(poff[t + 1]); pt = np.asarray(ptypes[a:c]).astype(np.int64)
+                    parts.append((pmap[pt], pre_reg[pt], np.full(c - a, yct2.FLAG_PREPASS, np.uint32),
+                                  np.asarray(ppos[a:c], np.float64), np.asarray(pquat[a:c], np.float64)))
+    if parts:
         sp = np.concatenate([p[0] for p in parts]); rg = np.concatenate([p[1] for p in parts]); fl = np.concatenate([p[2] for p in parts])
         ps = np.concatenate([p[3] for p in parts]); qu = np.concatenate([p[4] for p in parts])
-        ijk = np.floor((ps - origin) / tile_nm).astype(np.int64)
-        inb = np.all((ijk >= np.array(b) * bt) & (ijk < (np.array(b) + 1) * bt), axis=1)
-        sp, rg, fl, ps, qu, ijk = sp[inb], rg[inb], fl[inb], ps[inb], qu[inb], ijk[inb]
-        src_n += len(sp)
-        o = np.lexsort((ijk[:, 2], ijk[:, 1], ijk[:, 0]))
-        sp, rg, fl, ps, qu, ijk = sp[o], rg[o], fl[o], ps[o], qu[o], ijk[o]
-        brk = np.r_[0, np.nonzero(np.any(np.diff(ijk, axis=0) != 0, axis=1))[0] + 1, len(sp)]
-        shard_k = 0; buf = []; size = 0; members = []
-        name = lambda k: f"s_{b[0]}_{b[1]}_{b[2]}.{k}.bin"
-        for a, c in zip(brk[:-1], brk[1:]):
-            if c <= a: continue
-            t_ijk = ijk[a].tolist(); lo = origin + np.array(t_ijk) * tile_nm
-            raw, n_i, n_p = yct2.encode_tile(t_ijk, lo, sp[a:c], rg[a:c], fl[a:c], ps[a:c], qu[a:c], tile_nm, q_org, q_range, lib_tag, build_tag)
-            # round trip on every tile
+    else:
+        sp = np.zeros(0, np.int64); rg = np.zeros(0, np.int64); fl = np.zeros(0, np.uint32)
+        ps = np.zeros((0, 3)); qu = np.zeros((0, 4))
+    ijk_all = np.floor((ps - origin) / tile_nm).astype(np.int64)
+    # lipid-mask pool for ghosts: instances of the lipid-mask regions in the block + margin
+    gm = np.isin(rg, mask_ids) if (W["do_ghost"] and len(rg)) else np.zeros(len(rg), bool)
+    g_sp, g_rg, g_fl, g_ps, g_qu, g_ijk = sp[gm], rg[gm], fl[gm], ps[gm], qu[gm], ijk_all[gm]
+    g_r = br[g_sp] + 3.0 if len(g_sp) else np.zeros(0)
+    inb = np.all((ijk_all >= np.array(b) * bt) & (ijk_all < (np.array(b) + 1) * bt), axis=1)
+    sp, rg, fl, ps, qu, ijk = sp[inb], rg[inb], fl[inb], ps[inb], qu[inb], ijk_all[inb]
+    out["src_n"] = int(len(sp))
+    o = np.lexsort((ijk[:, 2], ijk[:, 1], ijk[:, 0]))
+    sp, rg, fl, ps, qu, ijk = sp[o], rg[o], fl[o], ps[o], qu[o], ijk[o]
+    brk = np.r_[0, np.nonzero(np.any(np.diff(ijk, axis=0) != 0, axis=1))[0] + 1, len(sp)] if len(sp) else np.zeros(1, np.int64)
+    inst_rng = {tuple(ijk[a].tolist()): (a, c) for a, c in zip(brk[:-1], brk[1:]) if c > a}
+    # candidate tiles: instances, polyline pieces, and (mesh) every tile of the block
+    b0 = np.array(b) * bt
+    cand = set(inst_rng)
+    cand |= {t for t in W["poly_tiles"] if all(b0[i] <= t[i] < b0[i] + bt for i in range(3))}
+    if mesher is not None:
+        cand |= {(int(b0[0] + i), int(b0[1] + j), int(b0[2] + k)) for i in range(bt) for j in range(bt) for k in range(bt)}
+    shard_k = 0; buf = []; size = 0; members = []
+    for t_ijk in sorted(cand):
+        lo = origin + np.array(t_ijk) * tile_nm
+        a, c = inst_rng.get(t_ijk, (0, 0))
+        mesh = None; nv = nt = 0
+        if mesher is not None:
+            V, F, FM = mesher(lo)
+            if len(F):
+                mb, nv, nt, big = MP.encode_mesh(V, F, FM, lo, q_org, q_range)
+                mesh = (mb, big, nt)
+                tri = V[F]; ar = 0.5 * np.linalg.norm(np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]), axis=1)
+                for code in np.unique(FM):
+                    sec["area"][int(code)] = sec["area"].get(int(code), 0.0) + float(ar[FM == code].sum())
+        polys, npb = poly.tile_sections(t_ijk) if poly is not None else ({}, 0)
+        if c <= a and mesh is None and not polys:
+            continue
+        ghost = None
+        if mesh is not None and len(g_sp):
+            hi = lo + tile_nm
+            ok = np.all((g_ps > lo - g_r[:, None]) & (g_ps < hi + g_r[:, None]), axis=1) & ~np.all(g_ijk == np.array(t_ijk), axis=1)
+            ok &= np.all((g_ps > lo - q_org + 1) & (g_ps < lo - q_org + q_range - 1), axis=1)
+            if ok.any():
+                ghost = (g_sp[ok], g_rg[ok], g_fl[ok] | yct2.FLAG_GHOST | yct2.FLAG_NEAR_MEMBRANE, g_ps[ok], g_qu[ok])
+        raw, n_i, n_p = yct2.encode_tile(list(t_ijk), lo, sp[a:c], rg[a:c], fl[a:c], ps[a:c], qu[a:c], tile_nm, q_org, q_range,
+                                         W["lib_tag"], W["build_tag"], ghost=ghost, polys=polys, mesh=mesh)
+        if c > a:                                         # round trip on every tile
             D = yct2.decode_tile(raw)
             pos_d = origin + D["lo_rel"] + D["pos_rel"]
             o2 = np.lexsort((rg[a:c], sp[a:c]))
@@ -274,48 +476,26 @@ def _encode(cfg, bdir, inp, kw, web):
             check["n_checked"] += int(c - a)
             for s_, r_ in zip(D["species"].tolist(), D["region"].tolist()):
                 counts[(s_, r_)] = counts.get((s_, r_), 0) + 1
-            g = yct2.gz(raw)
-            if buf and size + len(g) > shard_max:
-                members.append((shard_k, buf)); shard_k += 1; buf = []; size = 0
-            buf.append((t_ijk, g, n_i, yct2.crc32(raw))); size += len(g)
-        if buf:
-            members.append((shard_k, buf))
-        single = len(members) == 1
-        for k, mem in members:
-            fn = f"s_{b[0]}_{b[1]}_{b[2]}.bin" if single else name(k)
-            off = 0
-            with open(os.path.join(tdir, fn), "wb") as fh:
-                for t_ijk, g, n_i, crc in mem:
-                    fh.write(g)
-                    tiles_rows.append([*t_ijk, fn, off, len(g), n_i, 0, 0, 0, 0, 0, crc])
-                    off += len(g)
-            files.append(fn)
-    allt = np.array([r[:3] for r in tiles_rows]) if tiles_rows else np.zeros((0, 3), int)
-    index = dict(format="YCT2", version="2.0", build_id=bid, tile_nm=tile_nm, block_tiles=bt,
-                 grid=dict(origin_nm=origin.tolist(), min_ijk=allt.min(0).tolist() if len(allt) else None,
-                           max_ijk=allt.max(0).tolist() if len(allt) else None),
-                 q_org=q_org, q_range=q_range, lod=[0], flag_bits=yct2.CORE_FLAG_BITS + list(ec.get("flag_bits", []) or []),
-                 columns=[], polyline_kinds={}, sections_written=["PALETTE", "INST"],
-                 not_written=["GHOST", "POLY", "MESH", "COLUMN", "LOD1 overview"], tile_columns=yct2.TILE_COLUMNS,
-                 lib_tag=lib_tag, build_tag=build_tag, tiles=tiles_rows)
-    ij = json.dumps(index, separators=(",", ":"))
-    open(os.path.join(tdir, "index.json"), "w").write(ij)
-    open(os.path.join(tdir, "index.json.gz"), "wb").write(yct2.gz(ij.encode()))
-    rr = dict(schema="wholecell.regions/1", cell_id=cfg["cell_id"], build_id=bid, regions=rows)
-    json.dump(rr, open(os.path.join(web, "regions.json"), "w"), indent=1)
-    os.makedirs(os.path.join(web, "library"), exist_ok=True)
-    lc = None
-    try:
-        lc = common.lib_cache(inp, types, os.path.join(bdir, "validate", "cache", "lib_all.npz"), nproc=common.nprocs(cfg, kw))
-    except Exception as e:  # noqa: BLE001 - library absent: types without radii
-        print("library cache unavailable:", e)
-    # mass per type: libs.json mass_da (Jurkat, testcell); else, and for pre-pass types, the library bead mass (aa 110 Da,
-    # nt 330 Da), as the yeast engine computed it (webenc.encode_library, val3d.lib_beads) and validate.common.lib_masses
-    tj = [dict(id=i, name=n, mass_da=(mass[i] if i < len(mass) else (float(lc.bead_mass[lc.idx[n]]) if lc else None)),
-               br_nm=(round(float(lc.br[lc.idx[n]]), 3) if lc else None), prepass=n in PL and n not in libs) for i, n in enumerate(types)]
-    json.dump(dict(schema="wholecell.types/1", ids=types, types=tj), open(os.path.join(web, "library", "types.json"), "w"))
-    json.dump(dict(v=bid), open(os.path.join(web, "version.json"), "w"))
-    return index, counts, check, src_n, files
+        n_g = 0 if ghost is None else len(ghost[0])
+        sec["n_ghost"] += n_g; sec["n_vert"] += nv; sec["n_tri"] += nt; sec["tiles_mesh"] += int(nt > 0)
+        sec["n_poly_beads"] += npb; sec["n_poly_tiles"] += int(npb > 0)
+        g = yct2.gz(raw)
+        if buf and size + len(g) > shard_max:
+            members.append((shard_k, buf)); shard_k += 1; buf = []; size = 0
+        buf.append((list(t_ijk), g, n_i, n_g, npb, nv, nt, yct2.crc32(raw))); size += len(g)
+    if buf:
+        members.append((shard_k, buf))
+    single = len(members) == 1
+    for k, mem in members:
+        fn = f"s_{b[0]}_{b[1]}_{b[2]}.bin" if single else f"s_{b[0]}_{b[1]}_{b[2]}.{k}.bin"
+        off = 0
+        with open(os.path.join(tdir, fn), "wb") as fh:
+            for t_ijk, g, n_i, n_g, npb, nv, nt, crc in mem:
+                fh.write(g)
+                out["rows"].append([*t_ijk, fn, off, len(g), n_i, n_g, npb, nv, nt, 0, crc])
+                off += len(g)
+        out["files"].append(fn)
+    return out
 
 
 def _manifest(web):
@@ -332,13 +512,22 @@ def _manifest(web):
 
 
 def step_tiles_v2(cfg, bdir, inp, kw):
-    web = _out(bdir, kw, "web")
+    if kw.get("out"):                                     # standalone re-export of an existing build: out= is the web folder
+        web = os.path.abspath(kw["out"]); os.makedirs(web, exist_ok=True)
+        if os.path.realpath(web).startswith(os.path.realpath(bdir) + os.sep) and not common.flag(kw, "overwrite"):
+            raise ValueError(f"out={web} lies inside the build folder (builds are write-once): choose another folder")
+    else:
+        web = _out(bdir, kw, "web")
     if os.listdir(web) and not common.flag(kw, "overwrite"):
         raise FileExistsError(f"{web} is not empty (export outputs are write-once; overwrite=1 to replace)")
     if os.listdir(web):                                   # overwrite: start from an empty folder (no stale shards)
         shutil.rmtree(web); os.makedirs(web)
     t0 = time.time()
     index, counts, check, src_n, files = _encode(cfg, bdir, inp, kw, web)
+    if not common.flag(kw, "keep_work"):
+        shutil.rmtree(_work_dir(web), ignore_errors=True)
+        if _W.get("poly_tmp"):
+            shutil.rmtree(_W["poly_tmp"], ignore_errors=True)
     n_dec = sum(counts.values())
     tc = (cfg.get("export", {}) or {}).get("tiles", {}) or {}
     q_range = float(tc.get("q_range_nm", 360))
@@ -351,7 +540,9 @@ def step_tiles_v2(cfg, bdir, inp, kw):
     meta = dict(build_id=_build_id(bdir), cell_id=cfg["cell_id"], config_sha256=cfg.config_hash() if hasattr(cfg, "config_hash") else None,
                 encoder="wholecell.export.yct2", encoder_commit=__import__("wholecell.build", fromlist=["git_info"]).git_info()["commit7"],
                 zlib_version=zlib.ZLIB_VERSION, gzip=dict(level=6, mtime=0), seconds=round(time.time() - t0, 1),
-                inputs=dict(tiles_dir=inp["tiles_dir"], libs=inp["libs"]))
+                inputs=dict(tiles_dir=inp["tiles_dir"], libs=inp["libs"]), sections=index.get("sections_written"),
+                mesh=index.get("mesh"), polyline_kinds=index.get("polyline_kinds"),
+                workers=int(kw.get("workers", ((cfg.get("export", {}) or {}).get("tiles", {}) or {}).get("workers", 8))))
     json.dump(meta, open(os.path.join(web, "encode_meta.json"), "w"), indent=1)
     digest = _manifest(web)
     res = dict(encode_check=ec, manifest_digest_excl_meta=digest)
@@ -359,8 +550,12 @@ def step_tiles_v2(cfg, bdir, inp, kw):
         tmp = tempfile.mkdtemp(prefix="yct2_selftest_", dir=kw.get("tmp_dir") or None)
         try:
             kw2 = dict(kw, out_dir=tmp, selftest="0", overwrite="1")
+            kw2.pop("out", None)
             w2 = os.path.join(tmp, "web"); os.makedirs(w2, exist_ok=True)
             _encode(cfg, bdir, inp, kw2, w2)
+            shutil.rmtree(_work_dir(w2), ignore_errors=True)
+            if _W.get("poly_tmp"):
+                shutil.rmtree(_W["poly_tmp"], ignore_errors=True)
             d2 = _manifest(w2)
             ec["determinism_reencode_identical"] = d2 == digest
         finally:
@@ -531,7 +726,8 @@ def run(cfg, bdir, step=None, **kw):
         if ((cfg.get("export", {}) or {}).get("tiles", {}) or {}).get("enabled"):
             run(cfg, bdir, "tiles_v2", **kw)
         return
-    fn = dict(regions=step_regions, cell_entry=step_cell_entry, tiles_v2=step_tiles_v2, sim_manifest=step_sim_manifest).get(step)
+    fn = dict(regions=step_regions, cell_entry=step_cell_entry, tiles_v2=step_tiles_v2, web=step_tiles_v2,
+              sim_manifest=step_sim_manifest).get(step)
     if fn is None:
-        raise ValueError(f"unknown export step '{step}' (regions, cell_entry, tiles_v2, sim_manifest, all)")
+        raise ValueError(f"unknown export step '{step}' (regions, cell_entry, tiles_v2 (= web), sim_manifest, all)")
     return fn(cfg, bdir, inp, kw)

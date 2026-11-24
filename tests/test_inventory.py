@@ -89,10 +89,15 @@ def test_jurkat_plan():
     cfg = load_config("jurkat")
     registry.load_plugins(cfg)
     plan = stage.steps(cfg)
-    assert [s for s in plan if s.startswith("rules:")] == ["rules:jurkat.v4", "rules:jurkat.v5", "rules:jurkat.v6", "rules:jurkat.v7"]
+    assert [s for s in plan if s.startswith("rules:")] == ["rules:jurkat.v4", "rules:jurkat.v5", "rules:jurkat.v6", "rules:jurkat.v7",
+                                                           "rules:jurkat.v7_lamina"]
     v7 = plan["rules:jurkat.v7"]
     assert "inv_lamina_consumption_v7" not in v7["frozen"] and "inventory/rules/jurkat.v6/ingredients.tsv" in v7["inputs"]
-    assert "preplaced/lamina/consumption.json" in v7["inputs"]      # v9: the build's own lamina (no legacy lattice)
+    # v9: the build's own lamina (no legacy lattice); since faf17e1 rule L3 (+ L2) is the rule set jurkat.v7_lamina, after
+    # the library (no DAG cycle library -> lamina -> rules -> pack table)
+    lam = plan["rules:jurkat.v7_lamina"]
+    assert "preplaced/lamina/consumption.json" in lam["inputs"] and "inventory/rules/jurkat.v7/ingredients.tsv" in lam["inputs"]
+    assert "preplaced/lamina/consumption.json" not in v7["inputs"]
     assert "inv_v4pack_loc_compare" in plan["rules:jurkat.v5"]["frozen"]
     assert {"inv_v5pack_loc_compare", "inv_tier2_v5"} <= set(plan["rules:jurkat.v6"]["frozen"])
     for s in plan.values():

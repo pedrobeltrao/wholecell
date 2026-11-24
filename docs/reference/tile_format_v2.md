@@ -1,6 +1,8 @@
 # Tile format v2 (`YCT2`): packed instances for the viewer and downstream consumers
 
-Status: spec v2.0, 2026-11-15 (SPECS agent). Successor of `YCT1` (yeast `pipeline/webenc.py`, human
+Status: spec v2.0, 2026-11-15 (SPECS agent). Implementation status 2026-11-24: PALETTE, INST, GHOST, POLY (4, 5, 6) and
+MESH are written by `wholecell.export` (`yct2.py`, `meshpoly.py`); COLUMN and LOD 1/2 are not yet written (index.json
+`sections_written` / `not_written`). Details fixed by the implementation and the viewer reader are marked "(impl.)". Successor of `YCT1` (yeast `pipeline/webenc.py`, human
 `jurkat/viewer/jenc.py` / `jenc_full.py`). Written by `wholecell.export` (stage folder `export/`, ARCHITECTURE §3).
 Audit references: H = `data/derived/repro_audit/human/`, Y = `data/derived/repro_audit/yeast/`.
 
@@ -136,9 +138,25 @@ same encoding, flag bit 3 set.
 **POLY sections** (YCT1 layouts kept): `u32 len[n]`, `i32 start[n×3]` in `poly_q` units from `lo`, `i8 delta[...]`;
 extra polylines prefixed by `u16 kind[n]`. Kind names and `poly_q` per section come from `index.json`
 `polyline_kinds` (yeast 4 = pre-rRNA, 5 = IDR; human mRNA 64-point pieces, nascent RNA), not from code.
+(impl.) Section count = number of polylines; `kind[n]` is padded to 4 bytes, and each section is padded to 4 bytes.
+`poly_q`: 4 mRNA 0.005 nm, 5 DNA 0.01 nm, 6 extra 0.005 nm. Pieces have at most 64 points and belong to the tile of
+their middle point (`n_poly_beads` = points of all POLY sections of the tile). Extra kinds = viewer free-sphere kinds
+(0 RNA, 4 pre-rRNA, 5 FG repeats; 2/3 reserved for the yeast wall polysaccharides).
 
 **MESH**: `u16 vert[nv×3]` (position quantisation), `u16|u32 tri[nt×3]`, `u16 mem[nt]` (membrane id of the
 cellgeom_v1 membrane table; YCT1 u8).
+(impl.) Each array is padded to 4 bytes; u32 triangle indices iff header word 13 bit 0 (nv > 65535). Section count =
+nt; nv is the index row `n_vert` (the viewer reads both from the index) and follows from the section length
+(nv = floor((len - tri bytes - pad4(2 nt)) / 6)). `mem` = the membrane's `engine_code` (= `geometry.json`
+`membranes[].code`, the column of `cellgeom_eval_v1` `mems`). Winding: face normal (b - a) × (c - a) points to
+positive SDF (cytoplasmic / N side). Index rows carry `n_vert`, `n_tri`; index.json `mesh` records `mesh_h_nm` and
+the meshed membranes.
+
+**GHOST** (impl.): ghost words index the same PALETTE; (species, region) pairs used only by ghosts are appended after
+the tile's own runs (`n_palette` counts both), so the INST words and the palette prefix they use are identical to a
+tile without ghosts. Ghost source set = index.json `lipid_mask_regions` (membrane regions + config); flags ghost |
+near_membrane. INST flags do not carry `near_membrane`; viewers treat instances of `lipid_mask_regions` as lipid
+maskers.
 
 **COLUMN** (typed per-instance extras, aligned with INST order): header `u16 name_id, u8 dtype, u8 width`, then
 data. `name_id` indexes `index.json` `columns[]` (`{name, dtype, unit, description}`); dtypes `u8 u16 u32 i32 f16
