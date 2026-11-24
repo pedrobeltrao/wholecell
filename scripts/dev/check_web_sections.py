@@ -124,9 +124,12 @@ def main():
     bt = jn.get("block_tiles", 5)
     nb = {tuple(x // bt for x in k) for k in new_rows}
     rk = sorted(k for k in ref_rows if tuple(x // bt for x in k) in nb)     # a partial export (blocks=) checks its blocks
+    from wholecell.geometry import cellgeom
+    S["cell"] = cellgeom.load(S["pkg"], verify="quick")       # before the fork: workers share the geometry (Jurkat ~5 GB)
     chunks = lambda L, n: [L[i::n] for i in range(n)]
     res = {}
-    with ProcessPoolExecutor(a.workers) as ex:
+    import multiprocessing as mp
+    with ProcessPoolExecutor(a.workers, mp_context=mp.get_context("fork")) as ex:
         idn = list(ex.map(_identity, chunks(rk, 4 * a.workers)))
         ms = list(ex.map(_mesh, chunks(all_keys, 4 * a.workers)))
     res["identity"] = dict(ref_tiles=sum(x[0] for x in idn), ref_instances=sum(x[1] for x in idn),
