@@ -1,5 +1,8 @@
 """Stage dispatcher: python -m wholecell <stage> --cell <cell|config.yaml> --build <build_dir> [--step S] [key=value ...]
 
+--cell may be left out for an existing build (the build's config.resolved.json is used), e.g. the standalone web-tile
+re-export: python -m wholecell export --build <build_dir> --step web --out <dir>
+
 Each stage package exposes wholecell/<stage>/stage.py:run(cfg, bdir, step=None, **kw). Plugins named in the cell config
 are imported first, so registered engines/adapters/rules are available. PYTHONHASHSEED must be 0.
 Special stages: `stamp` (create the build dir, BUILD_STAMP.json), `frozen` (verify frozen inputs).
@@ -20,10 +23,10 @@ STAGE_ALIASES = {"prepass": "preplaced"}       # A0c (2026-11-17): stage names f
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="wholecell")
     ap.add_argument("stage")
-    ap.add_argument("--cell", required=True)
+    ap.add_argument("--cell", default=None, help="cell id or config.yaml (default: the build's config.resolved.json)")
     ap.add_argument("--build", required=True, help="build directory (results_root/<cell>/<build_id>)")
     ap.add_argument("--step", default=None)
-    ap.add_argument("--out", default=None, help="output folder for steps that support it (validate --step suite)")
+    ap.add_argument("--out", default=None, help="output folder for steps that support it (validate --step suite, export --step web)")
     ap.add_argument("kv", nargs="*", help="extra key=value arguments passed to the stage")
     a = ap.parse_args(argv)
     if a.stage in STAGE_ALIASES:
@@ -32,7 +35,15 @@ def main(argv=None):
     from . import numba_env                              # before any plugin imports numba (2026-11-20)
     numba_env.ensure(numba_env.wanted(a.stage, a.step), force=a.stage == "pack" and a.step in ("tiles", "pack"))
     build.check_env()
-    cfg = load(a.cell)
+    if a.cell:
+        cfg = load(a.cell)
+    else:                                                # an existing build: its own resolved config
+        rp = os.path.join(a.build, "config.resolved.json")
+        if not os.path.exists(rp):
+            ap.error(f"--cell not given and {rp} does not exist")
+        from .config import CellConfig
+        import json
+        cfg = CellConfig(json.load(open(rp)))
     registry.load_plugins(cfg)
     kw = dict(x.split("=", 1) for x in a.kv)
     if a.out:
