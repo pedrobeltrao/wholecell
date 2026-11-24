@@ -128,7 +128,7 @@ def run(cfg, bdir, step=None, **kw):
         lc = dict(lc, frozen_dir=fi["path"], frozen_manifest=fi["manifest"])
     src = lc["frozen_dir"]
     man = read_manifest(lc["frozen_manifest"])
-    have = sorted(f for f in os.listdir(src) if os.path.isfile(os.path.join(src, f)))
+    have = sorted(f for f in os.listdir(src) if not f.startswith(".") and os.path.isfile(os.path.join(src, f)))
     listed = [r["file"] for r in man]
     extra = sorted(set(have) - set(listed)); missing = sorted(set(listed) - set(have))
     if extra or missing:

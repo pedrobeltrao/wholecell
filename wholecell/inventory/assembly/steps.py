@@ -19,6 +19,7 @@ from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 import pandas as pd
 
+from ...build import listing_md5, visible_names
 from .. import secms as S2
 
 
@@ -60,8 +61,8 @@ class State:
         """local PDB assembly1 folder and its entry ids; the folder listing is checked against inputs.pdb_listing_md5"""
         if self._pdb is None:
             A = self.frozen("pdb_assemblies")
-            names = os.listdir(A)
-            md5 = hashlib.md5("\n".join(sorted(names)).encode()).hexdigest()
+            names = visible_names(A)                    # hidden files (fetch markers, OS files) are not entries
+            md5 = listing_md5(A)
             want = self.inputs.get("pdb_listing_md5")
             if want and md5 != want:
                 raise RuntimeError(f"PDB assembly folder listing changed (md5 {md5} != inputs.pdb_listing_md5 {want}); the "

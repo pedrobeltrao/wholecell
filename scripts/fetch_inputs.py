@@ -5,9 +5,11 @@
     python scripts/fetch_inputs.py --cell yeast --list   # what would be fetched, and what must come from elsewhere
 
 Every dataset file is listed in the dataset's MANIFEST.tsv with its target root and path (the layout of
-docs/data_inputs.md); files are checked against their md5 and tar shards are unpacked into their target folder. Inputs
-that are not in the dataset (EXCLUDED.tsv: AlphaFold DB proteome tars, third-party tables whose terms do not allow
-redistribution) are listed at the end with their source; --source downloads those that have a direct URL.
+docs/data_inputs.md); files are checked against their md5 and tar shards are unpacked into their target folder (an
+unpacked shard is recorded in <root>/.fetch_markers/<hf_path>.done, outside the data folders; markers that older
+versions of this script left inside a data folder are moved there). Inputs that are not in the dataset (EXCLUDED.tsv:
+AlphaFold DB proteome tars, third-party tables whose terms do not allow redistribution) are listed at the end with
+their source; --source downloads those that have a direct URL.
 Needs huggingface_hub (pip install huggingface_hub). Set HF_TOKEN only if the dataset is private.
 """
 import argparse
@@ -70,7 +72,14 @@ def main():
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             shutil.copyfile(p, dst)
         else:                                   # tar shard: unpack into the target folder
-            done = os.path.join(dst, f".fetched.{os.path.basename(r.hf_path)}")
+            # the "unpacked" marker lives outside the data folders: a file inside one changes its listing (the PDB
+            # folder listing md5 of inventory_assembly) and its manifest check
+            done = os.path.join(site[r.target_root], ".fetch_markers", r.hf_path + ".done")
+            legacy = os.path.join(dst, f".fetched.{os.path.basename(r.hf_path)}")
+            if os.path.exists(legacy):          # marker of an earlier fetch_inputs.py inside the data folder: move it
+                os.makedirs(os.path.dirname(done), exist_ok=True)
+                os.replace(legacy, done)
+                print("moved marker", legacy, "->", done)
             if os.path.exists(done):
                 continue
             p = dl(r.hf_path)
@@ -79,6 +88,7 @@ def main():
             os.makedirs(dst, exist_ok=True)
             with tarfile.open(p) as t:
                 t.extractall(dst, filter="data")
+            os.makedirs(os.path.dirname(done), exist_ok=True)
             open(done, "w").close()
         print("ok", r.hf_path)
     print(f"\nNot in the dataset ({len(E)} rows; EXCLUDED.tsv): get them from the source into the same path")

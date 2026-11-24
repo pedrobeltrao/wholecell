@@ -58,9 +58,35 @@ def file_checksum(path: str, algo: str = "md5", chunk: int = 1 << 24) -> str:
     return h.hexdigest()
 
 
+def visible_names(folder: str) -> list[str]:
+    """sorted entry names of a folder without hidden ones (".*": fetch markers, editor and OS files are not data)"""
+    return sorted(n for n in os.listdir(folder) if not n.startswith("."))
+
+
+def listing_md5(folder: str) -> str:
+    """md5 of the sorted visible file-name listing of a folder (the pdb_listing_md5 of the assembly inputs)"""
+    return hashlib.md5("\n".join(visible_names(folder)).encode()).hexdigest()
+
+
+def _listing_checks(cfg):
+    """(frozen input name, expected listing md5) of every config block that declares pdb_assemblies + pdb_listing_md5"""
+    out, stack = [], [dict(cfg)]
+    while stack:
+        d = stack.pop()
+        if isinstance(d, dict):
+            if isinstance(d.get("pdb_assemblies"), str) and d.get("pdb_listing_md5"):
+                out.append((d["pdb_assemblies"], str(d["pdb_listing_md5"])))
+            stack.extend(v for k, v in d.items() if k != "frozen_inputs")
+        elif isinstance(d, list):
+            stack.extend(d)
+    return sorted(set(out))
+
+
 def verify_frozen(cfg, out_tsv: str | None = None, strict: bool = True) -> list[dict]:
     """check every declared frozen input against its checksum (md5 or sha256 key). Directories: checksum of a
-    manifest file named in `manifest` (if given) else existence only."""
+    manifest file named in `manifest` (if given) else existence only. Folders with a declared listing md5
+    (pdb_listing_md5 of the assembly inputs) are also checked by their visible file-name listing, the check
+    inventory_assembly makes, so a changed folder fails here and not hours into a build."""
     rows = []
     for name, spec in sorted((cfg.get("frozen_inputs") or {}).items()):
         p = spec["path"]
@@ -74,6 +100,11 @@ def verify_frozen(cfg, out_tsv: str | None = None, strict: bool = True) -> list[
             act = "MISSING"
         ok = act != "MISSING" and (exp is None or exp == act or act == "dir")
         rows.append(dict(name=name, path=p, algo=algo, expected=exp or "", actual=act, ok=ok))
+    fi = cfg.get("frozen_inputs") or {}
+    for name, exp in _listing_checks(cfg):
+        p = (fi.get(name) or {}).get("path", name)
+        act = listing_md5(p) if os.path.isdir(p) else "MISSING"
+        rows.append(dict(name=f"{name}:listing", path=p, algo="md5", expected=exp, actual=act, ok=act == exp))
     if out_tsv:
         os.makedirs(os.path.dirname(out_tsv), exist_ok=True)
         with open(out_tsv, "w") as f:

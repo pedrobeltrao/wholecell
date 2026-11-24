@@ -165,7 +165,7 @@ def step_start(X, p):
     src = fi["path"]
     man = read_any_manifest(fi["manifest"])
     if sub is None:
-        have = sorted(f for f in os.listdir(src) if os.path.isfile(os.path.join(src, f)))
+        have = sorted(f for f in os.listdir(src) if not f.startswith(".") and os.path.isfile(os.path.join(src, f)))
         listed = sorted(f for f, _ in man)
         if have != listed:
             raise RuntimeError(f"library start {src}: folder and manifest differ ({len(set(have) ^ set(listed))} files)")
