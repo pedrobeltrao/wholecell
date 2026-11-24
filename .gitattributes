@@ -1,0 +1,2 @@
+# LF line endings in the repository for every text file (a CR in envs/yeast_x5.pip.txt broke uv pip install)
+* text=auto eol=lf
