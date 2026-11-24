@@ -118,7 +118,10 @@ missing, `validate compare_v7` is skipped with a reason, the suite marks no-regr
 - **AlphaFold 3 pool** (yeast): the in-house `summary_models.parquet` is not deposited; the per-pair PAE table read by
   `yeast_x5_core.yaml` is in `af3_pool/` under the AlphaFold 3 output terms and the usage request of
   https://github.com/jurgjn/pooled-ppi-yeast (no licence file there).
-- **CYCLoPs**: database terms to be checked; fetch from the source.
+- **CYCLoPs**: database terms to be checked; fetched from the source (now https://thecellvision.org/cyclops/).
+- **Routes**: every input that is not deposited has a scripted route (or, for 6 journal supplements behind bot
+  protection, a page and file name) in `config/source_routes.tsv`; `scripts/fetch_inputs.py --source` uses them and
+  checks the md5 of each file against the paper builds.
 - **Yeast `pipeline/data`**: contains third-party literature PDFs; only the read subset is deposited, without the
   third-party tables whose terms are unclear (`scripts/deposit/yeast_read_set_terms.tsv`).
 - **Lab SEC-MS and surface glyco-capture**: no longer confidential (P. Beltrao, 2026-11-23). Processed tables go to

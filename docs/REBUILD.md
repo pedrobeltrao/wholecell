@@ -62,8 +62,9 @@ Every input of a cell is declared in its config under `frozen_inputs` (path rela
 Optional inputs (a build runs without them): the archived v7 reference for `validate compare_v7` (skipped with a reason
 when absent), the suite's no-regression reference builds (rows marked n/a), the legacy inventory tables of
 `inventory.verify` (reported missing), and for yeast the 9.7 GB YeastRGB raw image archive
-`validation/microscopy/yeastrgb_dubreuil2019/raw/RAW-C_SWAT_GFP-ORF.zip` (download it from YeastRGB,
-Dubreuil et al. 2019 Nucleic Acids Res 47:D1245, into `{yeast_root}/yeast_cell_dev_bundle/pipeline/data/` at that path). The
+`validation/microscopy/yeastrgb_dubreuil2019/raw/RAW-C_SWAT_GFP-ORF.zip` (YeastRGB, Dubreuil et al. 2019 Nucleic
+Acids Res 47:D1245; `fetch_inputs.py --cell yeast --source --with-optional` puts it at that path under
+`{yeast_root}/yeast_cell_dev_bundle/pipeline/data/`). The
 yeast image N/C validation (`image_nc`, suite check C3) uses the per-ORF measurements cached in the work seed, so it runs
 without the archive; `image_nc.json` then records `status: ok_from_cache_raw_archive_absent` and the log a WARNING. If
 neither the archive nor the cache exists, the test does not run, `status: not_run_raw_archive_absent` is recorded and
@@ -82,9 +83,26 @@ path of `data_manifest.tsv`. With the site file in place:
 ```
 python scripts/fetch_inputs.py --cell jurkat --list        # what comes from the dataset, what from elsewhere
 python scripts/fetch_inputs.py --cell jurkat --source      # download (+ the AlphaFold DB tar from EBI)
-python scripts/fetch_inputs.py --cell yeast --source
+python scripts/fetch_inputs.py --cell yeast --source       # + 410 third-party yeast files from their sources (below)
 python scripts/fetch_inputs.py --cell yeast --group reference   # also the reference presets' inputs (optional)
+python scripts/fetch_inputs.py --cell yeast --excluded-only     # recheck the files that are not in the dataset
 ```
+
+**Inputs that are not in the dataset.** Third-party files whose terms do not allow redistribution are fetched from
+their source by `--source`, using the routes of `config/source_routes.tsv`, and checked against the md5 of the paper
+builds (a download that differs is kept as `<file>.download` and reported, not installed). For the yeast cell these are
+416 files of `pipeline/data` (checked 2026-11-24; all byte-identical to the paper build's files):
+- 410 by script: the 399 ChExMix peak files of Rossi et al. 2021 (sparse checkout of
+  https://github.com/CEGRcode/2021-Rossi_Nature at a pinned commit), CYCLoPs (4, now served from thecellvision.org),
+  GtRNAdb (one member of the sacCer3 tarball), YeastRGB (`C_SWAT_GFP-by-ORF.JSON`), four Springer Nature supplements
+  and the PPiSeq Table S4 (OSF project jmhrb);
+- 6 by hand, because the journal sites refuse scripted downloads (PMC, pnas.org, cell.com): Morgenstern 2017, Ho 2018,
+  Chen 2025, Arava 2003, Riba 2019 and Singh 2020. The script prints, for each, the article page, the file to take and
+  the path to save it under (three are renamed). Download them in a browser, save them there, and rerun with
+  `--excluded-only` to check their md5.
+
+`--with-optional` also fetches the 9.7 GB YeastRGB raw image archive (see below). Hosts that refuse requests without a
+browser User-Agent get one.
 
 The script checks every file against its md5 and unpacks the tar shards of large folders (the PDB assembly set, the
 v7 structure library, the AFDB dimer models). It ends with the list of inputs to fetch by hand (third-party tables
@@ -92,6 +110,11 @@ whose terms do not allow redistribution), each with its source. Unpacked shards 
 `<root>/.fetch_markers/`, outside the data folders (the folder listings are checked: the PDB assembly listing md5 in
 `frozen` and in `inventory_assembly`); markers that an older copy of the script left inside a data folder
 (`.fetched.*`) are moved there on the next run.
+
+Then `PYTHONHASHSEED=0 python -m wholecell frozen --cell <cell> --build <scratch dir>` checks every input before a
+build. For the yeast cell this includes the file-by-file check of the yeast setup step (the `pipeline/data` read set,
+the work seed, the PDB cache and the AFDB dimers against their manifests), so a missing hand-fetched file is reported
+here and not once the build is running.
 
 ## 3. Software
 

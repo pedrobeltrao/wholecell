@@ -82,11 +82,24 @@ def _listing_checks(cfg):
     return sorted(set(out))
 
 
+def _plugin_checks(cfg):
+    """rows of the plugin steps that register a frozen_check (same name as the step's `run`): file-by-file checks of
+    input trees that a plugin step otherwise makes only inside a build (yeast: the pipeline data read set)"""
+    from . import registry
+    registry.load_plugins(cfg)
+    rows = []
+    for st in cfg.get("plugin_steps") or []:
+        if ("frozen_check", st.get("run")) in registry._REG:
+            rows += registry.get("frozen_check", st["run"])(cfg, st.get("params") or {})
+    return rows
+
+
 def verify_frozen(cfg, out_tsv: str | None = None, strict: bool = True) -> list[dict]:
     """check every declared frozen input against its checksum (md5 or sha256 key). Directories: checksum of a
     manifest file named in `manifest` (if given) else existence only. Folders with a declared listing md5
     (pdb_listing_md5 of the assembly inputs) are also checked by their visible file-name listing, the check
-    inventory_assembly makes, so a changed folder fails here and not hours into a build."""
+    inventory_assembly makes, so a changed folder fails here and not hours into a build; plugin steps that register a
+    frozen_check add their file-by-file checks (yeast: the data tree the engine reads)."""
     rows = []
     for name, spec in sorted((cfg.get("frozen_inputs") or {}).items()):
         p = spec["path"]
@@ -100,6 +113,7 @@ def verify_frozen(cfg, out_tsv: str | None = None, strict: bool = True) -> list[
             act = "MISSING"
         ok = act != "MISSING" and (exp is None or exp == act or act == "dir")
         rows.append(dict(name=name, path=p, algo=algo, expected=exp or "", actual=act, ok=ok))
+    rows += _plugin_checks(cfg)
     fi = cfg.get("frozen_inputs") or {}
     for name, exp in _listing_checks(cfg):
         p = (fi.get(name) or {}).get("path", name)

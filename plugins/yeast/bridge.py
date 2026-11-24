@@ -100,14 +100,12 @@ def _jdump(obj, path):
 
 
 # ------------------------------------------------------------------ inventory
-def engine_setup(cfg, bdir, p):
-    """origin: plugins/yeast/runner.py step_setup (X5 port), without the engine venv"""
+def check_inputs(cfg, p, log=log):
+    """the frozen trees of engine_setup (params `check`) against their manifests, file by file:
+    {name: check record}, records with `fatal` problems fail the setup (and `wholecell frozen`)"""
     from .runner import verify_manifest
-    E = layout(bdir, p)
     fi = cfg["frozen_inputs"]
-    for k in ("root", "work", "pdb"):
-        os.makedirs(E[k], exist_ok=True)
-    checks = {}
+    checks, n_fatal = {}, {}
     # read_set (params; repo file of fnmatch patterns): the files of the yeast data tree the build reads. A manifest file
     # outside it may be missing (a deposit holds only the read subset), but a file present must still match
     read_set = None
@@ -129,9 +127,37 @@ def engine_setup(cfg, bdir, p):
             import fnmatch
             hard = [b for b in hard if not (b[1] == "missing" and any(fnmatch.fnmatch(b[0], q) for q in opt))]
         checks[name] = dict(files=n, mismatches=bad[:50], n_mismatches=len(bad), fatal=hard[:50], level="md5" if full else "size+mtime (md5 when mtime differs)")
+        n_fatal[name] = len(hard)
         log(f"frozen {name}: {n} files, {len(bad)} mismatches ({len(hard)} fatal)")
-        if hard:
-            raise SystemExit(f"frozen input {name} does not match its manifest: {hard[:10]}")
+    return checks, n_fatal
+
+
+@register("frozen_check", "yeast.engine_setup")
+def frozen_check(cfg, p):
+    """`wholecell frozen`: the same file-by-file check as the yeast_engine_setup step, so that a missing or changed
+    file of the yeast data tree is reported before a build and not at its inventory stage"""
+    fi = cfg["frozen_inputs"]
+    rows = []
+    checks, n_fatal = check_inputs(cfg, p, log=lambda *a: None)
+    for name, c in checks.items():
+        bad = c["fatal"]
+        act = f"ok ({c['files']} manifest rows; {c['n_mismatches']} differ, none read by the build)" if not bad else \
+            f"{n_fatal[name]} problems: " + ", ".join(f"{r} ({k})" for r, k in bad[:5]) + (" ..." if n_fatal[name] > 5 else "")
+        rows.append(dict(name=f"{name}:files", path=fi[name]["path"], algo="manifest", expected=f"{c['files']} files",
+                         actual=act, ok=not bad))
+    return rows
+
+
+def engine_setup(cfg, bdir, p):
+    """origin: plugins/yeast/runner.py step_setup (X5 port), without the engine venv"""
+    E = layout(bdir, p)
+    fi = cfg["frozen_inputs"]
+    for k in ("root", "work", "pdb"):
+        os.makedirs(E[k], exist_ok=True)
+    checks, _ = check_inputs(cfg, p)
+    for name, c in checks.items():
+        if c["fatal"]:
+            raise SystemExit(f"frozen input {name} does not match its manifest: {c['fatal'][:10]}")
     # root: the yeast pipeline data + the engine's non-code files (cell_meshes.npz, vacuole_template.npz, ...)
     _link(fi[p["data"]]["path"], os.path.join(E["root"], "data"))
     pipe = os.path.join(E["code"], "pipeline")
