@@ -88,7 +88,10 @@ python scripts/fetch_inputs.py --cell yeast --group reference   # also the refer
 
 The script checks every file against its md5 and unpacks the tar shards of large folders (the PDB assembly set, the
 v7 structure library, the AFDB dimer models). It ends with the list of inputs to fetch by hand (third-party tables
-whose terms do not allow redistribution), each with its source.
+whose terms do not allow redistribution), each with its source. Unpacked shards are recorded in
+`<root>/.fetch_markers/`, outside the data folders (the folder listings are checked: the PDB assembly listing md5 in
+`frozen` and in `inventory_assembly`); markers that an older copy of the script left inside a data folder
+(`.fetched.*`) are moved there on the next run.
 
 ## 3. Software
 
