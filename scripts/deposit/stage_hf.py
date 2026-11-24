@@ -248,8 +248,10 @@ def main():
                              why="comparison reference (optional; the build runs without it)",
                              route="builds dataset (https://huggingface.co/datasets/TODO/wholecell-builds)"))
         elif route == "generated":
+            how = ("your own environment: envs/yeast_x5.pip.txt (docs/REBUILD.md section 3)" if r.name.startswith("env_")
+                   else "testcell geometry: toolkits/analytic/generate.py")
             excl.append(dict(input=r.name, cell=r.cell, target_root=root, target_path=r.relpath, bytes="", md5="",
-                             why="made locally", route="testcell geometry: toolkits/analytic/generate.py; env: envs/yeast_x5.pip.txt"))
+                             why="made locally", route=how))
         # within / within_read_set / within_work_seed: covered by the PDB tar, the read set or the work seed
     F = pd.DataFrame(files)
     dup = F[F.hf_path.duplicated()]
@@ -257,6 +259,17 @@ def main():
     os.makedirs(a.out, exist_ok=True)
     F.to_csv(os.path.join(a.out, "MANIFEST.tsv"), sep="\t", index=False)
     pd.DataFrame(tars).to_csv(os.path.join(a.out, "TARS.tsv"), sep="\t", index=False)
+    # routes of config/source_routes.tsv (what fetch_inputs.py --source uses) replace the free-text routes
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("fetch_inputs", os.path.join(REPO, "scripts", "fetch_inputs.py"))
+    fx = importlib.util.module_from_spec(spec); spec.loader.exec_module(fx)
+    routes = fx.read_routes()
+    for e in excl:
+        q = fx.route_of(routes, e["target_root"], e["target_path"])
+        if q is not None:
+            e["route"] = {"url": f"url: {q.url}", "tar_member": f"tar_member: {q.member} of {q.url}",
+                          "git_dir": f"git_dir: {q.url} @ {q.commit} ({q.member})",
+                          "manual": f"manual (browser): {q.member} from {q.url}"}[q.method]
     pd.DataFrame(excl).to_csv(os.path.join(a.out, "EXCLUDED.tsv"), sep="\t", index=False)
     F["folder"] = F.hf_path.str.split("/").str[0]
     S = F.groupby(["folder", "group"]).agg(files=("hf_path", "size"), bytes=("bytes", "sum")).reset_index()

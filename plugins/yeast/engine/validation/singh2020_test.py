@@ -1,7 +1,7 @@
 # origin: yeast yeast_cell_dev_bundle/validation/singh2020_test.py @ e3b7448 (no licence yet; local only, see wholecell/NOTICE.md)
 """Proximity inside mitochondria: the packed cell against quantitative BioID (IMPROVEMENTS I4).
 
-Data: Singh et al. 2020 Mol Cell 79:1051 (doi 10.1016/j.molcel.2020.07.024), Table S1 (mmc3.xlsx): 40 BioID baits of the
+Data: Singh et al. 2020 Mol Cell 79:1051 (doi 10.1016/j.molcel.2020.07.024), Table S2 (mmc3.xlsx; PORT PATCH 8: was Table S1): 40 BioID baits of the
 mitochondrial gene-expression machinery (mitoribosome, translational activators, RNA processing), each against the
 matrix control bait Kgd4 (3 replicates each); per prey a moderated log fold change and q-value. All preys are
 mitochondrial, so the test asks whether the model's arrangement inside mitochondria (matrix vs inner membrane vs IMS,
@@ -60,7 +60,7 @@ def main(g=10):
         rows.append(r)
     t = pd.DataFrame(rows)
     summ = {c: float(t[c].median()) for c in t.columns if c.startswith(("auroc", "spearman"))}
-    res = dict(source="Singh et al. 2020 Mol Cell, Table S1", baits=len(t), median=summ, per_bait=rows)
+    res = dict(source="Singh et al. 2020 Mol Cell, Table S2", baits=len(t), median=summ, per_bait=rows)  # PORT PATCH 8: label was Table S1
     json.dump(res, open(f"{WORK}/validation/singh2020_test.json", "w"), indent=1, default=float)
     print(len(t), "baits;", {k: round(v, 3) for k, v in summ.items()})
     return res
