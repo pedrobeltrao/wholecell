@@ -102,6 +102,13 @@ inventory:
       npc_copies: 1000
 
 validate:
+  inputs:                            # v7 inputs (jurkat.yaml validates the build's own preplaced polysomes and the
+    polysomes: pre_polysomes_v7      # transcript table split cytosol / nucleus)
+    mrna: pre_mrna_v1
+  densities:
+    mrna_sources:                    # as the v7 validation: every transcript of the table counted in the cytosol
+      - {input: mrna, region: cytosol}
+      - {input: mrna_nascent, region: nucleoplasm}
   suite:
     reference:                       # pinned (2026-11-19): jurkat.yaml now compares with the Step-2 build (freeze_v8.md §7)
       build: "{results_root}/jurkat/20261115-ec0b403-s20261115-v7repro2"

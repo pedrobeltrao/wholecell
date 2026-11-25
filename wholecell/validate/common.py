@@ -133,21 +133,43 @@ class Inputs:
 
     def lookup_input(self, name):
         """path of a pack/preplaced input used by this build (polysomes, mRNA sources, ...):
-        kw/reference map > <build>/preplaced/preplaced_manifest.json > validate.inputs.<name> (frozen-input name or path)"""
+        kw/reference map > <build>/preplaced/preplaced_manifest.json (entries of 'instances' / 'beads' / 'drops' by
+        name, their 'npz') > validate.inputs.<name> or a frozen-input name. A build with a preplaced manifest that does
+        not name the input falls back with a warning (a silent fallback once validated legacy v7 files)."""
         if self.paths.get(name):
             return self.paths[name]
+        fi = self.cfg.get("frozen_inputs", {}) or {}
         man = ref_path(self.bdir, os.path.join("preplaced", "preplaced_manifest.json"))
-        if os.path.exists(man):
-            M = json.load(open(man))
-            ent = M.get(name) or (M.get("modules", {}) or {}).get(name)
-            if isinstance(ent, dict) and ent.get("path"):
-                return ent["path"]
-            if isinstance(ent, str):
-                return ent
+        has_man = os.path.exists(man)
+        if has_man:
+            p = manifest_npz(json.load(open(man)), name)
+            if p:
+                return p
         v = (self.vcfg.get("inputs", {}) or {}).get(name)
-        if v and v in (self.cfg.get("frozen_inputs", {}) or {}):
-            return self.cfg["frozen_inputs"][v]["path"]
+        if v and v in fi:
+            v = fi[v]["path"]
+        elif not v and name in fi:
+            v = fi[name]["path"]
+        if v and has_man:
+            print(f"validate: WARNING input '{name}' is not in {man}; using {v}", flush=True)
         return v
+
+
+def manifest_npz(M, name):
+    """npz of a named entry of a preplaced_manifest.json: the current format (lists 'instances', 'beads', 'drops' of
+    {name, npz, ...}) or the older dict forms ({name: {path}}, {name: path}, {'modules': {...}})"""
+    for sec in ("instances", "beads", "drops"):
+        for e in M.get(sec, []) or []:
+            if isinstance(e, dict) and e.get("name") == name and (e.get("npz") or e.get("path")):
+                return e.get("npz") or e.get("path")
+    ent = M.get(name)
+    if ent is None and isinstance(M.get("modules"), dict):
+        ent = M["modules"].get(name)
+    if isinstance(ent, dict):
+        return ent.get("npz") or ent.get("path")
+    if isinstance(ent, str):
+        return ent
+    return None
 
 
 # ----------------------------------------------------------------- IO helpers
