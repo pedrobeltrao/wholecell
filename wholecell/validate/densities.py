@@ -98,9 +98,16 @@ def run(cfg, bdir, inp: common.Inputs, out_path, overwrite=False, nproc=8):
         if not p or not os.path.exists(p):
             raise FileNotFoundError(f"densities: RNA source '{s['input']}' not found ({p})")
         z = np.load(p, mmap_mode="r")
-        nt = float(np.asarray(z["nt"]).sum())
+        if "nt" not in z.files:
+            raise KeyError(f"densities: RNA source '{s['input']}' ({p}) has no per-transcript 'nt'; name the transcript "
+                           "table it was threaded from (with kinds:) instead")
+        nt_ = np.asarray(z["nt"])
+        if s.get("kinds") is not None:                  # a subset of a transcript table (e.g. cytosolic vs nuclear)
+            nt_ = nt_[np.isin(np.asarray(z["kind"]), list(s["kinds"]))]
+        nt = float(nt_.sum())
         rna[s["region"]] = rna.get(s["region"], 0.0) + nt
-        rna_src.append(dict(input=s["input"], path=p, md5=common.md5(p), nt=nt, region=s["region"]))
+        rna_src.append(dict(input=s["input"], path=p, md5=common.md5(p), nt=nt, region=s["region"],
+                            **({"kinds": list(s["kinds"]), "n": int(len(nt_))} if s.get("kinds") is not None else {})))
     if not rna_src and inp.has("mrna_pts") and float(dc.get("mrna_nt_per_bead", 0) or 0) > 0:
         nb_ = int(np.load(inp["mrna_off"])[-1]) if inp.has("mrna_off") else len(np.load(inp["mrna_pts"], mmap_mode="r"))
         reg = dc.get("mrna_region", default_region)

@@ -786,8 +786,7 @@ validate:
   nproc: 8
   steps: {}                          # <step>: false disables a step (it then writes <step>.skipped.json)
   inputs:                            # the build's pack inputs used by validation, if no preplaced/preplaced_manifest.json names them
-    polysomes: "{data_root}/data/derived/prepass_v7/polysomes_cell1.npz"
-    mrna: "{data_root}/data/derived/prepass/mrna_cell1.npz"
+    # polysomes: the build's own preplaced module (manifest); the v7 file is jurkat_v7_port.yaml only
     mrna_nascent: "{data_root}/data/derived/chromatin/v8/prepass/mrna_nascent_cell1.npz"
   densities:
     default_region: cytosol
@@ -823,7 +822,10 @@ validate:
     nucleus_group: [nucleoplasm, nucleolus, speckle]
     ratio_denominator: cytosol
     mrna_sources:                    # RNA mass = sum of thread nt x 330 Da per source (the build's own inputs)
-      - {input: mrna, region: cytosol}
+      # transcripts (nt) from the table the polysome builder threads (kinds 0, 1: 215,000 cytosolic) and the
+      # mrna_nuclear module selects (kind 2: 35,000 nuclear); the build's mrna.npz holds beads only
+      - {input: pre_mrna_v1, kinds: [0, 1], region: cytosol}
+      - {input: pre_mrna_v1, kinds: [2], region: nucleoplasm}
       - {input: mrna_nascent, region: nucleoplasm}
   crowding:
     regions: [cytosol, nucleoplasm, matrix, ER_lumen]
