@@ -112,6 +112,8 @@ def legacy(X):
     mo._TOPO = None; mo._BARREL = None
     jb.PDBDIR = X.pdb_dir
     jb.AFDIR = P("afdb_complex_models")
+    from .build import chain_policy                                    # library chain rule (2026-11-25; None = off)
+    jb.CHAIN_POLICY = chain_policy(X)
     jb.TAR = jr.TAR = jt.TAR = tg.TAR = P("afdb_tar")
     tg.IDX = P("afdb_tar_index"); tg._IDX = None
     jt.UPJ = P("uniprot_rest_cache"); jt.FRAG = P("afdb_fragment_index"); jt._UP = None
@@ -190,8 +192,8 @@ def step_jurkat_assemblies(X, p):
     jb, tg = L["jb"], L["tg"]
     T = table(X)
     A = T[T.kind != "protein"]
-    rows = [dict(ing_id=r.ing_id, struct_src=r.struct_src, transmembrane=bool(r.transmembrane), accs=_accs(r._asdict()))
-            for r in A.itertuples()]
+    rows = [dict(ing_id=r.ing_id, struct_src=r.struct_src, transmembrane=bool(r.transmembrane), accs=_accs(r._asdict()),
+                 kind=r.kind, genes=r.genes, uniprot=r.uniprot) for r in A.itertuples()]
     _check_afc(X, L, rows)
     graft = bool(p.get("tm_graft", True))
     orig = tg.graft_missing_tm
@@ -200,6 +202,7 @@ def step_jurkat_assemblies(X, p):
     for pid in sorted({r["struct_src"].split(":")[1] for r in rows if r["struct_src"].startswith("pdb:")}):
         jb.pdb_file(pid)
     jb.sifts()                                                          # loaded once, before the fork
+    _taxonomy(jb, rows)
     before = _snap(X.partial)
     n = int(p.get("nproc", X.nproc))
     order = sorted(range(len(rows)), key=lambda i: -_size(X, rows[i]))  # big assemblies first (NPC), same outputs
@@ -213,11 +216,27 @@ def step_jurkat_assemblies(X, p):
     R.to_csv(os.path.join(L["work"], "assemblies_log.tsv"), sep="\t", index=False)
     new = _written(X, before, "jurkat_assemblies")
     nt = R.note.fillna("")
+    for r in R[R.status == "no_allowed_chains"].itertuples():            # chain rule left no chain: fallback decomposes
+        X.setdefault("chain_nomodel", {})[r.ing_id] = f"no allowed chain in {dict(zip(A.ing_id, A.struct_src))[r.ing_id]} ({r.note})"
     X.results["jurkat_assemblies"] = dict(rows=len(R), status=R.status.value_counts().to_dict(), written=len(new),
                                           oriented=int(nt.str.contains("oriented").sum()),
                                           orient_failed=int(nt.str.contains("orient_failed").sum()),
-                                          grafted=int(nt.str.contains(r"graft: [1-9]").sum()), tm_graft=graft)
+                                          grafted=int(nt.str.contains(r"graft: [1-9]").sum()), tm_graft=graft,
+                                          chain_rule=L["jb"].CHAIN_POLICY is not None,
+                                          chains_removed=int(nt.str.contains("chains removed").sum()),
+                                          subunits_missing=int(nt.str.contains("declared subunits without a chain").sum()))
     log(f"assemblies: {X.results['jurkat_assemblies']}")
+
+
+def _taxonomy(jb, rows):
+    """SIFTS chain taxonomy of the PDB entries of these rows into the chain policy (before the fork)"""
+    pol = jb.CHAIN_POLICY
+    if pol is None or not pol.taxonomy_path:
+        return
+    from . import chains
+    pids = {r["struct_src"].split(":")[1] for r in rows if r["struct_src"].startswith("pdb:")} - set(pol.taxonomy)
+    if pids:
+        pol.taxonomy.update(chains.load_taxonomy(pol.taxonomy_path, pids))
 
 
 def _size(X, r):
@@ -329,6 +348,7 @@ def step_tm_route(X, p):
     jobs, allacc = [], set()
     for r in ids.itertuples():
         row = S.loc[r.ing_id].to_dict()
+        row["ing_id"] = r.ing_id                                       # (the chain rule names the species)
         row["accs"] = _accs(row)
         if row["kind"] == "protein" and row["uniprot"]:
             row["accs"] = [row["uniprot"]]
@@ -339,6 +359,7 @@ def step_tm_route(X, p):
         if row["struct_src"].startswith("pdb:"):
             L["jb"].pdb_file(row["struct_src"].split(":")[1])
     L["jb"].sifts()
+    _taxonomy(L["jb"], [j[2] for j in jobs])
     before = _snap(X.partial)
     with _pool(int(p.get("nproc", X.nproc))) as ex:
         res = list(ex.map(jt.build, jobs, chunksize=1))

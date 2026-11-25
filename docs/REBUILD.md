@@ -193,7 +193,35 @@ paths and timings differ). The paper cells keep the strict check, so use the dep
 4. **Numbers.** Compare `pack/summary.json` (placed instances, placed mass fraction) and `validate/suite.json` (the
    validation checks C1-C17) with the published build.
 
-## 7. Known limits
+## 7. Structure library rules and build checks (v10)
+
+- **Structure pick.** `library.species.struct_src_from` (Jurkat): every species the v7 table
+  (`plugins/jurkat/data/library/species_v7.tsv.gz`) covers takes its v7 library structure; the inventory's `struct_src`
+  only for the species the v7 table lacks (117 recovered in v9 and any new one). `library/species.tsv` records both
+  (`struct_src_inventory`, `struct_src_from`). (v9 took the inventory pick for all: e.g. HLA-A;B2M from 6EQA with a bound
+  TCR, CD98 from 8KDG with a Fab, ATP synthase from 8H9T.)
+- **Chain rule** (`library.chain_filter`, `wholecell/library/chains.py`). Every chain of a model built from a PDB
+  assembly or an AFDB complex model is (1) a member, kept with all copies (UniProt accession of the species by SIFTS or
+  the AFDB model, a gene of the species, a declared accession / chain, an unmapped or non-human chain named as a member,
+  a declared nucleic acid: `nucleic_acid_parts.tsv`); a protein species keeps one chain; (2) foreign, removed
+  (antibody / Fab / nanobody / TCR chains, other human proteins of a species whose accession list is complete, chains
+  named as such proteins, fusion segments, ribosomal RNA of a species that does not declare it and tRNA / mRNA next to
+  it); (3) flagged, kept and listed for review (unmapped chains and peptides such as an MHC-bound peptide, other
+  undeclared nucleic acids, non-human chains not identified by name, paralogues of a member, species with an empty
+  accession entry). Per species `library/species_ledger.tsv` lists `chains_kept`, `chains_flagged`, `chains_removed`,
+  `subunits_missing`, `accs_unverifiable`, `gene_matched` and accepted `known_issue`s (`known_issues.tsv`);
+  `library/chain_check.tsv`: the library stage FAILS if a model still holds a class-2 chain, lacks its chain record or
+  has more beads than its kept chains plus added ones (TM grafts, built helices). A complex without a member chain is
+  split into its subunits by the fallback step (`library/decomposed.tsv`).
+- **ATP synthase guard.** `core.atp_synthase_dimers` fails the build when the placed dimers are below
+  `min_placed_frac` (0.5) of min(requested = pool / 2, rim capacity = traced rim length / spacing) instead of returning
+  the rest to the pack pool (v8: 63%; v9 after the monomer change: 0.2%).
+- **Library vs the previous paper build** (`library.compare_reference`, report only): `library/compare_reference.tsv`
+  per species source, chain set, beads, Rg and, for plasma-membrane units, the ectodomain height (structural part of the
+  synapse kit rule), flagging source changes, |dH| > 1 nm, |dRg| > 10%, bead count > 10%; counts in
+  `compare_reference.json`.
+
+## 8. Known limits
 
 - The inputs of item 4 in section 2 come from earlier models; rebuilding them needs the legacy pipeline (in the inputs
   dataset, group `reference`, as `jurkat/yc/pipeline`) and the earlier packs. They are fixed inputs of this pipeline, not outputs.

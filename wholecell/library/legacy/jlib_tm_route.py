@@ -198,16 +198,35 @@ def load(ing, row, group, old):
         if jb.pdb_file(ident) is None:
             raise RuntimeError("no pdb file")
         xyz, kind, acc, pos, chn = jb.beads_pdb(ident, return_chain=True)
+        ex = {}
+        if jb.CHAIN_POLICY is not None:            # library chain rule (2026-11-25): only the species' chains
+            from wholecell.library import chains as CF
+            xyz, kind, acc, pos, chn, rec = jb.chain_filter(row, src, xyz, kind, acc, pos, chn,
+                                                            desc_fn=lambda: CF.entity_descriptions(jb.pdb_file(ident)))
+            if len(xyz) < 10 or not CF.has_member(rec):
+                raise RuntimeError(f"no allowed chains ({jb._filter_note(rec)})")
+            ex = {"_chain_rec": rec, "_n_graft": 0}
         if group == "tm_no_memlib":                # the existing library was built with the AF graft (jlib_build)
             xyz, kind, acc, pos, g = tm_graft.graft_missing_tm(xyz, kind, acc, pos, chn)
             if g: notes.append(g[:120])
             n0 = len(chn)
             if len(xyz) > n0:                      # grafted beads: chain of the nearest bead of the same accession
                 chn = _graft_chains(xyz, acc, pos, np.r_[chn, np.array(["G"] * (len(xyz) - n0))], n0)
-        return xyz, kind, acc, pos, chn, {}, notes
+            if ex:
+                ex["_n_graft"] = len(xyz) - n0
+        return xyz, kind, acc, pos, chn, ex, notes
     if kind_ == "afdb_complex":
         xyz, kind, acc, pos, chn = beads_afdb_chains(ident, row["accs"])
-        return xyz, kind, acc, pos, chn, {}, notes
+        ex = {}
+        if jb.CHAIN_POLICY is not None:
+            from wholecell.library import chains as CF
+            fa = CF.afdb_chain_accs(f"{jb.AFDIR}/{ident}.cif.gz")
+            xyz, kind, acc, pos, chn, rec = jb.chain_filter(row, src, xyz, kind, acc, pos, chn,
+                                                            acc_decide=np.array([fa.get(c, "") for c in chn]))
+            if len(xyz) < 10 or not CF.has_member(rec):
+                raise RuntimeError(f"no allowed chains ({jb._filter_note(rec)})")
+            ex = {"_chain_rec": rec, "_n_graft": 0}
+        return xyz, kind, acc, pos, chn, ex, notes
     # afdb monomer
     a = row["uniprot"]
     m = af_entry(a)
@@ -615,6 +634,14 @@ def build(args):
             up_, dn = int((X[m, 2] > 0).sum()), int((X[m, 2] < 0).sum())
             side = "both" if min(up_, dn) > 0.15 * max(up_ + dn, 1) else ("+z" if up_ >= dn else "-z")
         ex = {k: v for k, v in (old or {}).items() if k not in ("beads", "kind", "st_c", "st_r", "st_c30", "st_r30", "membrane", "reoriented")}
+        crec, ngraft = extra.pop("_chain_rec", None), int(extra.pop("_n_graft", 0))
+        if crec is not None:                       # chain record: structure beads + AF grafts + built TM segments
+            from wholecell.library import chains as CF
+            built = int(np.asarray(M).sum()) if (method == "anchored" or ing in RING_PORE) else 0
+            ex.update(CF.npz_extra(crec, ngraft + built))
+        else:
+            for k in ("chain_set", "n_struct_beads", "beads_added"):
+                ex.pop(k, None)
         ex.update(extra); ex["src"] = np.array(row["struct_src"]); ex["membrane"] = np.array("TM"); ex["tm_route"] = np.array(method)
         ex["tm_beads"] = M.astype(np.int8)                 # 1 = TRANSMEM / INTRAMEM residue (structure or built)
         nb, ns = save(ing, X, K, ex)

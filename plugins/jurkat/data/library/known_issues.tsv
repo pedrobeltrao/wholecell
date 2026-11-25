@@ -1,0 +1,3 @@
+ing_id	issue
+CPX-7020	chain rule (v10, accepted 2026-11-25): 6W6L without the ribosome / translocon chains has too few TM residues to orient; the CCDC47;WDR83OS (PAT) model is unoriented (no membrane key), 326 copies
+CPX-2511	chain rule (v10): the v8 model carried a membrane key from the ribosomal proteins of 7MQ8 (spurious for the nucleolar SSU processome); none in v10

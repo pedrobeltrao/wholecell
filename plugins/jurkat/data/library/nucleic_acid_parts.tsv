@@ -1,0 +1,18 @@
+ing_id	desc_regex	reason
+NUCLEOSOME	.*	nucleosome core DNA (1KX5 chains I, J; 147 bp)
+RIBO80S	.*	6QZP rRNA (28S, 5.8S, 5S, 18S) kept; the 75-nt E-site tRNA also kept so the model (and the frame of the RIBO80S mRNA-channel / disome templates of the polysome builder) stays the v7 one - Pedro to decide
+CPX-5223	rRNA|ribosomal RNA	40S subunit: 18S rRNA (Complex Portal lists the rRNA)
+CPX-5225	rRNA	28S mitochondrial small subunit: 12S rRNA
+CPX-5226	rRNA	39S mitochondrial large subunit: 16S rRNA (E-site tRNA removed)
+CPX-26429	snRNA	pre-B spliceosome: U1, U2, U4, U5, U6 snRNAs (the pre-mRNA substrate removed)
+CPX-26451	snRNA	B-act spliceosome: U2, U5, U6 snRNAs (pre-mRNA removed)
+CPX-26485	snRNA	U11 snRNP: U11 snRNA
+CPX-26552	snRNA	U5 snRNP: U5 snRNA
+CPX-2392	U1 snRNA	U1 snRNP: U1 snRNA (U2 snRNA, 5SS, pre-mRNA of 7VPX removed)
+CPX-26377	snoRNA	box C/D snoRNP (FBLL1): U3 snoRNA (pre-rRNA of the SSU processome structure removed)
+CPX-26423	snoRNA	box C/D snoRNP (FBL): U3 snoRNA (pre-rRNA of the SSU processome structure removed)
+CPX-2511	.*	small-subunit processome: U3 snoRNA and the pre-rRNA (5ETS, 18S) it assembles on
+CPX-265	telomerase RNA|Telomerase RNA	telomerase holoenzyme: hTR
+CPX-2652	7SL|SRP RNA	signal recognition particle: 7SL RNA (the 7NFX ribosome rRNAs removed)
+CPX-26538	tRNA	SepSecS-tRNASec complex: tRNASec
+CPX-2877	H1 RNA|RNase P RNA|RPPH1	nucleolar RNase P: H1 RNA

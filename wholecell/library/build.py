@@ -91,7 +91,23 @@ def species(X):
     return X["species"]
 
 
-SPECIES_FROM_KEYS = ("from", "pack_table", "accs")
+SPECIES_FROM_KEYS = ("from", "pack_table", "accs", "struct_src_from")
+
+
+def _struct_src_override(X, spec):
+    """library.species.struct_src_from: {table: <TSV ing_id, struct_src>, column: struct_src, id: ing_id} -> {ing_id:
+    struct_src} of the species the table covers (Jurkat: the v7 table, i.e. the v7 library pick of each complex)"""
+    import pandas as pd
+    o = spec.get("struct_src_from")
+    if not o:
+        return {}, None
+    bad = [k for k in o if k not in ("table", "column", "id")]
+    if bad:
+        raise ValueError(f"library.species.struct_src_from: unknown key(s) {bad} (table, column, id)")
+    f = _path(X.cfg, X.bdir, o["table"])
+    col, idc = o.get("column", "struct_src"), o.get("id", "ing_id")
+    T = pd.read_csv(f, sep="\t", usecols=[idc, col], dtype=str, keep_default_na=False)
+    return {i: s for i, s in zip(T[idc], T[col]) if s}, f
 
 
 def species_from_pack_table(X):
@@ -112,6 +128,7 @@ def species_from_pack_table(X):
         a = sp["accs"]
         A = pd.read_csv(os.path.join(X.bdir, a["table"]), sep="\t", usecols=[a["gene"], a["acc"]], keep_default_na=False)
         acc = dict(zip(A[a["gene"]].astype(str), A[a["acc"]].astype(str)))
+    over, over_path = _struct_src_override(X, sp)
     rows = []
     for r in P.itertuples():
         genes = str(r.genes)
@@ -119,11 +136,13 @@ def species_from_pack_table(X):
             accs = r.uniprot
         else:
             accs = ";".join(acc.get(g, "") for g in genes.split(";")) if genes else ""
-        s = str(r.struct_src)
+        s_inv = str(r.struct_src)
+        s = over.get(r.ing_id, s_inv)
         rows.append(dict(ing_id=r.ing_id, kind=r.kind, genes=genes, accs=accs, stoich=str(r.stoich), struct_src=s,
                          pdb=s.split(":", 1)[1] if s.startswith("pdb:") else "", uniprot=str(r.uniprot),
                          transmembrane=str(r.transmembrane) in ("True", "true", "1"), signal_frac=r.signal_frac,
-                         mass_da=r.mass_da, copies=r.copies))
+                         mass_da=r.mass_da, copies=r.copies, struct_src_inventory=s_inv,
+                         struct_src_from="struct_src_from" if r.ing_id in over else "inventory"))
     S = pd.DataFrame(rows)
     tmp = X.species_path + f".tmp{os.getpid()}"
     S.to_csv(tmp, sep="\t", index=False)
@@ -131,7 +150,55 @@ def species_from_pack_table(X):
     X.pop("species", None)
     X.results["species"] = dict(source=pt, source_md5=_md5(pt), rows=len(S), kinds=S.kind.value_counts().to_dict(),
                                 struct_src=S.struct_src.str.split(":").str[0].value_counts().to_dict())
+    if over_path:
+        X.results["species"].update(struct_src_from=over_path, struct_src_from_md5=_md5(over_path),
+                                    struct_src_from_rows=int((S.struct_src_from == "struct_src_from").sum()),
+                                    struct_src_differs_from_inventory=int((S.struct_src != S.struct_src_inventory).sum()))
     log(f"species: {len(S)} rows from {pt} ({X.results['species']['kinds']})")
+
+
+def chain_policy(X):
+    """library.chain_filter -> chains.Policy (None: filter off, every chain of assembly 1 kept as before 2026-11-25)"""
+    if "_chain_policy" not in X:
+        from . import chains
+        X["_chain_policy"] = chains.load_policy(X.lc.get("chain_filter"), lambda v: _path(X.cfg, X.bdir, v))
+    return X["_chain_policy"]
+
+
+def _core_chain_filter(X, row, pdb):
+    """chain-level filter for the core PDB builders (complexes, pdb_oligomers): chain accession = its SIFTS accession(s)
+    (library.chain_filter.sifts); returns callable(chain per bead, kind per bead) -> (mask, npz extra) or None"""
+    import numpy as np
+    from . import chains
+    pol = chain_policy(X)
+    if pol is None:
+        return None
+    sf = (X.lc.get("chain_filter") or {}).get("sifts")
+    if not sf:
+        raise ValueError("library.chain_filter: the core PDB builders need chain_filter.sifts (chain accessions)")
+    import pandas as pd
+    S = X.get("_sifts_df")
+    if S is None:
+        S = pd.read_csv(_path(X.cfg, X.bdir, sf), sep="\t", comment="#", usecols=["PDB", "CHAIN", "SP_PRIMARY"], dtype=str)
+        X["_sifts_df"] = S
+    sub = S[S.PDB == str(pdb).lower()]
+    if pol.taxonomy_path and str(pdb).lower() not in pol.taxonomy:
+        pol.taxonomy.update(chains.load_taxonomy(pol.taxonomy_path, [str(pdb).lower()]))
+    tax = pol.taxonomy.get(str(pdb).lower(), {})
+    cacc = {}
+    for c, a in zip(sub.CHAIN, sub.SP_PRIMARY):
+        cacc.setdefault(c, a)
+    spec = chains.species_spec(row)
+
+    def f(chn, kind):
+        acc = np.array([cacc.get(str(c).split("-")[0], "") if int(k) == 0 else "" for c, k in zip(chn, kind)])
+        dec = chains.decide(spec, chains.chain_info(acc, chn, kind), pol, None, tax)
+        m = chains.mask(acc, chn, kind, dec)
+        rec = chains.record(dec, int(m.sum()), f"pdb:{pdb}", len(m))
+        if not chains.has_member(rec):
+            m[:] = False
+        return m, chains.npz_extra(rec)
+    return f
 
 
 def topology(X):
@@ -203,8 +270,13 @@ def step_complexes(X, p):
         tm = []
         if o.get("tm_uniprot"):
             tm = parse_ranges(topology(X).loc[o["tm_uniprot"], "tm"], "TRANSMEM")
-        n, ns, rmax = build_complex(X.partial, r.ing_id, r.pdb, X.pdb_dir, orient=o.get("orient", "none"),
-                                    membrane=o.get("membrane", ""), tm_ranges=tm, per=per)
+        out = build_complex(X.partial, r.ing_id, r.pdb, X.pdb_dir, orient=o.get("orient", "none"),
+                            membrane=o.get("membrane", ""), tm_ranges=tm, per=per,
+                            chain_filter=_core_chain_filter(X, r._asdict(), r.pdb))
+        if out is None:
+            log(f"complex {r.ing_id:16s} {r.pdb}: no allowed chains (library.chain_filter), no model")
+            continue
+        n, ns, rmax = out
         X.origin[f"{r.ing_id}.npz"] = "complexes"
         log(f"complex {r.ing_id:16s} {r.pdb}: {n} beads, {ns} spheres, radius {rmax:.1f} nm")
 
@@ -232,12 +304,20 @@ def step_af_models(X, p):
 def step_pdb_oligomers(X, p):
     """curated PDB homo-oligomers (table: gene, pdb, reason), written as <gene>_oligo for genes that are species"""
     from .builders import build_pdb_protein
-    have = set(species(X).ing_id)
+    sp = species(X)
+    have = set(sp.ing_id)
+    rows = {r["ing_id"]: r for r in sp.to_dict("records")}
     suffix = p.get("suffix", "_oligo")
     for r in _tsv(_path(X.cfg, X.bdir, p["table"])).itertuples():
         if r.gene not in have:
             continue
-        n, ns, rmax = build_pdb_protein(X.partial, r.gene + suffix, r.pdb, X.pdb_dir, per=int(p.get("per", 30)))
+        spec = dict(rows[r.gene], ing_id=r.gene + suffix, kind="oligomer")
+        out = build_pdb_protein(X.partial, r.gene + suffix, r.pdb, X.pdb_dir, per=int(p.get("per", 30)),
+                                chain_filter=_core_chain_filter(X, spec, r.pdb))
+        if out is None:
+            log(f"homo-oligomer {r.gene + suffix:12s} {r.pdb}: no allowed chains (library.chain_filter), no model")
+            continue
+        n, ns, rmax = out
         X.origin[f"{r.gene}{suffix}.npz"] = "pdb_oligomers"
         log(f"homo-oligomer {r.gene + suffix:12s} {r.pdb}: {n} beads, {ns} spheres")
 
@@ -363,7 +443,8 @@ def step_fallback(X, p):
             mc = float(pc.get("min_cov", 0.5))
             for pdb, ch, k in pdb_chain_candidates(sifts, acc, cached, n, mc)[:int(pc.get("max_tries", 5))]:
                 r = build_pdb_chain(X.partial, ing, pdb, ch, X.pdb_dir, min_beads=math.ceil(mc * n),
-                                    max_beads=int(float(pc.get("max_len_ratio", 1.2)) * n), per=per)
+                                    max_beads=int(float(pc.get("max_len_ratio", 1.2)) * n), per=per,
+                                    record=acc if chain_policy(X) is not None else None)
                 if r is not None:
                     return "pdb_chain", f"{pdb} chain {ch}: {r[0]} of {n} residues observed"
         build_placeholder(X.partial, ing, n, tm, tp_of(acc), per=per)
@@ -425,7 +506,22 @@ def step_fallback(X, p):
         log(f"  {i}: {stt} {src} ({note})")
 
 
-LEDGER_COLS = ["ing_id", "kind", "copies", "mass_da", "status", "source", "struct_src", "note"]
+LEDGER_COLS = ["ing_id", "kind", "copies", "mass_da", "status", "source", "struct_src", "note", "chains_kept",
+               "chains_flagged", "chains_removed", "subunits_missing", "accs_unverifiable", "gene_matched", "known_issue"]
+
+
+def _chain_cols(path):
+    """ledger columns from a model's chain record (library chain rule): member / flagged (kept, for review) / removed
+    chains as chain:acc:residues[:reason]"""
+    import numpy as np
+    from . import chains
+    if not os.path.exists(path):
+        return {}
+    with np.load(path, allow_pickle=False) as z:
+        if "chain_set" not in z.files:
+            return {}
+        rec = json.loads(str(z["chain_set"]))
+    return chains.summary_cols(rec)
 
 
 def species_ledger(X):
@@ -438,6 +534,9 @@ def species_ledger(X):
         return None
     sp = species(X)
     rec = X.get("fallback") or {}
+    ki = {}                                              # library.ledger.known_issues: TSV ing_id, issue (accepted)
+    if (X.lc.get("ledger") or {}).get("known_issues"):
+        ki = dict((r["ing_id"], r["issue"]) for r in _tsv(_path(X.cfg, X.bdir, X.lc["ledger"]["known_issues"])).to_dict("records"))
     rows = []
     for r in sp.to_dict("records"):
         i = r["ing_id"]
@@ -451,8 +550,12 @@ def species_ledger(X):
                  X.origin.get(f"{i}.npz", "unknown"))
         else:
             stt, src, note = "missing", "", "no structure written and no fallback step"
+        cn = (X.get("chain_nomodel") or {}).get(i)
+        if cn:                                           # structure without an allowed chain (chain rule): no model
+            note = f"chain rule: {cn}" + (f"; {note}" if note else "")
         rows.append(dict(ing_id=i, kind=r.get("kind", ""), copies=r.get("copies", ""), mass_da=r.get("mass_da", ""),
-                         status=stt, source=src, struct_src=s, note=note))
+                         status=stt, source=src, struct_src=s, note=note,
+                         known_issue=ki.get(i, ""), **_chain_cols(os.path.join(X.partial, f"{i}.npz"))))
     L = pd.DataFrame(rows, columns=LEDGER_COLS)
     L.to_csv(os.path.join(X.out, "species_ledger.tsv"), sep="\t", index=False)
     miss = L.status == "missing"
@@ -472,6 +575,36 @@ def species_ledger(X):
     return L
 
 
+def chain_check(X):
+    """library chain rule check (chains.check) on every structure-derived model of lib.partial; writes
+    library/chain_check.tsv and FAILS the stage on any violation (a class-2 chain - another protein - still in a model, a
+    model without its chain record, more beads than the kept chains + declared added beads); flagged chains pass"""
+    import pandas as pd
+    from . import chains
+    pol = chain_policy(X)
+    if pol is None:
+        return None
+    cf = X.lc.get("chain_filter") or {}
+    jc = X.lc.get("jurkat") or {}
+    sifts = cf.get("sifts") or jc.get("sifts")
+    afd = jc.get("afdb_complex_models")
+    rows, err = chains.check(X.partial, species(X).to_dict("records"), pol, _path(X.cfg, X.bdir, sifts) if sifts else None,
+                             afdb_dir=_path(X.cfg, X.bdir, afd) if afd else None, taxonomy_path=pol.taxonomy_path,
+                             origin=X.origin, log=log)
+    R = pd.DataFrame(rows, columns=["ing_id", "src", "beads", "n_struct", "added", "kept", "flagged", "removed", "ok"])
+    E = dict((i, (s_, e)) for i, s_, e in err)
+    R["violation"] = [E.get(i, ("", ""))[1] for i in R.ing_id]
+    extra = [dict(ing_id=i, src=s_, ok=False, violation=e) for i, (s_, e) in E.items() if i not in set(R.ing_id)]
+    R = pd.concat([R, pd.DataFrame(extra)], ignore_index=True) if extra else R
+    R.to_csv(os.path.join(X.out, "chain_check.tsv"), sep="\t", index=False)
+    X.results["chain_check"] = dict(models=len(rows), violations=len(err), removed_any=int((R.removed.fillna(0) > 0).sum()),
+                                    flagged_any=int((R.flagged.fillna(0) > 0).sum()))
+    if err:
+        raise RuntimeError(f"library chain rule: {len(err)} model(s) violate it (see {X.out}/chain_check.tsv), e.g. "
+                           + "; ".join(f"{i} {s_}: {e}" for i, s_, e in err[:5]))
+    return R
+
+
 def curated_pdb(X):
     """id -> PDB of curated entries (complexes of the species table, reference RNA): structure source 'PDB'"""
     out = {}
@@ -488,6 +621,7 @@ def step_seal(X, p=None):
     """species ledger (fails above library.ledger.max_missing_mass_frac), lib.partial -> lib (files read-only),
     library_manifest.tsv (species, path, md5, origin), library_meta.json"""
     species_ledger(X)
+    chain_check(X)
     rows = []
     for f in sorted(os.listdir(X.partial)):
         fp = os.path.join(X.partial, f)
@@ -513,6 +647,12 @@ def step_seal(X, p=None):
                                                          for f, m, o in rows))
     os.replace(tmp, os.path.join(X.out, "library_manifest.tsv"))
     log(f"library sealed: {len(rows)} files in {X.lib} ({by})")
+    if X.lc.get("compare_reference"):                    # report only: this library vs a reference build's library
+        from . import compare
+        try:
+            compare.run(X)
+        except Exception as e:  # noqa: BLE001 - a report, never fails the stage
+            log(f"library compare_reference: report not written ({type(e).__name__}: {e})")
 
 
 def entries(lib, extra_dirs=()):
