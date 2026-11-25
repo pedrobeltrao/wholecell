@@ -95,7 +95,7 @@ SPECIES_FROM_KEYS = ("from", "pack_table", "accs", "struct_src_from")
 
 
 def _struct_src_override(X, spec):
-    """library.species.struct_src_from: {table: <TSV ing_id, struct_src>, column: struct_src, prefer: table} -> {ing_id:
+    """library.species.struct_src_from: {table: <TSV ing_id, struct_src>, column: struct_src, id: ing_id} -> {ing_id:
     struct_src} of the species the table covers (Jurkat: the v7 table, i.e. the v7 library pick of each complex)"""
     import pandas as pd
     o = spec.get("struct_src_from")

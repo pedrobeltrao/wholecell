@@ -145,6 +145,11 @@ def test_decide_rules():
     pd_ = CF.Policy(nucleic={"CPX-1": "DNA"}, allow_chains={"CPX-1": {"D"}}, allow_accs={"CPX-1": {"Q9"}})
     *_, c8, r8 = run(spec, pd_, desc_fn=lambda: {"C": "DNA (147-MER)"})
     assert all(d["cls"] == "member" for d in r8["kept"]) and set(c8) == {"A", "A2", "B", "C", "D", "E", "F"}
+    # a chain whose residues SIFTS does not map (other numbering) takes its chain-level SIFTS accession
+    *_, c10, r10 = run(spec, pol, chain_accs={"D": {"Q8"}, "A": {"P1"}})
+    assert "D" not in set(c10) and ("D", "other_protein") in {(d["chain"], d["why"]) for d in r10["removed"]}
+    *_, c11, r11 = run(spec, pol, chain_accs={"D": {"P3"}})
+    assert [d["cls"] for d in r11["kept"] if d["chain"] == "D"] == ["member"] and r11["missing"] == []
     # a monomer model keeps exactly one chain of the protein (the largest)
     acc, chn, kind = _info({"A": [("P1", 30)], "B": [("P1", 40)], "C": [("P2", 10)]})
     sp = CF.species_spec(dict(ing_id="P1G", kind="protein", genes="G1", accs="P1", uniprot="P1"))

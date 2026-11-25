@@ -107,8 +107,15 @@ def bead_chains(st):
 def chain_filter(row, src, xyz, kind, acc, pos, chn, acc_decide=None, desc_fn=None):
     """the library chain rule (wholecell/library/chains.py) on the beads of one structure; (arrays..., record)"""
     from wholecell.library import chains as CF
-    tax = CHAIN_POLICY.taxonomy.get(src.split(":", 1)[1], {}) if src.startswith("pdb:") else {}
-    return CF.apply(xyz, kind, acc, pos, chn, CF.species_spec(row), CHAIN_POLICY, src, acc_decide, desc_fn, tax)
+    tax, cacc = {}, {}
+    if src.startswith("pdb:"):
+        pid = src.split(":", 1)[1]
+        tax = CHAIN_POLICY.taxonomy.get(pid, {})
+        s = sifts(); s = s[s.PDB == pid]
+        for c, a in zip(s.CHAIN, s.SP_PRIMARY):
+            if isinstance(a, str) and a:
+                cacc.setdefault(c, set()).add(a)
+    return CF.apply(xyz, kind, acc, pos, chn, CF.species_spec(row), CHAIN_POLICY, src, acc_decide, desc_fn, tax, cacc)
 
 
 def build_assembly(row):

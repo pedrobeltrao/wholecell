@@ -301,7 +301,7 @@ def decide(spec, info, policy, desc=None, tax=None):
         if why == "gene_match":
             gm.extend(dict(chain=c, acc=a, genes=";".join(sorted(policy.acc_genes[a] & set(spec["genes"])))) for a in sorted(hit))
         fus = []
-        if cls == "member":                            # residues of a member chain mapped to a positively foreign protein
+        if cls == "member" and not d.get("chain_level"):   # residues of a member chain mapped to a positively foreign protein
             for a in sorted(set(accs) - hit - A):
                 c2, w2, _ = classify_protein(spec, policy, [a], "", tax.get(c.split("-")[0]), accs[a])
                 if c2 == "foreign":
@@ -383,12 +383,26 @@ def afdb_chain_accs(path):
     return {r[1]: ref.get(r[0], "") for r in blk.find("_struct_ref_seq.", ["ref_id", "pdbx_strand_id"])}
 
 
-def apply(xyz, kind, acc, pos, chn, spec, policy, source, acc_decide=None, desc_fn=None, tax=None):
+def chain_level(info, chain_accs):
+    """chains whose residues SIFTS maps to nothing (label_seq outside every SIFTS range: other numbering / isoform) take
+    the chain-level SIFTS accessions (chain_accs {auth chain: set}); fusion trimming is not possible for them"""
+    for c, d in info.items():
+        n_p = d["n"] - d["n_na"]
+        ca = (chain_accs or {}).get(c.split("-")[0])
+        if n_p and not d["accs"] and ca:
+            d["accs"] = {a: n_p for a in sorted(ca)}
+            d["n_unmapped"] = 0
+            d["chain_level"] = True
+    return info
+
+
+def apply(xyz, kind, acc, pos, chn, spec, policy, source, acc_decide=None, desc_fn=None, tax=None, chain_accs=None):
     """the rule on the bead arrays of one structure (per-bead chain chn; acc_decide: per-bead accession used for the
     decision when it differs from acc, e.g. the AFDB model's own chain accession; desc_fn() -> {chain: description},
-    read only when a chain is not a member; tax: {chain: taxonomy ids}). Returns the filtered arrays and the record."""
+    read only when a chain is not a member; tax: {chain: taxonomy ids}; chain_accs: chain-level SIFTS accessions,
+    chain_level). Returns the filtered arrays and the record."""
     acc_d = acc if acc_decide is None else acc_decide
-    info = chain_info(acc_d, chn, kind)
+    info = chain_level(chain_info(acc_d, chn, kind), chain_accs)
     dec = decide(spec, info, policy, None, tax)
     if desc_fn is not None and any(k["cls"] != "member" for k in dec["kept"] + dec["removed"]):
         dec = decide(spec, info, policy, desc_fn(), tax)
