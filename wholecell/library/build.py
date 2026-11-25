@@ -507,7 +507,7 @@ def step_fallback(X, p):
 
 
 LEDGER_COLS = ["ing_id", "kind", "copies", "mass_da", "status", "source", "struct_src", "note", "chains_kept",
-               "chains_flagged", "chains_removed", "subunits_missing", "accs_unverifiable", "gene_matched"]
+               "chains_flagged", "chains_removed", "subunits_missing", "accs_unverifiable", "gene_matched", "known_issue"]
 
 
 def _chain_cols(path):
@@ -534,6 +534,9 @@ def species_ledger(X):
         return None
     sp = species(X)
     rec = X.get("fallback") or {}
+    ki = {}                                              # library.ledger.known_issues: TSV ing_id, issue (accepted)
+    if (X.lc.get("ledger") or {}).get("known_issues"):
+        ki = dict((r["ing_id"], r["issue"]) for r in _tsv(_path(X.cfg, X.bdir, X.lc["ledger"]["known_issues"])).to_dict("records"))
     rows = []
     for r in sp.to_dict("records"):
         i = r["ing_id"]
@@ -552,7 +555,7 @@ def species_ledger(X):
             note = f"chain rule: {cn}" + (f"; {note}" if note else "")
         rows.append(dict(ing_id=i, kind=r.get("kind", ""), copies=r.get("copies", ""), mass_da=r.get("mass_da", ""),
                          status=stt, source=src, struct_src=s, note=note,
-                         **_chain_cols(os.path.join(X.partial, f"{i}.npz"))))
+                         known_issue=ki.get(i, ""), **_chain_cols(os.path.join(X.partial, f"{i}.npz"))))
     L = pd.DataFrame(rows, columns=LEDGER_COLS)
     L.to_csv(os.path.join(X.out, "species_ledger.tsv"), sep="\t", index=False)
     miss = L.status == "missing"

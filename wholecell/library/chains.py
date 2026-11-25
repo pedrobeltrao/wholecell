@@ -18,6 +18,10 @@ Every chain of the structure is put in one of three classes:
                         An unmapped or non-human chain whose entity description is the reviewed UniProt protein name /
                         primary gene symbol of human proteins (genes.columns.names; uL2-style ribosomal names expanded)
                         is judged by those accessions: a member's name -> member (ortholog), another protein -> foreign.
+                        Nucleic acids (classify_nucleic): declared for the species (nucleic_acids: nucleosome DNA,
+                        7SL / snRNA / snoRNA / telomerase / RNase P RNA, rRNA of ribosomal species) -> member; rRNA of a
+                        species that does not declare it, and tRNA / mRNA in a structure holding rRNA (ribosome
+                        context) -> foreign; any other undeclared nucleic acid -> flagged.
   3 flagged  (kept)     ambiguous: no SIFTS mapping (incl. short peptides such as an MHC-bound peptide), a nucleic acid
                         not declared, a non-human chain not identified by name (possible ortholog; SIFTS taxonomy), a
                         paralogue of a member, a
@@ -268,6 +272,29 @@ def classify_protein(spec, policy, accs, desc="", taxa=None, n=0):
     return "foreign", "other_protein" if cand is m else "other_protein_by_name:" + ",".join(sorted(cand))[:60], set()
 
 
+RRNA_RX = re.compile(r"\brrna\b|ribosomal rna|\b(5|5\.8|12|16|18|23|25|26|28|45|47)\s?s\b|\b[35]'?\s?ets\b|\bits\s?[12]\b",
+                     re.I)
+RIBO_CTX_RNA_RX = re.compile(r"\btrna|transfer rna|\bmrna\b|messenger rna|\bp-site|\be-site|\ba-site", re.I)
+
+
+def ribosome_context(info, desc):
+    """the structure holds ribosomal RNA (a ribosome / pre-ribosome in the crystal)"""
+    return any(d["n_na"] == d["n"] and RRNA_RX.search(desc.get(c, "") or "") for c, d in info.items()) if desc else False
+
+
+def classify_nucleic(spec, policy, desc, ribo_ctx):
+    """class of one nucleic-acid chain (entity description): declared for the species (nucleic_acids) -> member;
+    ribosomal RNA of a species that does not declare it -> foreign (a ribosome in the crystal); tRNA / mRNA in a
+    structure holding rRNA -> foreign (ribosome context); any other undeclared nucleic acid -> flagged (kept)"""
+    if policy.nucleic_ok(spec["ing_id"], desc):
+        return "member", "declared_nucleic_acid"
+    if RRNA_RX.search(desc or ""):
+        return "foreign", "ribosomal_rna_not_member"
+    if ribo_ctx and RIBO_CTX_RNA_RX.search(desc or ""):
+        return "foreign", "ribosome_context_rna"
+    return "flagged", "nucleic_acid_not_declared"
+
+
 def decide(spec, info, policy, desc=None, tax=None):
     """classes of the chains of one structure. desc: {chain: entity description}; tax: {chain: set of taxonomy ids}.
     Returns {keep, na_keep, drop_acc, kept, removed, flagged, gene_matched, missing, unverifiable}"""
@@ -275,6 +302,7 @@ def decide(spec, info, policy, desc=None, tax=None):
     chains_ok = policy.allow_chains.get(ing, set())
     desc, tax = desc or {}, tax or {}
     A = allowed_accs(spec, policy)
+    ribo = ribosome_context(info, desc)
     keep, na_keep, drop_acc, kept, removed, gm = [], [], {}, [], [], []
     for c, d in info.items():
         n_p = d["n"] - d["n_na"]
@@ -286,11 +314,13 @@ def decide(spec, info, policy, desc=None, tax=None):
             kept.append(dict(base, acc=";".join(sorted(accs)) or "unmapped", n=d["n"], cls="member", why="declared_chain",
                              type="na" if n_p == 0 else "protein"))
             continue
-        if n_p == 0:                                   # nucleic-acid chain: declared -> member, else flagged (kept)
+        if n_p == 0:                                   # nucleic-acid chain (classify_nucleic)
+            cls, why = classify_nucleic(spec, policy, ds, ribo)
+            if cls == "foreign":
+                removed.append(dict(base, acc="", n=d["n"], type="na", cls="foreign", why=why))
+                continue
             keep.append(c); na_keep.append(c)
-            ok = policy.nucleic_ok(ing, ds)
-            kept.append(dict(base, acc="", n=d["n"], type="na", cls="member" if ok else "flagged",
-                             why="declared_nucleic_acid" if ok else "nucleic_acid_not_declared"))
+            kept.append(dict(base, acc="", n=d["n"], type="na", cls=cls, why=why))
             continue
         cls, why, hit = classify_protein(spec, policy, list(accs), ds, tax.get(c.split("-")[0]), n_p)
         if cls == "foreign":
@@ -482,8 +512,12 @@ def check(lib_dir, species_rows, policy, sifts_path, afdb_dir=None, taxonomy_pat
                 if c.split("-")[0] not in policy.allow_chains.get(ing, set()) and c not in policy.allow_chains.get(ing, set()):
                     bad.append(f"{c}: declared_chain not declared")
                 continue
-            if k["type"] == "na":
-                continue                               # nucleic acids are members (declared) or flagged, never removed
+            if k["type"] == "na":                       # rRNA / ribosome-context RNA of a non-ribosome species: class 2
+                ctx = any(RRNA_RX.search(x.get("desc", "") or "") for x in kept + rec["removed"] if x["type"] == "na")
+                cls, why = classify_nucleic(spec, policy, k.get("desc", ""), ctx)
+                if cls == "foreign":
+                    bad.append(f"{c}: nucleic acid '{k.get('desc', '')}' {why} (class 2) still in the model")
+                continue
             if src.startswith("afdb_complex:"):
                 m, tx = ({fa.get(c, "")} if fa is not None else set(k["acc"].split(";"))), {HUMAN}
             else:

@@ -34,7 +34,7 @@ FOLDERS = {   # licence folder -> licence of its contents
     "ours": "CC BY-NC 4.0 (this work: Beltrao lab and G. Magnusson; derived from the cited sources)",
     "cc_by": "CC BY 4.0 (third party: UniProt, AlphaFold DB, SIFTS, STRING, ...; attribute the source)",
     "cc0": "CC0 1.0 (third party: wwPDB, Complex Portal, PRIDE, GEO, EMPIAR)",
-    "open": "source terms (EMBL-EBI Expression Atlas, NCBI GEO: public, no restriction stated)",
+    "open": "source terms (EMBL-EBI Expression Atlas, NCBI GEO, Ensembl: public, no restriction stated)",
     "cc_by_sa": "CC BY-SA 4.0 (Human Protein Atlas tables and tables derived from them)",
     "af3_pool": "AlphaFold 3 output terms of use + the usage request of https://github.com/jurgjn/pooled-ppi-yeast",
 }
@@ -56,7 +56,8 @@ for n in ["inv_chromatin_v8_json;pre_chromatin_v8_rep5_json", "inv_cytoskeleton_
 R["inv_struct_library;lib_structures_v7"] = ("hf_tar", OURS, "required")
 for n in ["inv_afdb_fetch_status", "inv_afdb_heterodimer_table", "inv_afdb_homodimer_table", "inv_itzhak2016", "inv_sifts",
           "inv_uniprot_domains", "inv_uniprot_full;val_uniprot_human", "inv_uniprot_reviewed", "inv_uniprot_topology",
-          "lib_tm_route_uniprot", "lib_uniprot_human_table", "lib_uniprot_glyco_topo", "inv_string_links", "val_opencell"]:
+          "lib_tm_route_uniprot", "lib_uniprot_human_table", "lib_uniprot_glyco_topo", "inv_string_links", "val_opencell",
+          "lib_sifts_taxonomy"]:
     R[n] = ("hf", "cc_by", "required")
 R["lib_afdb_complex_models"] = ("hf_tar", "cc_by", "required")
 R["yeast_afdb_dimers"] = ("hf_tar", "cc_by", "required")
@@ -67,7 +68,7 @@ R["yeast_pdb_cache"] = ("hf", "cc0", "required")
 for n in ["inv_sec_fossati_features", "inv_sec_fossati_fractions"]:
     R[n] = ("hf", "cc0", "required")
 for n in ["inv_geiger2012_pg", "inv_rna_emtab2706", "inv_rna_gse145453_a1", "inv_rna_gse145453_a2", "inv_rna_gse276689_rep1",
-          "inv_rna_gse276689_rep2", "inv_rna_gse301789"]:
+          "inv_rna_gse276689_rep2", "inv_rna_gse301789", "lib_ensembl_paralogs"]:
     R[n] = ("hf", "open", "required")
 for n in ["inv_hpa_celllines;val_hpa_celllines", "inv_hpa_jurkat_manifest", "inv_hpa_subcellular;val_hpa_subcellular",
           "inv_rna_hpa", "inv_tier2_v5", "val_chromatin_s1_dapi"]:

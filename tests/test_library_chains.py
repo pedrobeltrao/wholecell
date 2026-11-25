@@ -4,7 +4,8 @@
 
   test_decide_rules            the three classes: members kept (all copies; gene match; declarations), foreign removed
                                (another human protein of a complete species, antibody / Fab by description, fusion
-                               residues), ambiguous kept and flagged (unmapped / peptide, undeclared nucleic acid,
+                               residues, rRNA of a non-ribosome species and tRNA / mRNA beside it), ambiguous kept and
+                               flagged (unmapped / peptide, other undeclared nucleic acid,
                                non-human chain, paralogue of a member, species with an empty accession entry); a monomer
                                keeps exactly one chain
   test_assembly_filter_check   jlib_build.build_assembly on a synthetic PDB assembly with the rule on: the foreign chains
@@ -145,6 +146,21 @@ def test_decide_rules():
     pd_ = CF.Policy(nucleic={"CPX-1": "DNA"}, allow_chains={"CPX-1": {"D"}}, allow_accs={"CPX-1": {"Q9"}})
     *_, c8, r8 = run(spec, pd_, desc_fn=lambda: {"C": "DNA (147-MER)"})
     assert all(d["cls"] == "member" for d in r8["kept"]) and set(c8) == {"A", "A2", "B", "C", "D", "E", "F"}
+    # nucleic acids: rRNA of a non-ribosome species and tRNA / mRNA beside it are foreign; a declared RNA is a member;
+    # other undeclared DNA / RNA stays flagged
+    na_acc, na_chn, na_kind = _info({"A": [("P1", 30)], "R": [("na", 50)], "T": [("na", 20)], "S": [("na", 15)], "Q": [("na", 9)]})
+    ds = {"R": "28S ribosomal RNA", "T": "E-site tRNA", "S": "SRP RNA 7SL", "Q": "DNA (9-MER)"}
+    pn = CF.Policy(nucleic={"CPX-1": "7SL"})
+    *_, cn, rn = CF.apply(np.zeros((124, 3)), na_kind, na_acc, np.arange(124), na_chn, spec, pn, "pdb:test", desc_fn=lambda: ds)
+    assert set(cn) == {"A", "S", "Q"}, set(cn)
+    assert {d["chain"]: d["why"] for d in rn["removed"]} == {"R": "ribosomal_rna_not_member", "T": "ribosome_context_rna"}
+    assert {d["chain"]: d["cls"] for d in rn["kept"]} == {"A": "member", "S": "member", "Q": "flagged"}
+    *_, cr, _ = CF.apply(np.zeros((124, 3)), na_kind, na_acc, np.arange(124), na_chn, spec, CF.Policy(nucleic={"CPX-1": ".*"}),
+                         "pdb:test", desc_fn=lambda: ds)
+    assert set(cr) == {"A", "R", "T", "S", "Q"}                                  # a ribosome declares its RNA
+    *_, ct, _ = CF.apply(np.zeros((124, 3)), na_kind, na_acc, np.arange(124), np.array(["A"] * 30 + ["X"] * 94), spec, pn,
+                         "pdb:test", desc_fn=lambda: {"X": "tRNA"})
+    assert "X" in set(ct)                                                         # tRNA without rRNA: flagged, kept
     # a chain whose residues SIFTS does not map (other numbering) takes its chain-level SIFTS accession
     *_, c10, r10 = run(spec, pol, chain_accs={"D": {"Q8"}, "A": {"P1"}})
     assert "D" not in set(c10) and ("D", "other_protein") in {(d["chain"], d["why"]) for d in r10["removed"]}
@@ -211,6 +227,13 @@ def test_assembly_filter_check():
         _, err = CF.check(lib, [dict(rows[0], ing_id=i) for i in ("CPX-T", "CPX-V", "CPX-W")], CF.Policy(), sifts)
         E = {e[0]: e[2] for e in err}
         assert set(E) == {"CPX-V", "CPX-W"} and "H: ['P99999'] other_protein (class 2)" in E["CPX-V"] and "90 beads > 76" in E["CPX-W"], E
+        # a kept ribosomal RNA of a non-ribosome species is class 2 for the check
+        r3 = json.loads(str(d["chain_set"]))
+        r3["kept"].append(dict(chain="R", acc="", n=0, cls="flagged", why="nucleic_acid_not_declared", type="na",
+                               desc="28S ribosomal RNA"))
+        np.savez(os.path.join(lib, "CPX-R.npz"), **dict(d, chain_set=np.array(json.dumps(r3))))
+        _, err = CF.check(lib, [dict(rows[0], ing_id="CPX-R")], CF.Policy(), sifts)
+        assert len(err) == 1 and "ribosomal_rna_not_member" in err[0][2], err
         # a declared nucleic acid is a member; a complex without a member chain is not built
         jb.CHAIN_POLICY = CF.Policy(nucleic={"CPX-N": "DNA"})
         assert jb.build_assembly(dict(row, ing_id="CPX-N"))[1] == "ok"

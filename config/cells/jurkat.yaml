@@ -481,8 +481,9 @@ library:
   # paralogue of a member, in a species whose accession list is complete (partners, ligands, other complexes of the
   # crystal; fusion residues such as T4L / BRIL inside a member chain; an unmapped or non-human chain whose entity
   # description is the reviewed UniProt name / gene symbol of such a protein, e.g. the rabbit ribosome of an SRP
-  # structure - while one named as a member is a member); (3) flagged - KEPT and listed for review: unmapped chains and
-  # peptides, undeclared nucleic acids, non-human chains not identified by name (possible orthologs, SIFTS taxonomy),
+  # structure - while one named as a member is a member; ribosomal RNA of a species that does not declare it and tRNA /
+  # mRNA next to it - Pedro 2026-11-25); (3) flagged - KEPT and listed for review: unmapped chains and peptides (e.g. the
+  # MHC peptide), other undeclared nucleic acids, non-human chains not identified by name (possible orthologs, SIFTS taxonomy),
   # paralogues of a member (Ensembl), non-members of a species with an empty accession entry. library/species_ledger.tsv
   # lists per species chains_kept / chains_flagged / chains_removed; library/chain_check.tsv: the stage FAILS if a model
   # still holds a class-2 chain. A complex left without any chain is decomposed by the fallback step.
@@ -501,7 +502,8 @@ library:
   compare_reference:
     build: "{results_root}/jurkat/20261120-0a3ba79-s20261115-paper"
     thresholds: {height_nm: 1.0, rg_frac: 0.10, beads_frac: 0.10}
-  ledger: {max_missing_mass_frac: 1.0e-4}   # library/species_ledger.tsv: the build fails above this share of the requested mass
+  ledger: {max_missing_mass_frac: 1.0e-4,   # library/species_ledger.tsv: the build fails above this share of the requested mass
+           known_issues: plugins/jurkat/data/library/known_issues.tsv}   # accepted issues, column known_issue of the ledger
   pdb_dir: lib_pdb_assemblies        # RCSB assembly cache, read in place; offline (a missing entry is an error)
   nproc: 16                          # builder processes (results do not depend on it: one BLAS thread per process)
   jurkat:                            # inputs of the Jurkat steps (frozen-input names)
