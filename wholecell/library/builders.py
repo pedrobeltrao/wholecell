@@ -187,14 +187,22 @@ def orient_long_axis_cring(xyz, rows):
 
 
 # origin: yeast pipeline/build_structs.py:process_complex @ e3b7448 (orientation method and membrane from the table)
-def build_complex(lib, ing_id, pdb, pdb_dir, orient="none", membrane="", tm_ranges=None, per=40):
+def build_complex(lib, ing_id, pdb, pdb_dir, orient="none", membrane="", tm_ranges=None, per=40, chain_filter=None):
+    """chain_filter (library chain rule, wholecell/library/chains.py): callable(chain per bead, kind per bead) ->
+    (bead mask, npz extra with the chain record); None = every chain of assembly 1 (yeast s0)"""
     import gemmi
     st = gemmi.read_structure(assembly_path(pdb_dir, pdb))
     st.remove_hydrogens()
     rows = residue_beads_with_numbers(st)
+    extra = {}
+    if chain_filter is not None:
+        m, ex = chain_filter(np.array([r[4] for r in rows]), np.array([r[3] for r in rows]))
+        rows = [r for r, k in zip(rows, m) if k]
+        extra.update(ex, src=np.array(f"pdb:{pdb}"))
+        if not rows:
+            return None
     xyz = np.array([r[:3] for r in rows]); kind = np.array([r[3] for r in rows])
     xyz -= xyz.mean(0)
-    extra = {}
     if orient == "ring_axis":
         xyz = orient_ring_axis(xyz, rows, extra)
     elif orient == "tm_slab":
@@ -307,13 +315,22 @@ def build_all_af(lib, want, topo, tar_path, nproc=8, plddt_min=50, min_kept=10, 
 
 # ------------------------------------------------------------------ curated PDB entries
 # origin: yeast pipeline/build_structs.py:process_homo_pdb @ e3b7448 (offline: the assembly must be in pdb_dir)
-def build_pdb_protein(lib, ing_id, pdb, pdb_dir, per=30):
-    """protein residues of assembly 1 of a PDB entry (homo-oligomers of the curated table), centred"""
+def build_pdb_protein(lib, ing_id, pdb, pdb_dir, per=30, chain_filter=None):
+    """protein residues of assembly 1 of a PDB entry (homo-oligomers of the curated table), centred; chain_filter as
+    build_complex (only chains of the protein)"""
     import gemmi
     st = gemmi.read_structure(assembly_path(pdb_dir, pdb))
-    xyz, kind, _ = beads_from_structure(st)
-    xyz = xyz[kind == 0]
-    return save(lib, ing_id, xyz - xyz.mean(0), np.zeros(len(xyz), np.int8), {"pdb": pdb}, per=per)
+    xyz, kind, chn = beads_from_structure(st)
+    extra = {"pdb": pdb}
+    if chain_filter is not None:
+        m, ex = chain_filter(chn[kind == 0], kind[kind == 0])
+        xyz = xyz[kind == 0][m]
+        extra.update(ex, src=np.array(f"pdb:{pdb}"))
+        if not len(xyz):
+            return None
+    else:
+        xyz = xyz[kind == 0]
+    return save(lib, ing_id, xyz - xyz.mean(0), np.zeros(len(xyz), np.int8), extra, per=per)
 
 
 # origin: yeast scripts/s0_library.py:main (trna branch) @ e3b7448
@@ -432,7 +449,7 @@ def pdb_chain_candidates(sifts, acc, have_pdb, length, min_cov):
     return sorted(out, key=lambda x: (-x[2], x[0], x[1]))
 
 
-def build_pdb_chain(lib, ing_id, pdb, chain, pdb_dir, min_beads, max_beads, per=30):
+def build_pdb_chain(lib, ing_id, pdb, chain, pdb_dir, min_beads, max_beads, per=30, record=None):
     """CA beads of one chain of assembly 1 (an experimental structure of a protein without an AlphaFold model), centred;
     None if fewer than min_beads residues are observed, or more than max_beads (the chain is mostly another protein,
     e.g. a rearranged TCR chain that contains a J segment)"""
@@ -446,4 +463,10 @@ def build_pdb_chain(lib, ing_id, pdb, chain, pdb_dir, min_beads, max_beads, per=
     if len(xyz) < min_beads or len(xyz) > max_beads:
         return None
     extra = {"src": f"fallback:pdb_chain:{pdb}:{chain}", "fallback": "pdb_chain", "pdb": pdb}
+    if record is not None:                                # library chain rule: one chain of the protein (record)
+        import json
+        rec = dict(source=extra["src"], n_in=len(xyz), n_struct=len(xyz), removed=[], gene_matched=[], missing=[],
+                   unverifiable=[], kept=[dict(chain=names[0], acc=record, n=len(xyz), why="accession", type="protein")])
+        extra.update(chain_set=np.array(json.dumps(rec, sort_keys=True)), n_struct_beads=np.int32(len(xyz)),
+                     beads_added=np.int32(0))
     return save(lib, ing_id, xyz - xyz.mean(0), np.zeros(len(xyz), np.int8), extra, per=per)

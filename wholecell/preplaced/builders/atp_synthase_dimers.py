@@ -49,6 +49,16 @@ rims: lamellae       the lamellar cristae of a core geometry: every lamella is a
                                              beads and decision; adaptive bead order, early exits, poses in parallel
                                              chunks: the result does not depend on the thread count).
                      params.obstacles (lamellae): ctx.obs sets the dimers must not overlap (Jurkat: npc).
+                     params.min_placed_frac (lamellae; default 0.5, null = off; guard 2026-11-25): the build FAILS when
+                     the placed dimers are below this share of the possible ones, min(requested = pool / 2, rim
+                     capacity = traced rim length / spacing_nm; random sampling: requested) - the dimer model or the
+                     rims are then broken, and returning the rest to the pack pool silently is not accepted (v9: 599
+                     dimers instead of 205,152 after the monomer structure changed). v8 placed 205,152 of 434,344
+                     requested = 47% of requested, 63% of the rim capacity (3,902 um / 12 nm).
+                     FRAGILE (dimer_model): the psi choice ranks clash-free arrangements by TM contacts, then by the
+                     smallest monomer-monomer gap, then by the smallest |psi|; with 0 TM contacts (Jurkat 8H9V / 8H9T)
+                     the gap tie-break decides alone, and a small change of the monomer (8H9V -> 8H9T, v9) moved psi
+                     from -80 to -30 deg, a dimer whose F1 heads clash with the cristae at every rim site.
                      Exported as monomer instances (two per dimer): instance group
                      "atp_synthase" (dimer index), consumption {monomer: 2 n}; obs["atp"] = the dimers' spheres.
 """
@@ -240,7 +250,10 @@ def _rot_z(a):
 def dimer_model(L, tm, params, log=print):
     """two monomers (library frame: membrane mid-plane z = 0, F1 at +z) in the yeast dimer geometry. Returns the
     monomer poses (R_i, t_i) in the dimer frame (origin on the rim circle axis, x across the ridge, y along it,
-    z = bisector of the membrane normals) and the choice made."""
+    z = bisector of the membrane normals) and the choice made.
+    FRAGILE: with 0 TM contacts at every clash-free psi (Jurkat CPX-6151) the smallest-gap tie-break alone picks psi, and a
+    small change of the monomer can move it far (8H9V: -80 deg, v8; 8H9T: -30 deg, v9, ~0 rim sites pass). The selection
+    is unchanged here; build() guards the outcome (placed_guard, params.min_placed_frac)."""
     from scipy.spatial import cKDTree
     alpha = np.radians(float(params.get("dimer_angle_deg", 84.0))) / 2.0
     clash, contact = float(params.get("clash_nm", 0.5)), float(params.get("contact_nm", 1.5))
@@ -688,6 +701,30 @@ def _finish(pos, quat, poses, stc, str_, info):
                 stc=stc, str_=str_, info=info)
 
 
+def placed_guard(n_placed, n_max, info, params, log=print):
+    """placed dimers vs the possible ones = min(requested n_max, rim capacity = traced rim length / spacing) (rows
+    sampling; random: requested). Raises when placed < params.min_placed_frac (default 0.5; null = off) x possible.
+    Returns the numbers (recorded in the builder's state)."""
+    f = params.get("min_placed_frac", 0.5)
+    spacing = float(params.get("spacing_nm", SPACING))
+    cap = None
+    if info.get("rim_length_traced_um") is not None:
+        cap = int(float(info["rim_length_traced_um"]) * 1e3 // spacing)
+    possible = min(n_max, cap) if cap is not None else n_max
+    out = dict(requested_dimers=int(n_max), rim_capacity_dimers=cap, possible_dimers=int(possible),
+               placed_frac_of_possible=round(n_placed / possible, 4) if possible else None,
+               placed_frac_of_requested=round(n_placed / n_max, 4) if n_max else None, min_placed_frac=f)
+    log(f"ATP synthase dimers: {n_placed} placed of {possible} possible (requested {n_max}, rim capacity {cap}); "
+        f"guard min_placed_frac {f}")
+    if f is not None and possible > 0 and n_placed < float(f) * possible:
+        raise RuntimeError(
+            f"core.atp_synthase_dimers: only {n_placed} dimers placed of {possible} possible (min(requested {n_max}, rim "
+            f"capacity {cap})) = {n_placed / possible:.1%} < min_placed_frac {f}. The dimer model ({ {k: info.get(k) for k in ('psi_deg', 'rim_radius_nm', 'tm_contacts', 'min_gap_nm')} }) or "
+            f"the cristae rims are broken (check the monomer structure, params.monomer); the rest would go back to the pack "
+            f"pool silently. Set params.min_placed_frac lower (or null) only on purpose.")
+    return out
+
+
 @register("preplaced", "core.atp_synthase_dimers")
 def build(ctx, params):
     exp3 = ctx.exp3
@@ -709,6 +746,7 @@ def build(ctx, params):
     n_pool = float(exp3.loc[rows, "expected"].sum())
     n_max = int(n_pool * float(params.get("max_dimer_share", 1.0)) // 2)
     r = place_lamellae(ctx, n_max, ctx.seed(params.get("seed", "preplaced.atp_synthase")), params, log=ctx.log)
+    r["info"].update(placed_guard(len(r["dimer_pos"]), n_max, r["info"], params, log=ctx.log))
     li = int(np.where(ctx.lp["ids"] == mono)[0][0])
     n = len(r["pos"])
     add_group(ctx, params.get("group", "atp_synthase"), np.full(n, li, np.int32), r["pos"], r["quat"], dimer=r["dimer"],

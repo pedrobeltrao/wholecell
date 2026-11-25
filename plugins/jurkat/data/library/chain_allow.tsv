@@ -1,0 +1,12 @@
+ing_id	what	value	reason
+NUCLEOSOME	accession	P84233	1KX5 is a Xenopus nucleosome: histone H3 (species genes are the histone families H2A;H2B;H3;H4, no accessions)
+NUCLEOSOME	accession	P62799	1KX5 Xenopus histone H4
+NUCLEOSOME	accession	P06897	1KX5 Xenopus histone H2A.1
+NUCLEOSOME	accession	P02281	1KX5 Xenopus histone H2B.2
+RIBO80S	accession	Q96L21	6QZP chain LI RPL10L (the species lists the paralog RPL10)
+RIBO80S	accession	P35268	6QZP chain LU RPL22 (r-protein; not in the RIBO80S gene list)
+RIBO80S	accession	P61254	6QZP chain LY RPL26 (not in the gene list)
+RIBO80S	accession	Q9Y3U8	6QZP chain Li RPL36 (not in the gene list)
+RIBO80S	accession	P83881	6QZP chain Lo RPL36A (not in the gene list)
+RIBO80S	accession	P62701	6QZP chain SE RPS4X (not in the gene list)
+RIBO80S	accession	P42677	6QZP chain Sb RPS27 (not in the gene list)

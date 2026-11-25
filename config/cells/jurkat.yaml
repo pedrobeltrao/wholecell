@@ -463,8 +463,44 @@ library:
   # the v7 npz source for 321 complexes): 117 pack-table species had no entry and were dropped silently by the pack.
   # The table is inventory/library_table.tsv (= the v7 table in pack-table order; inventory.library_table), which equals
   # pack_table.tsv except the lamin comp_weights of rule L3 (checked at the pack_table step).
+  # struct_src_from (v10, 2026-11-25): the structure of every species the v7 table covers is the v7 library pick
+  # (species_v7.tsv.gz struct_src = the source of the v7 npz; 321 complexes differ from the inventory's struct_src, e.g.
+  # HLA-A;B2M 2X4N not 6EQA with a bound TCR, CD98 7DSK not 8KDG with a Fab, ATP synthase CPX-6151 8H9V not 8H9T); the
+  # inventory struct_src only for the species the v7 table lacks (the 117 recovered in v9 + any new one). species.tsv
+  # records both (struct_src_inventory, struct_src_from). The chain rule below applies to every model built from a file.
   species: {from: pack_table, pack_table: inventory/library_table.tsv,
-            accs: {table: inventory/assembly/inventory_v0_complexed.tsv, gene: gene, acc: uniprot}}
+            accs: {table: inventory/assembly/inventory_v0_complexed.tsv, gene: gene, acc: uniprot},
+            struct_src_from: {table: plugins/jurkat/data/library/species_v7.tsv.gz, column: struct_src}}
+  # chain rule (v10, 2026-11-25; wholecell/library/chains.py; Pedro: the chains of an assembly are its subunits, only
+  # chains positively identified as other proteins are taken out): every chain of a model built from a PDB assembly or
+  # an AFDB complex is (1) a member - kept with all its copies: UniProt accession (SIFTS; AFDB: the model's struct_ref)
+  # in the species' list or declared (allow), gene (UniProt primary / synonym names) in its genes field (gene_match), a
+  # declared nucleic acid (nucleic_acids: nucleosome DNA, rRNA / snRNA / snoRNA / 7SL / telomerase / RNase P RNA of RNPs
+  # whose Complex Portal entry lists the RNA); a protein species keeps one chain; (2) foreign - REMOVED: an antibody /
+  # Fab / nanobody / TCR-like chain (entity description) or a chain mapped to another human protein that is not a
+  # paralogue of a member, in a species whose accession list is complete (partners, ligands, other complexes of the
+  # crystal; fusion residues such as T4L / BRIL inside a member chain; an unmapped or non-human chain whose entity
+  # description is the reviewed UniProt name / gene symbol of such a protein, e.g. the rabbit ribosome of an SRP
+  # structure - while one named as a member is a member); (3) flagged - KEPT and listed for review: unmapped chains and
+  # peptides, undeclared nucleic acids, non-human chains not identified by name (possible orthologs, SIFTS taxonomy),
+  # paralogues of a member (Ensembl), non-members of a species with an empty accession entry. library/species_ledger.tsv
+  # lists per species chains_kept / chains_flagged / chains_removed; library/chain_check.tsv: the stage FAILS if a model
+  # still holds a class-2 chain. A complex left without any chain is decomposed by the fallback step.
+  chain_filter:
+    enabled: true
+    gene_match: true
+    genes: {path: inv_uniprot_full, columns: {acc: Entry, genes: ["Gene Names (primary)", "Gene Names (synonym)"],
+                                              names: Protein names, reviewed: Reviewed}}   # names: unmapped / non-human chains by entity description
+    nucleic_acids: plugins/jurkat/data/library/nucleic_acid_parts.tsv
+    allow: plugins/jurkat/data/library/chain_allow.tsv
+    sifts: inv_sifts
+    taxonomy: lib_sifts_taxonomy
+    paralogs: {path: lib_ensembl_paralogs, columns: {gene: Gene name, paralog: Human paralogue associated gene name}}
+  # report only (wholecell/library/compare.py): per species source, chain set, beads, Rg and PM ectodomain height vs the
+  # previous paper build -> library/compare_reference.tsv (flags: source changed, |dH| > 1 nm, |dRg| > 10%, ...)
+  compare_reference:
+    build: "{results_root}/jurkat/20261120-0a3ba79-s20261115-paper"
+    thresholds: {height_nm: 1.0, rg_frac: 0.10, beads_frac: 0.10}
   ledger: {max_missing_mass_frac: 1.0e-4}   # library/species_ledger.tsv: the build fails above this share of the requested mass
   pdb_dir: lib_pdb_assemblies        # RCSB assembly cache, read in place; offline (a missing entry is an error)
   nproc: 16                          # builder processes (results do not depend on it: one BLAS thread per process)
@@ -525,7 +561,7 @@ preplaced:
         params: {tracks: traced, layer: mt_traces, lib: MT_TUBA1B-TUBB4B, ingredient: TUBA1B-TUBB4B,
                  seed: preplaced.microtubules,   # named stream (v9; until v8 the v7 stage-3 lattice frame seed 20261111)
                  obstacles: [npc, centrioles], labels: [cytosol], obstacle_shape: bounding}   # mt_all: one sphere per dimer
-      - name: atp_synthase         # dimer rows on the rims of the lamellar cristae (human monomer CPX-6151, 8H9T)
+      - name: atp_synthase         # dimer rows on the rims of the lamellar cristae (human monomer CPX-6151, 8H9V: v7 pick, v10)
         builder: core.atp_synthase_dimers
         # B6b (2026-11-17): on the rounded rims of em_cell1_v8r the yeast dimer (84 deg, 8.8 nm) is used unchanged; at the
         # frozen 2.5 nm TM tolerance it still places 0 dimers (the flat ~9.5 nm TM footprint of each monomer cannot lie
@@ -540,7 +576,8 @@ preplaced:
         # obstacles: [npc] (the pores next to mitochondria: 23 NPC-dimer overlaps at 0.5 nm without it).
         params: {rims: lamellae, monomer: CPX-6151, seed: preplaced.atp_synthase, dimer_angle_deg: 84.0, rim_radius_nm: 8.8,
                  tm_tol_nm: 4.5, rho_nm: [10, 9, 11, 8, 12, 7, 13, 6.5], rim_sampling: rows, seeds_per_cell: 1.0,
-                 trace_step_nm: 2.0, spacing_nm: 12.0, tilt_deg: [0, -10, 10, -20, 20], obstacles: [npc]}
+                 trace_step_nm: 2.0, spacing_nm: 12.0, tilt_deg: [0, -10, 10, -20, 20], obstacles: [npc],
+                 min_placed_frac: 0.5}   # guard (v10): FAIL below 50% of min(requested, rim length / spacing) (v8 63%, v9 0.2%)
       - name: mtdna                # nucleoids in the matrix: 1,000 genomes (ASSUMPTION; O'Hara 2019), 1.4 per nucleoid (Kukat 2011)
         builder: core.mtdna_nucleoids
         params: {sites: matrix, seed: preplaced.mtdna, genomes: 1000, genomes_per_nucleoid: 1.4, genome_kb: 16.569, min_gap_nm: 500.0,
@@ -1221,6 +1258,24 @@ frozen_inputs:
     url: "https://ftp.ebi.ac.uk/pub/databases/intact/complex/current/complextab/9606.tsv"
     version: "2026-10-17"
     licence: "CC0"
+    redistributable: yes
+  lib_sifts_taxonomy:
+    path: "{data_root}/data/structures/pdb/sifts/pdb_chain_taxonomy.tsv.gz"
+    md5: d290a2b9bd9bfc52f427d9b7edaf615f
+    why: "SIFTS pdb_chain_taxonomy (library chain rule: non-human chains are flagged as possible orthologs, not removed)"
+    kind: structure
+    url: "https://ftp.ebi.ac.uk/pub/databases/msd/sifts/flatfiles/tsv/pdb_chain_taxonomy.tsv.gz"
+    version: "2026-11-01"
+    licence: "CC BY 4.0"
+    redistributable: yes
+  lib_ensembl_paralogs:
+    path: "{data_root}/data/reference/ensembl_human_paralogs.tsv"
+    md5: 553caa798ed4e699bd61551ed0b1d4f1
+    why: "Ensembl human paralogues (library chain rule: a chain of a paralogue of a member is flagged, not removed)"
+    kind: annotation
+    url: "https://www.ensembl.org/biomart (Human genes GRCh38, paralogues)"
+    version: "2026-11-07 download"
+    licence: "Ensembl (no restrictions)"
     redistributable: yes
   inv_sifts:
     path: "{data_root}/data/structures/pdb/sifts/pdb_chain_uniprot.tsv.gz"
