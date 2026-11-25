@@ -145,13 +145,13 @@ class Inputs:
             p = manifest_npz(json.load(open(man)), name)
             if p:
                 return p
+        if name in fi and name not in (self.vcfg.get("inputs", {}) or {}):    # a frozen input named directly (EM, tables)
+            return fi[name]["path"]
         v = (self.vcfg.get("inputs", {}) or {}).get(name)
         if v and v in fi:
             v = fi[v]["path"]
-        elif not v and name in fi:
-            v = fi[name]["path"]
         if v and has_man:
-            print(f"validate: WARNING input '{name}' is not in {man}; using {v}", flush=True)
+            print(f"validate: WARNING input '{name}' is not in {man}; using validate.inputs {v}", flush=True)
         return v
 
 

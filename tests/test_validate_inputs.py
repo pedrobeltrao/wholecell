@@ -57,7 +57,8 @@ def test_fallback_warns_and_resolves_frozen_names():
     inp = common.Inputs(CFG, b)
     p, out = _out(lambda: inp.lookup_input("mrna_nascent"))
     assert p == "/frozen/mrna_nascent.npz" and "WARNING input 'mrna_nascent'" in out     # validate.inputs -> frozen input
-    assert _out(lambda: inp.lookup_input("pre_mrna_v1"))[0] == "/frozen/mrna_cell1.npz"  # a frozen-input name directly
+    p, out = _out(lambda: inp.lookup_input("pre_mrna_v1"))                               # a frozen-input name directly
+    assert p == "/frozen/mrna_cell1.npz" and "WARNING" not in out
     assert _out(lambda: inp.lookup_input("nothing"))[0] is None
 
 
