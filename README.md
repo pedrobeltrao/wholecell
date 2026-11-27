@@ -77,9 +77,9 @@ Expected resources (paper builds, 24 cores on one node; stage times from the bui
 | Jurkat | about 15 h | CPU only. Inventory ~10 min, library ~5.5 h, pre-placed ~1.2 h, pack setup ~0.7 h, pack ~5 h, validate ~0.8 h, export ~1.5 h. ~940 M placed instances. |
 | yeast | about 7 h | Pack ~2 h; the vendored yeast validation (`validate_all`) needs 1 NVIDIA GPU and takes ~2.7 h of it. ~24 M placed instances. |
 
-The published yeast build (`paper-yeast-u1`) is a downstream-only rerun (validate + export at commit 0a3ba79) that
-reuses the upstream stages of `yeast/20261119-bedcea9-s0-paper`: `scripts/build_downstream_reuse.py --donor <build>`.
-Freeze verdicts against the frozen criteria: `scripts/freeze_check.py` (criteria `docs/unification_criteria/freeze_v8.md`
+The paper builds are `paper-jurkat-v10` (commit 37dcd16) and `paper-yeast-v9` (commit 329246b), both full builds from
+this repository (pins: `config/paper_builds.yaml`). The earlier yeast pin (`paper-yeast-u1`) was a downstream-only rerun
+(`scripts/build_downstream_reuse.py --donor <build>`). Freeze verdicts against the frozen criteria: `scripts/freeze_check.py` (criteria `docs/unification_criteria/freeze_v8.md`
 and the two acceptance addenda).
 
 ## Add a cell
@@ -92,7 +92,7 @@ config spec: `docs/reference/cell_config.md`.
 `geom_root`), with size, checksum, original source, licence and where to get it; machine-readable: `data_manifest.tsv`.
 - Inputs (our derived files, lab tables, redistributable third-party snapshots): Hugging Face dataset
   `pedrobeltrao/wholecell-inputs`; download with `scripts/fetch_inputs.py` (`docs/REBUILD.md`).
-- Build outputs of the two paper builds: https://huggingface.co/datasets/TODO/wholecell-builds.
+- Viewer exports of the paper builds (tiles, geometry, library): https://huggingface.co/datasets/pedrobeltrao/wholecell-viewer-data.
 - Lab SEC-MS 2026 and Jurkat surface glyco-capture: processed tables with the inputs; raw MS files at PRIDE (TODO).
 - Not redistributable (fetch from the source): CORUM, journal supplementary tables, HPA images, the unpublished yeast
   AlphaFold 3 pool predictions.

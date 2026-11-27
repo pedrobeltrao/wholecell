@@ -1,5 +1,10 @@
 # Pins of the two paper builds (Magnusson, Beltrao et al., in preparation). Read-only record; nothing in the pipeline
-# reads this file. Build outputs: deposit planned (https://huggingface.co/datasets/TODO/wholecell-builds).
+# reads this file. Viewer exports of the builds: https://huggingface.co/datasets/pedrobeltrao/wholecell-viewer-data
+# (one folder per build id); inputs: https://huggingface.co/datasets/pedrobeltrao/wholecell-inputs.
+#
+# Paper builds (2026-11-24/26): paper-jurkat-v10 (commit 37dcd16) and paper-yeast-v9 (commit 329246b), both built
+# from this repository. The earlier pins (paper-jurkat-v8 / paper-yeast-u1, development commit 0a3ba79) are kept under
+# `superseded_builds` with the provenance chain below, which applies to them.
 #
 # Provenance chain:
 #   development repository (private, full history) commit 0a3ba79  --built-->  the two paper builds below
@@ -22,6 +27,48 @@ release:
   commit: 885f367319c4c9e8ebffdac23e8fbfa1d3545cf5   # first commit of this repository (content); later commits: docs / references only (git log)
 
 builds:
+  jurkat:
+    tag: paper-jurkat-v10
+    build_id: 20261125-37dcd16-s20261115-v10
+    path: "<results_root>/jurkat/20261125-37dcd16-s20261115-v10"
+    cell_config: config/cells/jurkat.yaml
+    commit: 37dcd1648484cda738e39c68572f0572a4496128
+    master_seed: 20261115
+    geometry_package: "<geom_root>/jurkat/em_cell1_v8r"
+    geometry_manifest_sha256: 6c86b1688722f4320520abbb46a66fb7e9e97c95576e0186ebf3909b9c562fa1
+    export_manifest: export/MANIFEST.sha256          # sha256 of this file; the viewer deposit holds export/web/MANIFEST.sha256
+    export_manifest_sha256: 1f341d407a89fb5f2d78d5e223190b75677369dfd27625166643485b23feedca
+    config_resolved_sha256: 8c54a465b3cb9bfb0d7443eca007528fa262a6344043f2094210eee5991261b5
+    config_sha256_build: b595347f895bc91b3e2d93bcb171a51dde7567d44e49c977ccfef76ab9a7f7d3
+    criteria: docs/unification_criteria/freeze_v8.md
+    criteria_md5: 9bbd657167cf754afe6e725d3cd95d24
+    verdict: "ACCEPTED (by author decision 2026-11-25; automated NOT ACCEPTED)"
+    addendum: "none (release record and basis in the build's FREEZE.json)"
+    supersedes: jurkat/20261123-faf17e1-s20261115-v9
+    replicates: 1
+    freeze_date: "2026-11-26 07:19"
+  yeast:
+    tag: paper-yeast-v9
+    build_id: 20261123-329246b-s0-v9
+    path: "<results_root>/yeast/20261123-329246b-s0-v9"
+    cell_config: config/cells/yeast.yaml
+    commit: 329246b052708c5e91b2829f275d76cfeb3cb398
+    master_seed: 0
+    geometry_package: "<geom_root>/yeast/analytic_x5_s0_f5f3a5c723b2_memhalf1"
+    geometry_manifest_sha256: 230b96d91559b6aca5557bae68cfafeed227c24be3aaa76879831acd29dd8f5b
+    export_manifest: export/MANIFEST.sha256
+    export_manifest_sha256: 9cf9e772c26c7efed880f7c66bdc2e4a8bf93a06cf936d5e1f3b4dfdc1e8eaf6
+    config_resolved_sha256: bda3bed131a5941d94b266947b12eceb98d5220acf11ee82015b218313bcd7ff
+    config_sha256_build: cd4c1edefe7aee30288c443e7894a8149f662741a3318f342efb8508cbe8926c
+    criteria: docs/unification_criteria/freeze_v8.md
+    criteria_md5: 9bbd657167cf754afe6e725d3cd95d24
+    verdict: "ACCEPTED (by author decision 2026-11-24; automated NOT ACCEPTED)"
+    addendum: "none (release record and basis in the build's FREEZE.json)"
+    supersedes: yeast/20261120-0a3ba79-s0-paperds
+    replicates: 1
+    freeze_date: "2026-11-24 14:16"
+
+superseded_builds:
   jurkat:
     tag: paper-jurkat-v8
     build_id: 20261120-0a3ba79-s20261115-paper
